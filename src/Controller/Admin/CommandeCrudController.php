@@ -50,7 +50,8 @@ class CommandeCrudController extends AbstractCrudController
                     CommandeStatut::ANNULEE->value => 'danger',
                 ]),
             
-            MoneyField::new('totalTTC', 'Total TTC')->setCurrency('EUR'),
+            // total_ttc est stocké en euros (pas en centimes) : pas de division par 100
+            MoneyField::new('totalTTC', 'Total TTC')->setCurrency('EUR')->setStoredAsCents(false),
             
             DateTimeField::new('dateCommande', 'Date de commande'),
             
