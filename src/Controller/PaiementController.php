@@ -3,9 +3,12 @@
 namespace App\Controller;
 
 use App\Repository\AdresseRepository;
+use App\Repository\BoxRepository;
 use App\Repository\CommandeRepository;
 use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
+use App\Repository\ProduitRepository;
+use App\Service\FraisLivraisonService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,10 +24,16 @@ final class PaiementController extends AbstractController
 
     private string $stripeSecretKey;
 
-    public function __construct()
+    public function __construct(private FraisLivraisonService $fraisLivraisonService)
     {
         $this->stripeSecretKey = $_ENV['STRIPE_SECRET_KEY'] ?? '';
         \Stripe\Stripe::setApiKey($this->stripeSecretKey);
+    }
+
+    /** Convertit un prix en euros (float) en centimes (int), arrondi correctement. */
+    private function enCentimes(float $euros): int
+    {
+        return (int) round($euros * 100);
     }
 
     #[Route('/paiement', name: 'app_paiement')]
@@ -50,6 +59,7 @@ final class PaiementController extends AbstractController
 
         $session = $this->container->get('request_stack')->getSession();
        
+        $sousTotalCentimes = 0;
         $panierData = [
             'lignes' => [],
             'total' => 0,
@@ -64,10 +74,12 @@ final class PaiementController extends AbstractController
                 $lignes = $lignePanierRepo->findBy(['panier' => $panier]);
                 $total = 0;
                 $nbArticles = 0;
+                $sousTotalCentimes = 0;
 
                 foreach ($lignes as $ligne) {
                     $total += $ligne->getSousTotal();
                     $nbArticles += $ligne->getQuantite();
+                    $sousTotalCentimes += $this->enCentimes($ligne->getPrixUnitaire()) * $ligne->getQuantite();
                 }
 
                 $panierData = [
@@ -84,8 +96,13 @@ final class PaiementController extends AbstractController
             return $this->redirectToRoute('app_panier_index');
         }
 
-        $fraisLivraison = $panierData['total'] >= 50 ? 0 : 4.50;
-        $totalFinal = $panierData['total'] + $fraisLivraison;
+        // Frais calculés par le service (centimes), convertis en euros pour l'affichage
+        $fraisCentimes = $this->fraisLivraisonService->calculer(
+            $sousTotalCentimes,
+            FraisLivraisonService::MODE_LIVRAISON
+        );
+        $fraisLivraison = $fraisCentimes / 100;
+        $totalFinal = ($sousTotalCentimes + $fraisCentimes) / 100;
         $stripePublicKey = $_ENV['STRIPE_PUBLIC_KEY'] ?? '';
 
         // ✅ Récupérer les adresses de l'user (par défaut en premier)
@@ -105,7 +122,9 @@ final class PaiementController extends AbstractController
     public function createCheckoutSession(
         Request $request,
         PanierRepository $panierRepo,
-        LignePanierRepository $lignePanierRepo
+        LignePanierRepository $lignePanierRepo,
+        ProduitRepository $produitRepo,
+        BoxRepository $boxRepo
     ): JsonResponse
     {
         try {
@@ -130,7 +149,7 @@ final class PaiementController extends AbstractController
                         'price_data' => [
                             'currency' => 'eur',
                             'product_data' => ['name' => $ligne->getNomArticle()],
-                            'unit_amount' => (int)($ligne->getPrixUnitaire() * 100),
+                            'unit_amount' => $this->enCentimes($ligne->getPrixUnitaire()),
                         ],
                         'quantity' => $ligne->getQuantite(),
                     ];
@@ -143,34 +162,47 @@ final class PaiementController extends AbstractController
                     return new JsonResponse(['error' => 'Votre panier est vide'], 400);
                 }
 
+                // Les prix sont relus en base (la session ne garde qu'un identifiant fiable)
                 foreach ($panierSession['produits'] ?? [] as $item) {
+                    $produit = $produitRepo->find($item['produit']->getId());
+                    if (!$produit) {
+                        continue;
+                    }
                     $lineItems[] = [
                         'price_data' => [
                             'currency' => 'eur',
-                            'product_data' => ['name' => $item['produit']->getName()],
-                            'unit_amount' => (int)($item['produit']->getPrix() * 100),
+                            'product_data' => ['name' => $produit->getName()],
+                            'unit_amount' => $this->enCentimes($produit->getPrix()),
                         ],
                         'quantity' => $item['quantite'],
                     ];
                 }
 
                 foreach ($panierSession['boxes'] ?? [] as $item) {
+                    $box = $boxRepo->find($item['box']->getId());
+                    if (!$box) {
+                        continue;
+                    }
                     $lineItems[] = [
                         'price_data' => [
                             'currency' => 'eur',
-                            'product_data' => ['name' => $item['box']->getNom()],
-                            'unit_amount' => (int)($item['box']->getPrix() * 100),
+                            'product_data' => ['name' => $box->getNom()],
+                            'unit_amount' => $this->enCentimes($box->getPrix()),
                         ],
                         'quantity' => $item['quantite'],
                     ];
                 }
 
                 foreach ($panierSession['boxes_perso'] ?? [] as $item) {
+                    $box = $boxRepo->find($item['box']->getId());
+                    if (!$box) {
+                        continue;
+                    }
                     $lineItems[] = [
                         'price_data' => [
                             'currency' => 'eur',
                             'product_data' => ['name' => 'Box Personnalisée'],
-                            'unit_amount' => (int)($item['box']->getPrix() * 100),
+                            'unit_amount' => $this->enCentimes($box->getPrix()),
                         ],
                         'quantity' => 1,
                     ];
@@ -179,6 +211,28 @@ final class PaiementController extends AbstractController
 
             if (empty($lineItems)) {
                 return new JsonResponse(['error' => 'Aucun article à commander'], 400);
+            }
+
+            // ✅ Frais de livraison : même service que l'affichage, ajoutés au montant Stripe
+            $sousTotalCentimes = 0;
+            foreach ($lineItems as $lineItem) {
+                $sousTotalCentimes += $lineItem['price_data']['unit_amount'] * $lineItem['quantity'];
+            }
+
+            $fraisCentimes = $this->fraisLivraisonService->calculer(
+                $sousTotalCentimes,
+                FraisLivraisonService::MODE_LIVRAISON
+            );
+
+            if ($fraisCentimes > 0) {
+                $lineItems[] = [
+                    'price_data' => [
+                        'currency' => 'eur',
+                        'product_data' => ['name' => 'Livraison'],
+                        'unit_amount' => $fraisCentimes,
+                    ],
+                    'quantity' => 1,
+                ];
             }
 
             // ✅ Récupérer l'adresse choisie depuis la session
