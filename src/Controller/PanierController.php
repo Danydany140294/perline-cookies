@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Repository\BoxRepository;
 use App\Repository\PanierRepository;
 use App\Repository\ProduitRepository;
+use App\Service\FraisLivraisonService;
 use App\Service\PanierService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,8 +25,29 @@ class PanierController extends AbstractController
         private readonly PanierService $panierService,
         private readonly EntityManagerInterface $entityManager,
         private readonly PanierRepository $panierRepository,
-        private readonly Security $security
+        private readonly Security $security,
+        private readonly FraisLivraisonService $fraisLivraisonService
     ) {}
+
+    /**
+     * Ajoute à un résumé de panier les montants issus du service de livraison
+     * (en euros, pour l'affichage) : frais, seuil de gratuité et total TTC.
+     * Les prix sont TTC : aucune TVA n'est ajoutée au total.
+     */
+    private function completerAvecFrais(array $data): array
+    {
+        $sousTotalCentimes = (int) round(($data['total'] ?? 0) * 100);
+        $fraisCentimes = $this->fraisLivraisonService->calculer(
+            $sousTotalCentimes,
+            FraisLivraisonService::MODE_LIVRAISON
+        );
+
+        $data['frais_livraison'] = $fraisCentimes / 100;
+        $data['seuil_gratuite']  = FraisLivraisonService::SEUIL_GRATUITE_CENTIMES / 100;
+        $data['total_ttc']       = ($sousTotalCentimes + $fraisCentimes) / 100;
+
+        return $data;
+    }
 
     // ======================================================
     // AFFICHAGE DU PANIER
@@ -45,7 +67,7 @@ class PanierController extends AbstractController
         }
 
         return $this->render('Page/panier.html.twig', [
-            'panier'            => $panier,
+            'panier'            => $this->completerAvecFrais($panier),
             'stripe_public_key' => $this->getParameter('stripe_public_key'),
         ]);
     }
@@ -60,13 +82,13 @@ public function getPanierApi(): JsonResponse
             $panier = $this->panierRepository->findByUser($user);
 
             if (!$panier || $panier->isEmpty()) {
-                return $this->json([
+                return $this->json($this->completerAvecFrais([
                     'success'         => true,
                     'items'           => [],
                     'total'           => 0,
                     'nombre_articles' => 0,
                     'is_empty'        => true,
-                ]);
+                ]));
             }
 
             $items = [];
@@ -97,20 +119,20 @@ public function getPanierApi(): JsonResponse
                 $items[] = $item;
             }
 
-            return $this->json([
+            return $this->json($this->completerAvecFrais([
                 'success'         => true,
                 'items'           => $items,
                 'total'           => $panier->getTotal(),
                 'nombre_articles' => $panier->getNombreArticles(),
                 'is_empty'        => false,
-            ]);
+            ]));
         }
 
         // Session
         $data = $this->formatPanierSession($this->panierService->getPanier());
         $data['items'] = $data['lignes'];
         unset($data['lignes']);
-        return $this->json($data);
+        return $this->json($this->completerAvecFrais($data));
 
     } catch (\Exception $e) {
         return $this->json([
