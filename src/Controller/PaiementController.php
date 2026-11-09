@@ -280,6 +280,14 @@ final class PaiementController extends AbstractController
             sleep(1);
         }
 
+        // Une commande rattachée à un compte n'est visible que par son propriétaire.
+        // (Commande sans propriétaire = invité : cas traité au point E du plan.)
+        $proprietaire = $commande?->getUser();
+        if ($proprietaire !== null && $proprietaire->getId() !== $this->getUser()?->getId()) {
+            $this->addFlash('error', 'Cette commande ne vous appartient pas.');
+            return $this->redirectToRoute('app_home');
+        }
+
         if ($commande) {
             $session->set('commande_success', [
                 'numero' => $commande->getNumeroCommande(),
