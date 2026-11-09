@@ -9,7 +9,6 @@ use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
 use App\Repository\ProduitRepository;
 use App\Service\FraisLivraisonService;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -294,27 +293,6 @@ final class PaiementController extends AbstractController
         $session->remove('adresse_livraison_id');
 
         return $this->redirectToRoute('app_home');
-    }
-
-    #[Route('/paiement/success/{id}', name: 'app_paiement_success')]
-    public function success(int $id, EntityManagerInterface $em): Response
-    {
-        $commande = $em->getRepository(\App\Entity\Commande::class)->find($id);
-
-        if (!$commande) {
-            $this->addFlash('error', 'Commande introuvable');
-            return $this->redirectToRoute('app_home');
-        }
-
-        $session = $this->container->get('request_stack')->getSession();
-        $session->set('commande_success', [
-            'numero' => $commande->getNumeroCommande(),
-            'total' => $commande->getTotalTTC(),
-            'date' => $commande->getDateCommande(),
-            'email' => $commande->getUser() ? $commande->getUser()->getEmail() : null
-        ]);
-
-        return $this->redirectToRoute('app_paiement');
     }
 
     #[Route('/clear-commande-session', name: 'app_clear_commande_session', methods: ['POST'])]
