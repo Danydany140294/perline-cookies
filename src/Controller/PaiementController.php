@@ -101,27 +101,6 @@ final class PaiementController extends AbstractController
         ]);
     }
 
-    #[Route('/paiement/create-payment-intent', name: 'app_paiement_payment_intent', methods: ['POST'])]
-    public function createPaymentIntent(Request $request): JsonResponse
-    {
-        try {
-            $data = json_decode($request->getContent(), true);
-            $amount = $data['amount'] ?? 0;
-
-            $paymentIntent = \Stripe\PaymentIntent::create([
-                'amount' => (int)($amount * 100),
-                'currency' => 'eur',
-                'automatic_payment_methods' => ['enabled' => true],
-                'description' => 'Commande CreaSelf Cookies',
-            ]);
-
-            return new JsonResponse(['clientSecret' => $paymentIntent->client_secret]);
-
-        } catch (\Exception $e) {
-            return new JsonResponse(['error' => $e->getMessage()], 500);
-        }
-    }
-
     #[Route('/paiement/create-checkout-session', name: 'app_paiement_create_session', methods: ['POST'])]
     public function createCheckoutSession(
         Request $request,
