@@ -12,10 +12,8 @@ const PANIER_CONFIG = {
     PATHS: {
         uploads: window.PANIER_PATHS?.uploadsBase || '/uploads/',
         images: window.PANIER_PATHS?.imagesBase || '/images/'
-    },
-    FREE_SHIPPING_THRESHOLD: 50.00,
-    SHIPPING_COST: 4.90,
-    TAX_RATE: 0.07 // 7% TVA
+    }
+    // Frais, seuil de gratuité et total TTC viennent du serveur (FraisLivraisonService)
 };
 
 /**
@@ -264,31 +262,32 @@ if (item.image) {
      */
     updateSummary(data) {
         const subtotal = data.total || 0;
-        const shipping = subtotal >= PANIER_CONFIG.FREE_SHIPPING_THRESHOLD ? 0 : PANIER_CONFIG.SHIPPING_COST;
-        const tax = subtotal * PANIER_CONFIG.TAX_RATE;
-        const total = subtotal + shipping + tax;
-        
+        const shipping = data.frais_livraison || 0;
+        const threshold = data.seuil_gratuite || 0;
+        // Prix TTC : le total = sous-total + livraison (aucune TVA ajoutée)
+        const total = data.total_ttc !== undefined ? data.total_ttc : subtotal + shipping;
+
         // Mettre à jour les valeurs
         this.updateElement('subtotalValue', this.formatPrice(subtotal));
-        this.updateElement('shippingValue', shipping === 0 ? 'GRATUIT' : this.formatPrice(shipping));
-        this.updateElement('taxValue', this.formatPrice(tax));
+        this.updateElement('shippingValue', subtotal > 0 && shipping === 0 ? 'GRATUIT' : this.formatPrice(shipping));
         this.updateElement('totalValue', this.formatPrice(total));
-        
+        this.updateElement('rewardTag', 'LIVRAISON OFFERTE DÈS ' + this.formatPrice(threshold));
+
         // Mettre à jour la barre de progression
-        this.updateShippingProgress(subtotal);
+        this.updateShippingProgress(subtotal, threshold);
     }
 
     /**
      * Mettre à jour la barre de progression livraison gratuite
      */
-    updateShippingProgress(subtotal) {
+    updateShippingProgress(subtotal, threshold) {
         const shippingProgress = document.getElementById('shippingProgress');
-        if (!shippingProgress) return;
-        
-        if (subtotal > 0 && subtotal < PANIER_CONFIG.FREE_SHIPPING_THRESHOLD) {
+        if (!shippingProgress || !threshold) return;
+
+        if (subtotal > 0 && subtotal < threshold) {
             shippingProgress.style.display = 'block';
-            const remaining = PANIER_CONFIG.FREE_SHIPPING_THRESHOLD - subtotal;
-            const progress = (subtotal / PANIER_CONFIG.FREE_SHIPPING_THRESHOLD) * 100;
+            const remaining = threshold - subtotal;
+            const progress = (subtotal / threshold) * 100;
             
             this.updateElement('remainingCost', this.formatPrice(remaining) + ' restant');
             
@@ -296,7 +295,7 @@ if (item.image) {
             if (progressFill) {
                 progressFill.style.width = progress + '%';
             }
-        } else if (subtotal >= PANIER_CONFIG.FREE_SHIPPING_THRESHOLD) {
+        } else if (subtotal >= threshold) {
             shippingProgress.style.display = 'block';
             this.updateElement('remainingCost', '✓ Atteint');
             
