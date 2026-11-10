@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\CompositionBoxPersonnalisable;
 use App\Entity\LigneCommande;
+use App\Enum\CommandeStatut;
 use App\Repository\AdresseRepository;
 use App\Repository\BoxRepository;
 use App\Repository\CommandeRepository;
@@ -316,7 +317,8 @@ final class PaiementController extends AbstractController
     #[Route('/paiement/success-stripe', name: 'app_paiement_success_stripe')]
     public function successStripe(
         Request $request,
-        CommandeRepository $commandeRepo
+        CommandeRepository $commandeRepo,
+        EntityManagerInterface $em
     ): Response
     {
         $sessionId = $request->query->get('session_id');
@@ -333,7 +335,14 @@ final class PaiementController extends AbstractController
         $commande = null;
         for ($i = 0; $i < 5; $i++) {
             $commande = $commandeRepo->findOneBy(['stripeSessionId' => $sessionId]);
-            if ($commande) break;
+            if ($commande) {
+                // La commande « En attente » existe dès la création du paiement : on attend
+                // que le webhook l'ait fait passer à « Payée » (ou « À vérifier »).
+                $em->refresh($commande);
+                if ($commande->getStatut() !== CommandeStatut::EN_ATTENTE) {
+                    break;
+                }
+            }
             sleep(1);
         }
 
@@ -342,6 +351,12 @@ final class PaiementController extends AbstractController
         $proprietaire = $commande?->getUser();
         if ($proprietaire !== null && $proprietaire->getId() !== $this->getUser()?->getId()) {
             $this->addFlash('error', 'Cette commande ne vous appartient pas.');
+            return $this->redirectToRoute('app_home');
+        }
+
+        // Webhook en retard : la commande est encore « En attente ». Pas de faux « Félicitations ».
+        if ($commande && $commande->getStatut() === CommandeStatut::EN_ATTENTE) {
+            $this->addFlash('warning', 'Votre paiement est en cours de confirmation. Vous recevrez un e-mail dès qu\'il sera validé.');
             return $this->redirectToRoute('app_home');
         }
 

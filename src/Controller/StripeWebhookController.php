@@ -11,8 +11,10 @@ use App\Enum\CommandeStatut;
 use App\Repository\CommandeRepository;
 use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
+use App\Service\PaiementCommandeService;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -25,8 +27,36 @@ final class StripeWebhookController extends AbstractController
 {
     public function __construct(
         private MailerInterface $mailer,
-        private Environment $twig
+        private Environment $twig,
+        private PaiementCommandeService $paiementCommandeService,
+        private LoggerInterface $logger
     ) {}
+
+    /**
+     * E-mail de confirmation (client connecté). Un échec d'envoi n'annule pas la commande
+     * mais il est désormais écrit dans les logs au lieu d'être avalé en silence.
+     */
+    private function envoyerConfirmation(Commande $commande): void
+    {
+        try {
+            $html = $this->twig->render('emails/confirmation_commande.html.twig', [
+                'commande' => $commande,
+            ]);
+
+            $this->mailer->send(
+                (new Email())
+                    ->from('noreply@creaself.fr')
+                    ->to($commande->getUser()->getEmail())
+                    ->subject('Confirmation de votre commande ' . $commande->getNumeroCommande())
+                    ->html($html)
+            );
+        } catch (\Throwable $e) {
+            $this->logger->error('Échec de l\'envoi de l\'e-mail de confirmation de commande.', [
+                'numero' => $commande->getNumeroCommande(),
+                'erreur' => $e->getMessage(),
+            ]);
+        }
+    }
 
     #[Route('/webhook/stripe', name: 'app_webhook_stripe', methods: ['POST'])]
     public function handleWebhook(
@@ -60,6 +90,29 @@ final class StripeWebhookController extends AbstractController
         }
 
         $stripeSession = $event->data->object;
+
+        // ✅ Parcours normal (client connecté) : la commande « En attente » existe déjà,
+        //    son id nous revient dans client_reference_id. On la vérifie puis on la finalise.
+        $commandeId = $stripeSession->client_reference_id ?? null;
+        if ($commandeId !== null && ctype_digit((string) $commandeId)) {
+            [$resultat, $commande] = $this->paiementCommandeService->finaliser(
+                (int) $commandeId,
+                (string) $stripeSession->id,
+                (string) $stripeSession->payment_status,
+                $stripeSession->currency ?? null,
+                (int) $stripeSession->amount_total
+            );
+
+            if ($resultat === PaiementCommandeService::PAYEE && $commande?->getUser()) {
+                $this->envoyerConfirmation($commande);
+            }
+
+            // Toujours 200 : un échec fonctionnel (ex. commande introuvable) est déjà journalisé,
+            // et un 500 ferait seulement réessayer Stripe pour rien.
+            return new JsonResponse(['status' => $resultat]);
+        }
+
+        // ─── Ancien parcours (invités, sans commande préalable) : inchangé, à revoir au point E ───
 
         // ✅ Éviter les doublons (si webhook reçu deux fois)
         $existing = $commandeRepo->findOneBy(['stripeSessionId' => $stripeSession->id]);
