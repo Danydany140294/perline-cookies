@@ -8,7 +8,10 @@ use App\Entity\Panier;
 use App\Entity\Produit;
 use App\Entity\User;
 use App\Enum\CommandeStatut;
+use App\Entity\Box;
+use App\Entity\CompositionBoxPersonnalisable;
 use App\Service\PaiementCommandeService;
+use App\Service\StockCookiesService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
@@ -44,7 +47,7 @@ class PaiementCommandeServiceTest extends TestCase
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($logCritique ? $this->atLeastOnce() : $this->never())->method('critical');
 
-        return new PaiementCommandeService($em, $logger);
+        return new PaiementCommandeService($em, $logger, new StockCookiesService());
     }
 
     protected function setUp(): void
@@ -137,5 +140,70 @@ class PaiementCommandeServiceTest extends TestCase
 
         $this->assertSame(PaiementCommandeService::INTROUVABLE, $resultat);
         $this->assertNull($commande);
+    }
+
+    // ───────────── Point D : stock des cookies, boxes comprises ─────────────
+
+    private function ligneBoxFigee(int $quantiteBox, array $recette): LigneCommande
+    {
+        $ligne = (new LigneCommande())->setBox(new Box())->setQuantite($quantiteBox)->setPrixUnitaire(19.9);
+        foreach ($recette as [$produit, $quantite]) {
+            $ligne->addCompositionBox((new CompositionBoxPersonnalisable())->setProduit($produit)->setQuantite($quantite));
+        }
+
+        return $ligne;
+    }
+
+    public function testUneBoxRetireLesCookiesDeSaRecetteFigeeMultiplieParLaQuantite(): void
+    {
+        // 1 cookie A seul + 2 boxes contenant chacune 2 A et 1 B  =>  A : 1 + 4 = 5, B : 2
+        $this->commande->addLigneCommande($this->ligneBoxFigee(2, [[$this->produit, 2], [$this->autre(), 1]]));
+        $b = $this->commande->getLignesCommande()->last()->getCompositionsBox()->last()->getProduit();
+        $this->commande->setTotalTTC(12.38);
+
+        [$resultat] = $this->service($this->commande)->finaliser(1, self::SESSION, 'paid', 'eur', 1238);
+
+        $this->assertSame(PaiementCommandeService::PAYEE, $resultat);
+        $this->assertSame(10 - 2 - 4, $this->produit->getStock(), 'A : 2 seul + 2 x 2 par les boxes');
+        $this->assertSame(10 - 2, $b->getStock(), 'B : 2 boxes x 1');
+    }
+
+    public function testStockInsuffisantMemeAvecLesBoxesPasseEnAVerifierSansToucherAuStock(): void
+    {
+        $b = $this->autre();
+        // A : 2 seul + 3 boxes x 2 = 8 (stock 10 ok) ; B : 3 boxes x 4 = 12 (stock 10 : manque)
+        $this->commande->addLigneCommande($this->ligneBoxFigee(3, [[$this->produit, 2], [$b, 4]]));
+
+        [$resultat] = $this->service($this->commande, true)->finaliser(1, self::SESSION, 'paid', 'eur', 1238);
+
+        $this->assertSame(PaiementCommandeService::A_VERIFIER, $resultat);
+        $this->assertSame(CommandeStatut::A_VERIFIER, $this->commande->getStatut());
+        $this->assertSame(10, $this->produit->getStock(), 'Rien n\'est retiré (tout ou rien)');
+        $this->assertSame(10, $b->getStock());
+        $this->assertSame([], $this->supprimes, 'Le panier est conservé');
+    }
+
+    public function testUneExceptionDeProduitNeFaitPasPlanterLeWebhook(): void
+    {
+        // Cas limite : la vérification passe, mais Produit refuse (stock lu différemment sous verrou)
+        $instable = new class extends Produit {
+            public function decrémenterStock(int $quantite = 1): static
+            {
+                throw new \DomainException('Stock insuffisant (simulé).');
+            }
+        };
+        $instable->setName('Instable')->setPrix(1.0)->setStock(10);
+        $this->commande->addLigneCommande((new LigneCommande())->setProduit($instable)->setQuantite(1)->setPrixUnitaire(1.0));
+
+        [$resultat] = $this->service($this->commande, true)->finaliser(1, self::SESSION, 'paid', 'eur', 1238);
+
+        $this->assertSame(PaiementCommandeService::A_VERIFIER, $resultat, 'Pas d\'exception, pas de 500 : réponse normale');
+        $this->assertSame(CommandeStatut::A_VERIFIER, $this->commande->getStatut());
+        $this->assertSame([], $this->supprimes);
+    }
+
+    private function autre(): Produit
+    {
+        return (new Produit())->setName('B')->setPrix(2.0)->setStock(10)->setDisponible(true);
     }
 }

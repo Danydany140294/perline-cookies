@@ -25,7 +25,8 @@ class PaiementCommandeService
 
     public function __construct(
         private EntityManagerInterface $em,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private StockCookiesService $stockCookies
     ) {
     }
 
@@ -76,6 +77,37 @@ class PaiementCommandeService
                 $ecarts[] = 'montant_different';
             }
 
+            // Stock : cookies seuls + cookies des boxes (composition FIGÉE sur les lignes), cumulés.
+            // Les produits sont relus et verrouillés (dans l'ordre des id) : deux paiements simultanés
+            // ne peuvent pas retirer deux fois le même dernier cookie.
+            $besoins = $this->stockCookies->besoinsDepuisCommande($commande);
+            ksort($besoins);
+            if ($ecarts === []) {
+                foreach ($besoins as ['produit' => $produit]) {
+                    $this->em->refresh($produit, LockMode::PESSIMISTIC_WRITE);
+                }
+                $problemesStock = $this->stockCookies->verifier($besoins);
+                if ($problemesStock !== []) {
+                    $ecarts[] = 'stock_insuffisant';
+                }
+            }
+
+            // Retrait du stock, tout ou rien : si un cookie manque (ou si Produit refuse de passer
+            // en négatif), rien n'est retiré, la commande payée passe « À vérifier », réponse 200.
+            if ($ecarts === []) {
+                try {
+                    foreach ($besoins as ['produit' => $produit, 'quantite' => $quantite]) {
+                        $produit->decrémenterStock($quantite);
+                    }
+                } catch (\DomainException $e) {
+                    foreach ($besoins as ['produit' => $produit]) {
+                        $this->em->refresh($produit); // annule les retraits déjà faits en mémoire
+                    }
+                    $ecarts[] = 'stock_insuffisant';
+                    $problemesStock = [$e->getMessage()];
+                }
+            }
+
             if ($ecarts !== []) {
                 $commande->setStatut(CommandeStatut::A_VERIFIER);
                 $this->em->flush();
@@ -84,6 +116,7 @@ class PaiementCommandeService
                     'commande_id' => $commande->getId(),
                     'numero' => $commande->getNumeroCommande(),
                     'ecarts' => $ecarts,
+                    'stock' => $problemesStock ?? [],
                     'montant_attendu_centimes' => $montantAttenduCentimes,
                     'montant_paye_centimes' => $montantPayeCentimes,
                     'devise' => $devise,
@@ -93,15 +126,9 @@ class PaiementCommandeService
                 return [self::A_VERIFIER, $commande];
             }
 
-            // Paiement conforme : seulement maintenant on touche au stock et au panier.
-            // (Dans la même transaction que le changement de statut : tout ou rien.)
+            // Paiement conforme et stock retiré : on valide et on vide le panier.
+            // (Même transaction que le changement de statut : tout ou rien.)
             $commande->setStatut(CommandeStatut::PAYEE);
-
-            // Stock : comportement conservé (produits simples). Boxes et cookies des boxes
-            // personnalisées : point D du plan.
-            foreach ($commande->getLignesCommande() as $ligne) {
-                $ligne->getProduit()?->decrémenterStock($ligne->getQuantite());
-            }
 
             // Vider le panier du client
             $user = $commande->getUser();
