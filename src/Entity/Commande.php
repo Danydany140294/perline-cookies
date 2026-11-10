@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Enum\CommandeStatut;
+use App\Enum\ModeLivraison;
 use App\Repository\CommandeRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -50,6 +51,10 @@ class Commande
 
     #[ORM\Column(length: 255, nullable: true, unique: true)]
     private ?string $stripeSessionId = null;
+
+    /** Livraison à domicile (adresse obligatoire) ou retrait sur place (pas d'adresse, frais à 0 €). */
+    #[ORM\Column(length: 20, enumType: ModeLivraison::class, options: ['default' => 'livraison'])]
+    private ModeLivraison $modeLivraison = ModeLivraison::LIVRAISON;
 
     public function __construct()
     {
@@ -204,6 +209,22 @@ public function setStripeSessionId(?string $stripeSessionId): static
     $this->stripeSessionId = $stripeSessionId;
     return $this;
 }
+
+    public function getModeLivraison(): ModeLivraison
+    {
+        return $this->modeLivraison;
+    }
+
+    public function setModeLivraison(ModeLivraison $modeLivraison): static
+    {
+        $this->modeLivraison = $modeLivraison;
+        return $this;
+    }
+
+    public function isRetrait(): bool
+    {
+        return $this->modeLivraison === ModeLivraison::RETRAIT;
+    }
 
     // ========================================
     // MÉTHODES MÉTIER
