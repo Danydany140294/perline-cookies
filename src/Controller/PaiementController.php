@@ -2,13 +2,17 @@
 
 namespace App\Controller;
 
+use App\Entity\CompositionBoxPersonnalisable;
+use App\Entity\LigneCommande;
 use App\Repository\AdresseRepository;
 use App\Repository\BoxRepository;
 use App\Repository\CommandeRepository;
 use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
 use App\Repository\ProduitRepository;
+use App\Service\CommandeService;
 use App\Service\FraisLivraisonService;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -123,9 +127,13 @@ final class PaiementController extends AbstractController
         PanierRepository $panierRepo,
         LignePanierRepository $lignePanierRepo,
         ProduitRepository $produitRepo,
-        BoxRepository $boxRepo
+        BoxRepository $boxRepo,
+        CommandeService $commandeService,
+        EntityManagerInterface $em
     ): JsonResponse
     {
+        $commande = null; // commande « En attente » créée pour les clients connectés
+
         try {
             $user = $this->getUser();
             $lineItems = [];
@@ -143,6 +151,10 @@ final class PaiementController extends AbstractController
                     return new JsonResponse(['error' => 'Votre panier est vide'], 400);
                 }
 
+                // Commande « En attente » : lignes figées au moment où le client va payer.
+                // Le webhook comparera le montant payé à CETTE commande, pas au panier du moment.
+                $commande = $commandeService->creerCommande($user);
+
                 foreach ($lignes as $ligne) {
                     $lineItems[] = [
                         'price_data' => [
@@ -152,6 +164,23 @@ final class PaiementController extends AbstractController
                         ],
                         'quantity' => $ligne->getQuantite(),
                     ];
+
+                    $ligneCommande = new LigneCommande();
+                    $ligneCommande->setProduit($ligne->getProduit());
+                    $ligneCommande->setBox($ligne->getBox());
+                    $ligneCommande->setQuantite($ligne->getQuantite());
+                    $ligneCommande->setPrixUnitaire($ligne->getPrixUnitaire());
+
+                    if ($ligne->isBoxPersonnalisable()) {
+                        foreach ($ligne->getCompositionsPanier() as $compo) {
+                            $compoBox = new CompositionBoxPersonnalisable();
+                            $compoBox->setProduit($compo->getProduit());
+                            $compoBox->setQuantite($compo->getQuantite());
+                            $ligneCommande->addCompositionBox($compoBox);
+                        }
+                    }
+
+                    $commande->addLigneCommande($ligneCommande);
                 }
             } else {
                 $session = $this->container->get('request_stack')->getSession();
@@ -239,14 +268,42 @@ final class PaiementController extends AbstractController
             $adresseId = $session->get('adresse_livraison_id');
             $session->set('adresse_livraison_id', $adresseId);
 
-            $checkoutSession = \Stripe\Checkout\Session::create([
+            // ✅ Enregistrer la commande « En attente » (total = articles + livraison, en euros)
+            //    pour obtenir son id, transmis à Stripe via client_reference_id.
+            if ($commande !== null) {
+                $commande->setTotalTTC(($sousTotalCentimes + $fraisCentimes) / 100);
+                $em->persist($commande);
+                $em->flush();
+            }
+
+            $parametresStripe = [
                 'payment_method_types' => ['card'],
                 'line_items' => $lineItems,
                 'mode' => 'payment',
                 'success_url' => $this->generateUrl('app_paiement_success_stripe', [], UrlGeneratorInterface::ABSOLUTE_URL) . '?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => $this->generateUrl('app_panier_index', [], UrlGeneratorInterface::ABSOLUTE_URL),
                 'customer_email' => $user ? $user->getEmail() : null,
-            ]);
+            ];
+
+            if ($commande !== null) {
+                $parametresStripe['client_reference_id'] = (string) $commande->getId();
+            }
+
+            try {
+                $checkoutSession = \Stripe\Checkout\Session::create($parametresStripe);
+            } catch (\Throwable $e) {
+                // Stripe a refusé : la commande « En attente » ne servirait à rien.
+                if ($commande !== null) {
+                    $em->remove($commande);
+                    $em->flush();
+                }
+                throw $e;
+            }
+
+            if ($commande !== null) {
+                $commande->setStripeSessionId($checkoutSession->id);
+                $em->flush();
+            }
 
             return new JsonResponse(['sessionId' => $checkoutSession->id]);
 
