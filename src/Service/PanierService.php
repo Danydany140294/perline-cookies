@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Repository\PanierRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Security\Core\Security;
 
 class PanierService
@@ -387,9 +388,18 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
                 }
             }
 
-            $quantite = min((int) $item['quantite'], (int) $produit->getStock() - $dejaEnPanier);
+            $demandee = (int) $item['quantite'];
+            $quantite = min($demandee, (int) $produit->getStock() - $dejaEnPanier);
+
             if ($quantite > 0) {
                 $this->ajouterProduitBDD($user, $produit, $quantite);
+            }
+
+            if ($quantite < $demandee && $session instanceof FlashBagAwareSessionInterface) {
+                $session->getFlashBag()->add('warning', $quantite > 0
+                    ? sprintf('Stock limité : %s ramené à %d.', $produit->getName(), $dejaEnPanier + $quantite)
+                    : sprintf('Stock limité : %s n\'a pas pu être ajouté à votre panier.', $produit->getName())
+                );
             }
         }
 

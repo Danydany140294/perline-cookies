@@ -136,6 +136,7 @@ class PanierServiceMigrationTest extends TestCase
         $this->service()->migrerSessionVersBDD($this->user);
 
         $this->assertSame(5, $ligneA->getQuantite(), 'Plafonné au stock (4 + 1)');
+        $this->assertSame(['Stock limité : A ramené à 5.'], $this->session->getFlashBag()->get('warning'));
     }
 
     public function testBoxSimpleFusionneeEtBoxPersoAjouteeEnLigneSeparee(): void
