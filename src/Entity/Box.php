@@ -27,8 +27,9 @@ class Box
     #[ORM\Column(length: 255)]
     private ?string $image = null;
 
+    /** Plus utilisé : le stock d'une box se déduit des stocks de ses cookies (colonne conservée, à supprimer au nettoyage). */
     #[ORM\Column]
-    private ?int $stock = null;
+    private ?int $stock = 0;
 
     #[ORM\Column(length: 50)]
     private ?string $type = null;
@@ -56,15 +57,16 @@ private ?float $prix24 = null;
     private ?\DateTimeImmutable $dateCreation = null;
 
     /**
-     * @var Collection<int, Produit>
-     * EXTRA_LAZY empêche le chargement automatique des produits → évite la boucle infinie
+     * Recette de la box (box classique) : cookies et quantités.
+     *
+     * @var Collection<int, BoxProduit>
      */
-    #[ORM\ManyToMany(targetEntity: Produit::class, inversedBy: 'boxes', fetch: 'EXTRA_LAZY')]
-    private Collection $produits;
+    #[ORM\OneToMany(targetEntity: BoxProduit::class, mappedBy: 'box', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $compositions;
 
     public function __construct()
     {
-        $this->produits = new ArrayCollection();
+        $this->compositions = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -193,27 +195,64 @@ public function setPrix24(?float $prix24): static { $this->prix24 = $prix24; ret
     }
 
     /**
-     * @return Collection<int, Produit>
+     * @return Collection<int, BoxProduit>
      */
-    public function getProduits(): Collection
+    public function getCompositions(): Collection
     {
-        return $this->produits;
+        return $this->compositions;
     }
 
-    public function addProduit(Produit $produit): static
+    public function addComposition(BoxProduit $composition): static
     {
-        if (!$this->produits->contains($produit)) {
-            $this->produits->add($produit);
+        if (!$this->compositions->contains($composition)) {
+            $this->compositions->add($composition);
+            $composition->setBox($this);
         }
+
         return $this;
     }
 
-    public function removeProduit(Produit $produit): static
+    public function removeComposition(BoxProduit $composition): static
     {
-        $this->produits->removeElement($produit);
+        if ($this->compositions->removeElement($composition) && $composition->getBox() === $this) {
+            $composition->setBox(null);
+        }
+
         return $this;
     }
 
+    /** Raccourci : ajoute N fois un cookie à la recette (ou augmente sa quantité). */
+    public function ajouterCookie(Produit $produit, int $quantite = 1): static
+    {
+        foreach ($this->compositions as $composition) {
+            if ($composition->getProduit() === $produit) {
+                $composition->setQuantite($composition->getQuantite() + $quantite);
+
+                return $this;
+            }
+        }
+
+        return $this->addComposition((new BoxProduit())->setProduit($produit)->setQuantite($quantite));
+    }
+
+    /**
+     * Nombre de boxes que l'on peut encore fabriquer avec les stocks actuels des cookies
+     * (le plus limitant l'emporte). 0 si la recette est vide ou si un cookie est indisponible.
+     */
+    public function getStockDisponible(): int
+    {
+        $possibles = null;
+
+        foreach ($this->compositions as $composition) {
+            $produit = $composition->getProduit();
+            $n = ($produit && $produit->isDisponible())
+                ? intdiv(max(0, (int) $produit->getStock()), max(1, $composition->getQuantite()))
+                : 0;
+            $possibles = $possibles === null ? $n : min($possibles, $n);
+        }
+
+        return $possibles ?? 0;
+    }
     /**
      * Vérifie si la box est personnalisable
      */

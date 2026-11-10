@@ -155,9 +155,9 @@
                     <img src="{{ asset('asset/images/boxs/' ~ box.image) }}"
                          alt="{{ box.nom }}">
 
-                    {% if box.stock == 0 %}
+                    {% if box.stockDisponible == 0 %}
                         <span class="stock-badge out-of-stock">Rupture</span>
-                    {% elseif box.stock < 3 %}
+                    {% elseif box.stockDisponible < 3 %}
                         <span class="stock-badge low-stock">Dernières !</span>
                     {% endif %}
                 </div>
@@ -170,7 +170,7 @@
 
                     <p class="box-description">{{ box.description }}</p>
 
-                    {% if box.produits|length > 0 %}
+                    {% if box.compositions|length > 0 %}
                     <div class="box-composition">
 
                         <h4 class="composition-title">
@@ -180,10 +180,10 @@
 
                         <div class="composition-grid">
 
-                            {% for produit in box.produits %}
+                            {% for composition in box.compositions %}
                             <div class="composition-item">
                                 <i class="fas fa-check"></i>
-                                <span>{{ produit.name }}</span>
+                                <span>{{ composition.quantite }} × {{ composition.produit.name|replace({'Cookie ': ''}) }}</span>
                             </div>
                             {% endfor %}
 
@@ -196,9 +196,9 @@
                         <div class="box-info">
 
                             <span class="stock-info">
-                                {% if box.stock > 0 %}
+                                {% if box.stockDisponible > 0 %}
                                     <i class="fas fa-check-circle"></i>
-                                    {{ box.stock }} disponible(s)
+                                    {{ box.stockDisponible }} disponible(s)
                                 {% else %}
                                     <i class="fas fa-times-circle"></i>
                                     Rupture de stock
@@ -211,7 +211,7 @@
 
                         </div>
 
-                        {% if box.stock > 0 %}
+                        {% if box.stockDisponible > 0 %}
                         <form method="POST"
                               action="{{ path('app_panier_ajouter_box', {id: box.id}) }}"
                               class="box-form">
@@ -219,7 +219,7 @@
                             <div class="qty-controls">
 
                                 <button type="button"
-                                        onclick="updateBoxQty('quantite_box_{{ box.id }}', -1, 1, {{ box.stock }})"
+                                        onclick="updateBoxQty('quantite_box_{{ box.id }}', -1, 1, {{ box.stockDisponible }})"
                                         class="qty-btn">
                                     <i class="fas fa-minus"></i>
                                 </button>
@@ -229,12 +229,12 @@
                                        name="quantite"
                                        value="1"
                                        min="1"
-                                       max="{{ box.stock }}"
+                                       max="{{ box.stockDisponible }}"
                                        readonly
                                        class="qty-input">
 
                                 <button type="button"
-                                        onclick="updateBoxQty('quantite_box_{{ box.id }}', 1, 1, {{ box.stock }})"
+                                        onclick="updateBoxQty('quantite_box_{{ box.id }}', 1, 1, {{ box.stockDisponible }})"
                                         class="qty-btn">
                                     <i class="fas fa-plus"></i>
                                 </button>
