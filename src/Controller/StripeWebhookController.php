@@ -2,17 +2,8 @@
 
 namespace App\Controller;
 
-use App\Entity\Box;
 use App\Entity\Commande;
-use App\Entity\LigneCommande;
-use App\Entity\CompositionBoxPersonnalisable;
-use App\Entity\Produit;
-use App\Enum\CommandeStatut;
-use App\Repository\CommandeRepository;
-use App\Repository\PanierRepository;
-use App\Repository\LignePanierRepository;
 use App\Service\PaiementCommandeService;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -60,12 +51,7 @@ final class StripeWebhookController extends AbstractController
 
     #[Route('/webhook/stripe', name: 'app_webhook_stripe', methods: ['POST'])]
     public function handleWebhook(
-        Request $request,
-        EntityManagerInterface $em,
-        CommandeRepository $commandeRepo,
-        PanierRepository $panierRepo,
-        LignePanierRepository $lignePanierRepo
-    ): JsonResponse
+        Request $request): JsonResponse
     {
         $webhookSecret = $_ENV['STRIPE_WEBHOOK_SECRET'] ?? '';
         $payload = $request->getContent();
@@ -112,119 +98,15 @@ final class StripeWebhookController extends AbstractController
             return new JsonResponse(['status' => $resultat]);
         }
 
-        // ─── Ancien parcours (invités, sans commande préalable) : inchangé, à revoir au point E ───
+        // Plus d'achat invité : toute session Stripe créée par le site porte un client_reference_id.
+        // Une session sans référence est anormale (ancienne session, ou paiement venu d'ailleurs) :
+        // on ne crée AUCUNE commande à l'aveugle, on alerte pour vérification manuelle.
+        $this->logger->critical('Webhook Stripe : paiement reçu sans référence de commande, à vérifier manuellement.', [
+            'stripe_session_id' => $stripeSession->id,
+            'montant_paye_centimes' => (int) $stripeSession->amount_total,
+            'email' => $stripeSession->customer_email ?? null,
+        ]);
 
-        // ✅ Éviter les doublons (si webhook reçu deux fois)
-        $existing = $commandeRepo->findOneBy(['stripeSessionId' => $stripeSession->id]);
-        if ($existing) {
-            return new JsonResponse(['status' => 'already_processed']);
-        }
-
-        // ✅ Vérifier que le paiement est bien payé
-        if ($stripeSession->payment_status !== 'paid') {
-            return new JsonResponse(['status' => 'not_paid']);
-        }
-
-        // ✅ Créer la commande
-        $commande = new Commande();
-        $commande->setStripeSessionId($stripeSession->id);
-        $commande->setNumeroCommande('CMD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6)));
-        $commande->setDateCommande(new \DateTime());
-        $commande->setStatut(CommandeStatut::PAYEE);
-        $commande->setTotalTTC($stripeSession->amount_total / 100);
-
-        // ✅ Retrouver le user via l'email Stripe
-        $stripeEmail = $stripeSession->customer_email;
-        if ($stripeEmail) {
-            $user = $em->getRepository(\App\Entity\User::class)->findOneBy(['email' => $stripeEmail]);
-            if ($user) {
-                $commande->setUser($user);
-
-                // ✅ Récupérer et vider le panier BDD
-                $panier = $panierRepo->findOneBy(['user' => $user]);
-                if ($panier) {
-                    $lignesPanier = $lignePanierRepo->findBy(['panier' => $panier]);
-
-                    foreach ($lignesPanier as $lignePanier) {
-                        $ligneCommande = new LigneCommande();
-                        $ligneCommande->setCommande($commande);
-                        $ligneCommande->setPrixUnitaire($lignePanier->getPrixUnitaire());
-                        $ligneCommande->setQuantite($lignePanier->getQuantite());
-
-                        if ($lignePanier->getProduit()) {
-                            $ligneCommande->setProduit($lignePanier->getProduit());
-                            // ✅ Décrémenter le stock du produit
-                            $lignePanier->getProduit()->decrémenterStock($lignePanier->getQuantite());
-                        }
-
-                        if ($lignePanier->getBox()) {
-                            $ligneCommande->setBox($lignePanier->getBox());
-                        }
-
-                        // ✅ Compositions box perso
-                        if ($lignePanier->isBoxPersonnalisable()) {
-                            foreach ($lignePanier->getCompositionsPanier() as $compo) {
-                                $compoBox = new CompositionBoxPersonnalisable();
-                                $compoBox->setProduit($compo->getProduit());
-                                $compoBox->setQuantite($compo->getQuantite());
-                                $compoBox->setLigneCommande($ligneCommande);
-                                $em->persist($compoBox);
-                                $ligneCommande->addCompositionBox($compoBox);
-                            }
-                        }
-
-                        $em->persist($ligneCommande);
-                    }
-
-                    // ✅ Vider le panier
-                    foreach ($lignesPanier as $ligne) {
-                        $em->remove($ligne);
-                    }
-                    $em->remove($panier);
-                }
-            }
-        }
-
-        // Un seul flush() = une seule transaction : commande, lignes, stock et panier
-        // sont enregistrés ensemble ou pas du tout.
-        try {
-            $em->persist($commande);
-            $em->flush();
-        } catch (UniqueConstraintViolationException $e) {
-            // Deux livraisons simultanées du même événement : l'autre requête a gagné.
-            // L'EntityManager est fermé après une erreur de flush : on ne l'utilise plus,
-            // seule la connexion SQL (toujours valide) sert à vérifier la situation.
-            $dejaEnregistree = (int) $em->getConnection()->fetchOne(
-                'SELECT COUNT(*) FROM commande WHERE stripe_session_id = ?',
-                [$stripeSession->id]
-            );
-
-            if ($dejaEnregistree === 0) {
-                throw $e; // doublon sur autre chose que la session Stripe : on ne l'avale pas
-            }
-
-            return new JsonResponse(['status' => 'already_processed']);
-        }
-
-        // ✅ Envoyer l'email de confirmation
-        if ($commande->getUser()) {
-            try {
-                $html = $this->twig->render('emails/confirmation_commande.html.twig', [
-                    'commande' => $commande
-                ]);
-
-                $emailMessage = (new Email())
-                    ->from('noreply@creaself.fr')
-                    ->to($commande->getUser()->getEmail())
-                    ->subject('Confirmation de votre commande ' . $commande->getNumeroCommande())
-                    ->html($html);
-
-                $this->mailer->send($emailMessage);
-            } catch (\Exception $e) {
-                // Silencieux — ne pas bloquer la commande si l'email échoue
-            }
-        }
-
-        return new JsonResponse(['status' => 'success']);
+        return new JsonResponse(['status' => 'sans_reference']);
     }
 }

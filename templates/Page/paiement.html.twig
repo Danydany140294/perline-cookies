@@ -222,6 +222,10 @@
         })
         .then(res => res.json())
         .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect; // session expirée : reconnexion puis retour au panier
+                return;
+            }
             if (data.sessionId) {
                 const stripe = Stripe('{{ stripe_public_key }}');
                 stripe.redirectToCheckout({ sessionId: data.sessionId });

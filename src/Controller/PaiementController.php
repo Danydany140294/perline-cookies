@@ -6,11 +6,9 @@ use App\Entity\CompositionBoxPersonnalisable;
 use App\Entity\LigneCommande;
 use App\Enum\CommandeStatut;
 use App\Repository\AdresseRepository;
-use App\Repository\BoxRepository;
 use App\Repository\CommandeRepository;
 use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
-use App\Repository\ProduitRepository;
 use App\Service\CommandeService;
 use App\Service\FraisLivraisonService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -53,7 +51,7 @@ final class PaiementController extends AbstractController
     $this->saveTargetPath(
         $request->getSession(),
         'main',
-        $this->generateUrl('app_user_dashboard') . '#adresses'
+        $this->generateUrl('app_panier_index')
     );
     $this->addFlash('warning', 'Veuillez vous connecter pour finaliser votre commande.');
     return $this->redirectToRoute('app_login');
@@ -127,115 +125,67 @@ final class PaiementController extends AbstractController
         Request $request,
         PanierRepository $panierRepo,
         LignePanierRepository $lignePanierRepo,
-        ProduitRepository $produitRepo,
-        BoxRepository $boxRepo,
         CommandeService $commandeService,
         EntityManagerInterface $em
     ): JsonResponse
     {
-        $commande = null; // commande « En attente » créée pour les clients connectés
+        // Compte obligatoire pour payer (achat invité : prévu plus tard, avec e-mail et lien de suivi).
+        $user = $this->getUser();
+        if (!$user) {
+            $this->saveTargetPath($request->getSession(), 'main', $this->generateUrl('app_panier_index'));
+
+            return new JsonResponse([
+                'error' => 'Connectez-vous pour finaliser votre commande.',
+                'redirect' => $this->generateUrl('app_login'),
+            ], 401);
+        }
+
+        $commande = null; // commande « En attente » créée pour le client connecté
 
         try {
-            $user = $this->getUser();
             $lineItems = [];
+            $panier = $panierRepo->findOneBy(['user' => $user]);
 
-            if ($user) {
-                $panier = $panierRepo->findOneBy(['user' => $user]);
+            if (!$panier) {
+                return new JsonResponse(['error' => 'Panier introuvable'], 404);
+            }
 
-                if (!$panier) {
-                    return new JsonResponse(['error' => 'Panier introuvable'], 404);
-                }
+            $lignes = $lignePanierRepo->findBy(['panier' => $panier]);
 
-                $lignes = $lignePanierRepo->findBy(['panier' => $panier]);
+            if (empty($lignes)) {
+                return new JsonResponse(['error' => 'Votre panier est vide'], 400);
+            }
 
-                if (empty($lignes)) {
-                    return new JsonResponse(['error' => 'Votre panier est vide'], 400);
-                }
+            // Commande « En attente » : lignes figées au moment où le client va payer.
+            // Le webhook comparera le montant payé à CETTE commande, pas au panier du moment.
+            $commande = $commandeService->creerCommande($user);
 
-                // Commande « En attente » : lignes figées au moment où le client va payer.
-                // Le webhook comparera le montant payé à CETTE commande, pas au panier du moment.
-                $commande = $commandeService->creerCommande($user);
+            foreach ($lignes as $ligne) {
+                $lineItems[] = [
+                    'price_data' => [
+                        'currency' => 'eur',
+                        'product_data' => ['name' => $ligne->getNomArticle()],
+                        'unit_amount' => $this->enCentimes($ligne->getPrixUnitaire()),
+                    ],
+                    'quantity' => $ligne->getQuantite(),
+                ];
 
-                foreach ($lignes as $ligne) {
-                    $lineItems[] = [
-                        'price_data' => [
-                            'currency' => 'eur',
-                            'product_data' => ['name' => $ligne->getNomArticle()],
-                            'unit_amount' => $this->enCentimes($ligne->getPrixUnitaire()),
-                        ],
-                        'quantity' => $ligne->getQuantite(),
-                    ];
+                $ligneCommande = new LigneCommande();
+                $ligneCommande->setProduit($ligne->getProduit());
+                $ligneCommande->setBox($ligne->getBox());
+                $ligneCommande->setQuantite($ligne->getQuantite());
+                $ligneCommande->setPrixUnitaire($ligne->getPrixUnitaire());
 
-                    $ligneCommande = new LigneCommande();
-                    $ligneCommande->setProduit($ligne->getProduit());
-                    $ligneCommande->setBox($ligne->getBox());
-                    $ligneCommande->setQuantite($ligne->getQuantite());
-                    $ligneCommande->setPrixUnitaire($ligne->getPrixUnitaire());
-
-                    if ($ligne->isBoxPersonnalisable()) {
-                        foreach ($ligne->getCompositionsPanier() as $compo) {
-                            $compoBox = new CompositionBoxPersonnalisable();
-                            $compoBox->setProduit($compo->getProduit());
-                            $compoBox->setQuantite($compo->getQuantite());
-                            $ligneCommande->addCompositionBox($compoBox);
-                        }
+                if ($ligne->isBoxPersonnalisable()) {
+                    foreach ($ligne->getCompositionsPanier() as $compo) {
+                        $compoBox = new CompositionBoxPersonnalisable();
+                        $compoBox->setProduit($compo->getProduit());
+                        $compoBox->setQuantite($compo->getQuantite());
+                        $ligneCommande->addCompositionBox($compoBox);
                     }
-
-                    $commande->addLigneCommande($ligneCommande);
-                }
-            } else {
-                $session = $this->container->get('request_stack')->getSession();
-                $panierSession = $session->get('panier', []);
-
-                if (empty($panierSession['produits']) && empty($panierSession['boxes']) && empty($panierSession['boxes_perso'])) {
-                    return new JsonResponse(['error' => 'Votre panier est vide'], 400);
                 }
 
-                // Les prix sont relus en base (la session ne garde qu'un identifiant fiable)
-                foreach ($panierSession['produits'] ?? [] as $item) {
-                    $produit = $produitRepo->find($item['produit']->getId());
-                    if (!$produit) {
-                        continue;
-                    }
-                    $lineItems[] = [
-                        'price_data' => [
-                            'currency' => 'eur',
-                            'product_data' => ['name' => $produit->getName()],
-                            'unit_amount' => $this->enCentimes($produit->getPrix()),
-                        ],
-                        'quantity' => $item['quantite'],
-                    ];
-                }
-
-                foreach ($panierSession['boxes'] ?? [] as $item) {
-                    $box = $boxRepo->find($item['box']->getId());
-                    if (!$box) {
-                        continue;
-                    }
-                    $lineItems[] = [
-                        'price_data' => [
-                            'currency' => 'eur',
-                            'product_data' => ['name' => $box->getNom()],
-                            'unit_amount' => $this->enCentimes($box->getPrix()),
-                        ],
-                        'quantity' => $item['quantite'],
-                    ];
-                }
-
-                foreach ($panierSession['boxes_perso'] ?? [] as $item) {
-                    $box = $boxRepo->find($item['box']->getId());
-                    if (!$box) {
-                        continue;
-                    }
-                    $lineItems[] = [
-                        'price_data' => [
-                            'currency' => 'eur',
-                            'product_data' => ['name' => 'Box Personnalisée'],
-                            'unit_amount' => $this->enCentimes($box->getPrix()),
-                        ],
-                        'quantity' => 1,
-                    ];
-                }
+                $commande->addLigneCommande($ligneCommande);
             }
 
             if (empty($lineItems)) {
@@ -347,9 +297,10 @@ final class PaiementController extends AbstractController
         }
 
         // Une commande rattachée à un compte n'est visible que par son propriétaire.
-        // (Commande sans propriétaire = invité : cas traité au point E du plan.)
+        // Toute commande a désormais un propriétaire (compte obligatoire pour payer) :
+        // une commande sans propriétaire est donc refusée aussi.
         $proprietaire = $commande?->getUser();
-        if ($proprietaire !== null && $proprietaire->getId() !== $this->getUser()?->getId()) {
+        if ($commande !== null && ($proprietaire === null || $proprietaire->getId() !== $this->getUser()?->getId())) {
             $this->addFlash('error', 'Cette commande ne vous appartient pas.');
             return $this->redirectToRoute('app_home');
         }
