@@ -423,6 +423,26 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
         // Vider la session après migration
         $this->viderPanierSession();
     }
+    /**
+     * Supprime les paniers (en base) dont la date d'expiration est dépassée.
+     * Passe par l'ORM (et non un DELETE direct) pour que les lignes et compositions partent avec.
+     *
+     * @return int nombre de paniers supprimés (ou, en simulation, qui le seraient)
+     */
+    public function nettoyerPaniersExpires(bool $simulation = false): int
+    {
+        $paniers = $this->panierRepository->findExpired();
+
+        if (!$simulation) {
+            foreach ($paniers as $panier) {
+                $this->entityManager->remove($panier);
+            }
+            $this->entityManager->flush();
+        }
+
+        return count($paniers);
+    }
+
     // ======================================================
     // UTILITAIRES
     // ======================================================

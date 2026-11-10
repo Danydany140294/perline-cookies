@@ -79,12 +79,15 @@ class Panier
         return $this;
     }
 
+    /** Durée de vie du panier d'un client connecté (en base), remise à zéro à chaque activité. */
+    public const DUREE_VIE = '+30 days';
+
     /**
-     * Rafraîchit la date d'expiration à +10 minutes (durée courte pour tests/démos)
+     * Rafraîchit la date d'expiration (30 jours après la dernière activité)
      */
     public function rafraichirExpiration(): void
     {
-        $this->dateExpiration = new \DateTimeImmutable('+10 minutes');
+        $this->dateExpiration = new \DateTimeImmutable(self::DUREE_VIE);
     }
 
     /**
