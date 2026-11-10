@@ -316,6 +316,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::EXPEDIEE => 'Expédiée',
             CommandeStatut::LIVREE => 'Livrée',
             CommandeStatut::ANNULEE => 'Annulée',
+            CommandeStatut::A_VERIFIER => 'À vérifier',
             default => 'Inconnu',
         };
     }
@@ -331,6 +332,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::EXPEDIEE => 'badge-primary',
             CommandeStatut::LIVREE => 'badge-success',
             CommandeStatut::ANNULEE => 'badge-danger',
+            CommandeStatut::A_VERIFIER => 'badge-danger',
             default => 'badge-secondary',
         };
     }
