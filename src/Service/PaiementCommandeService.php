@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Commande;
+use App\Entity\Panier;
 use App\Enum\CommandeStatut;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -92,7 +93,28 @@ class PaiementCommandeService
                 return [self::A_VERIFIER, $commande];
             }
 
+            // Paiement conforme : seulement maintenant on touche au stock et au panier.
+            // (Dans la même transaction que le changement de statut : tout ou rien.)
             $commande->setStatut(CommandeStatut::PAYEE);
+
+            // Stock : comportement conservé (produits simples). Boxes et cookies des boxes
+            // personnalisées : point D du plan.
+            foreach ($commande->getLignesCommande() as $ligne) {
+                $ligne->getProduit()?->decrémenterStock($ligne->getQuantite());
+            }
+
+            // Vider le panier du client
+            $user = $commande->getUser();
+            if ($user !== null) {
+                $panier = $this->em->getRepository(Panier::class)->findOneBy(['user' => $user]);
+                if ($panier !== null) {
+                    foreach ($panier->getLignesPanier() as $lignePanier) {
+                        $this->em->remove($lignePanier);
+                    }
+                    $this->em->remove($panier);
+                }
+            }
+
             $this->em->flush();
 
             return [self::PAYEE, $commande];
