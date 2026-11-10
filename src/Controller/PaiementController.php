@@ -12,6 +12,7 @@ use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
 use App\Service\CommandeService;
 use App\Service\FraisLivraisonService;
+use App\Service\StockCookiesService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -135,6 +136,7 @@ final class PaiementController extends AbstractController
         LignePanierRepository $lignePanierRepo,
         CommandeService $commandeService,
         AdresseRepository $adresseRepo,
+        StockCookiesService $stockCookies,
         EntityManagerInterface $em
     ): JsonResponse
     {
@@ -183,6 +185,16 @@ final class PaiementController extends AbstractController
                 return new JsonResponse(['error' => 'Votre panier est vide'], 400);
             }
 
+            // Stock : cookies seuls + cookies des boxes classiques + cookies des box perso, cumulés.
+            // Blocage AVANT toute création de commande, avec le détail du cookie en cause.
+            $problemesStock = $stockCookies->verifier($stockCookies->besoinsDepuisPanier($lignes));
+            if ($problemesStock !== []) {
+                return new JsonResponse([
+                    'error' => implode("\n", $problemesStock),
+                    'stock_insuffisant' => $problemesStock,
+                ], 409);
+            }
+
             // Commande « En attente » : lignes figées au moment où le client va payer.
             // Le webhook comparera le montant payé à CETTE commande, pas au panier du moment.
             $commande = $commandeService->creerCommande($user);
@@ -205,11 +217,21 @@ final class PaiementController extends AbstractController
                 $ligneCommande->setQuantite($ligne->getQuantite());
                 $ligneCommande->setPrixUnitaire($ligne->getPrixUnitaire());
 
+                // Composition FIGÉE sur la ligne (cookies et quantités PAR BOX) : box perso = choix du
+                // client, box classique = recette au moment de la commande. Modifier la recette plus tard
+                // ne change jamais cette commande, et le stock sera retiré d'après ces lignes.
                 if ($ligne->isBoxPersonnalisable()) {
                     foreach ($ligne->getCompositionsPanier() as $compo) {
                         $compoBox = new CompositionBoxPersonnalisable();
                         $compoBox->setProduit($compo->getProduit());
                         $compoBox->setQuantite($compo->getQuantite());
+                        $ligneCommande->addCompositionBox($compoBox);
+                    }
+                } elseif ($ligne->getBox() !== null) {
+                    foreach ($ligne->getBox()->getCompositions() as $composition) {
+                        $compoBox = new CompositionBoxPersonnalisable();
+                        $compoBox->setProduit($composition->getProduit());
+                        $compoBox->setQuantite($composition->getQuantite());
                         $ligneCommande->addCompositionBox($compoBox);
                     }
                 }
