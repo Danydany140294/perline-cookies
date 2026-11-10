@@ -24,6 +24,19 @@
             <p><strong>Date :</strong> {{ commande.dateCommande|date('d/m/Y à H:i') }}</p>
         </div>
 
+        <div class="commande-info">
+            {% if commande.retrait %}
+                <p><strong>Retrait sur place</strong></p>
+                <p>{{ retrait.lieu }}<br>{{ retrait.adresse }}<br>{{ retrait.horaires }}</p>
+                <p><em>{{ retrait.message }}</em></p>
+            {% elseif commande.adresseLivraison %}
+                <p><strong>Livraison à :</strong></p>
+                <p>{{ commande.adresseLivraison.rue }}<br>
+                {% if commande.adresseLivraison.complement %}{{ commande.adresseLivraison.complement }}<br>{% endif %}
+                {{ commande.adresseLivraison.codePostal }} {{ commande.adresseLivraison.ville }}</p>
+            {% endif %}
+        </div>
+
         <p class="total">Total : {{ commande.totalTTC|number_format(2, ',', ' ') }} €</p>
 
         <div class="footer">

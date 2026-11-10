@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\CompositionBoxPersonnalisable;
 use App\Entity\LigneCommande;
 use App\Enum\CommandeStatut;
+use App\Enum\ModeLivraison;
 use App\Repository\AdresseRepository;
 use App\Repository\CommandeRepository;
 use App\Repository\PanierRepository;
@@ -13,6 +14,7 @@ use App\Service\CommandeService;
 use App\Service\FraisLivraisonService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,7 +28,10 @@ final class PaiementController extends AbstractController
 
     private string $stripeSecretKey;
 
-    public function __construct(private FraisLivraisonService $fraisLivraisonService)
+    public function __construct(
+        private FraisLivraisonService $fraisLivraisonService,
+        #[Autowire(param: 'retrait')] private array $retrait
+    )
     {
         $this->stripeSecretKey = $_ENV['STRIPE_SECRET_KEY'] ?? '';
         \Stripe\Stripe::setApiKey($this->stripeSecretKey);
@@ -105,6 +110,7 @@ final class PaiementController extends AbstractController
         );
         $fraisLivraison = $fraisCentimes / 100;
         $totalFinal = ($sousTotalCentimes + $fraisCentimes) / 100;
+        $totalRetrait = $sousTotalCentimes / 100; // retrait : frais à 0 €
         $stripePublicKey = $_ENV['STRIPE_PUBLIC_KEY'] ?? '';
 
         // ✅ Récupérer les adresses de l'user (par défaut en premier)
@@ -115,6 +121,8 @@ final class PaiementController extends AbstractController
             'panier' => $panierData,
             'frais_livraison' => $fraisLivraison,
             'total_final' => $totalFinal,
+            'total_retrait' => $totalRetrait,
+            'retrait' => $this->retrait,
             'stripe_public_key' => $stripePublicKey,
             'adresses' => $adresses,
         ]);
@@ -126,6 +134,7 @@ final class PaiementController extends AbstractController
         PanierRepository $panierRepo,
         LignePanierRepository $lignePanierRepo,
         CommandeService $commandeService,
+        AdresseRepository $adresseRepo,
         EntityManagerInterface $em
     ): JsonResponse
     {
@@ -138,6 +147,24 @@ final class PaiementController extends AbstractController
                 'error' => 'Connectez-vous pour finaliser votre commande.',
                 'redirect' => $this->generateUrl('app_login'),
             ], 401);
+        }
+
+        // Mode choisi par le client (jamais fait confiance à autre chose que les deux valeurs connues)
+        $donnees = json_decode($request->getContent(), true);
+        $mode = ModeLivraison::tryFrom((string) ($donnees['mode'] ?? ModeLivraison::LIVRAISON->value));
+        if ($mode === null) {
+            return new JsonResponse(['error' => 'Mode de livraison invalide'], 400);
+        }
+
+        // Livraison : une adresse du client est obligatoire. Retrait : aucune adresse.
+        $adresse = null;
+        if ($mode === ModeLivraison::LIVRAISON) {
+            $adresseId = $request->getSession()->get('adresse_livraison_id');
+            $adresse = $adresseId ? $adresseRepo->find($adresseId) : null;
+
+            if ($adresse === null || $adresse->getUser()?->getId() !== $user->getId()) {
+                return new JsonResponse(['error' => 'Veuillez choisir une adresse de livraison.'], 400);
+            }
         }
 
         $commande = null; // commande « En attente » créée pour le client connecté
@@ -159,6 +186,8 @@ final class PaiementController extends AbstractController
             // Commande « En attente » : lignes figées au moment où le client va payer.
             // Le webhook comparera le montant payé à CETTE commande, pas au panier du moment.
             $commande = $commandeService->creerCommande($user);
+            $commande->setModeLivraison($mode);
+            $commande->setAdresseLivraison($adresse); // null en retrait
 
             foreach ($lignes as $ligne) {
                 $lineItems[] = [
@@ -200,7 +229,7 @@ final class PaiementController extends AbstractController
 
             $fraisCentimes = $this->fraisLivraisonService->calculer(
                 $sousTotalCentimes,
-                FraisLivraisonService::MODE_LIVRAISON
+                $mode === ModeLivraison::RETRAIT ? FraisLivraisonService::MODE_RETRAIT : FraisLivraisonService::MODE_LIVRAISON
             );
 
             if ($fraisCentimes > 0) {
@@ -214,10 +243,6 @@ final class PaiementController extends AbstractController
                 ];
             }
 
-            // ✅ Récupérer l'adresse choisie depuis la session
-            $session = $this->container->get('request_stack')->getSession();
-            $adresseId = $session->get('adresse_livraison_id');
-            $session->set('adresse_livraison_id', $adresseId);
 
             // ✅ Enregistrer la commande « En attente » (total = articles + livraison, en euros)
             //    pour obtenir son id, transmis à Stripe via client_reference_id.

@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Commande;
 use App\Enum\CommandeStatut;
+use App\Enum\ModeLivraison;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -59,6 +60,14 @@ class CommandeCrudController extends AbstractCrudController
             // total_ttc est stocké en euros (pas en centimes) : pas de division par 100
             MoneyField::new('totalTTC', 'Total TTC')->setCurrency('EUR')->setStoredAsCents(false),
             
+            ChoiceField::new('modeLivraison', 'Mode')
+                ->setChoices([
+                    'Livraison à domicile' => ModeLivraison::LIVRAISON,
+                    'Retrait sur place' => ModeLivraison::RETRAIT,
+                ]),
+
+            AssociationField::new('adresseLivraison', 'Adresse de livraison')->hideOnIndex(),
+
             DateTimeField::new('dateCommande', 'Date de commande'),
             
             CollectionField::new('lignesCommande', 'Lignes de commande')

@@ -7,6 +7,7 @@ use App\Service\PaiementCommandeService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Mailer\MailerInterface;
@@ -20,7 +21,8 @@ final class StripeWebhookController extends AbstractController
         private MailerInterface $mailer,
         private Environment $twig,
         private PaiementCommandeService $paiementCommandeService,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        #[Autowire(param: 'retrait')] private array $retrait
     ) {}
 
     /**
@@ -32,6 +34,7 @@ final class StripeWebhookController extends AbstractController
         try {
             $html = $this->twig->render('emails/confirmation_commande.html.twig', [
                 'commande' => $commande,
+                'retrait' => $this->retrait,
             ]);
 
             $this->mailer->send(
