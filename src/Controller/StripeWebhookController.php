@@ -11,6 +11,7 @@ use App\Enum\CommandeStatut;
 use App\Repository\CommandeRepository;
 use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -131,8 +132,26 @@ final class StripeWebhookController extends AbstractController
             }
         }
 
-        $em->persist($commande);
-        $em->flush();
+        // Un seul flush() = une seule transaction : commande, lignes, stock et panier
+        // sont enregistrés ensemble ou pas du tout.
+        try {
+            $em->persist($commande);
+            $em->flush();
+        } catch (UniqueConstraintViolationException $e) {
+            // Deux livraisons simultanées du même événement : l'autre requête a gagné.
+            // L'EntityManager est fermé après une erreur de flush : on ne l'utilise plus,
+            // seule la connexion SQL (toujours valide) sert à vérifier la situation.
+            $dejaEnregistree = (int) $em->getConnection()->fetchOne(
+                'SELECT COUNT(*) FROM commande WHERE stripe_session_id = ?',
+                [$stripeSession->id]
+            );
+
+            if ($dejaEnregistree === 0) {
+                throw $e; // doublon sur autre chose que la session Stripe : on ne l'avale pas
+            }
+
+            return new JsonResponse(['status' => 'already_processed']);
+        }
 
         // ✅ Envoyer l'email de confirmation
         if ($commande->getUser()) {
