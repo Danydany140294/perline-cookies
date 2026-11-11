@@ -2,7 +2,7 @@
 // remise en stock décidée par l'administrateur.
 import { test } from '@playwright/test';
 import { reinitialiser, COOKIE } from '../lib/etat.js';
-import { lignes, valeur } from '../lib/db.js';
+import { executerSql, lignes, valeur } from '../lib/db.js';
 import { expect, ajouterCookie, stock, cliquerSurPayer, commande as lireCommande } from '../lib/aide.js';
 import { paiement, expiration, poster, remboursement } from '../lib/stripe.js';
 
@@ -126,6 +126,23 @@ test.describe('administration', () => {
     await expect(page.locator('body')).toContainText('Payée → Confirmée');
   });
 
+  test('annuler une commande PAYÉE : avertissement « pense à la rembourser dans Stripe » et note dans l\'historique', async ({ page, browser }) => {
+    const contexteClient = await browser.newContext({ storageState: '.auth/utilisateur.json', baseURL: process.env.E2E_BASE_URL });
+    const c = await commandePayee(await contexteClient.newPage());
+    await contexteClient.close();
+
+    await connecterAdmin(page);
+    await ouvrirEdition(page, c.id);
+    await page.selectOption('select[name="Commande[statut]"]', { label: 'Annulée' }, { force: true });
+    await enregistrer(page);
+
+    await expect(page.locator('body')).toContainText('Cette commande est payée : pense à la rembourser dans Stripe.');
+    expect(lireCommande(c.id).statut).toBe('annulee');
+    expect(historique(c.id).at(-1)).toMatchObject({ ancien: 'payee', nouveau: 'annulee', source: 'admin' });
+    expect(historique(c.id).at(-1).note).toContain('pense à la rembourser dans Stripe');
+    expect(stock(COOKIE.pistache)).toBe(48); // annuler ne remet pas le stock : c'est la case de l'admin
+  });
+
   test('remise en stock : à cocher par l\'admin, une seule fois, jamais automatique', async ({ page, browser }) => {
     const contexteClient = await browser.newContext({ storageState: '.auth/utilisateur.json', baseURL: process.env.E2E_BASE_URL });
     const pageClient = await contexteClient.newPage();
@@ -133,6 +150,7 @@ test.describe('administration', () => {
     await poster(pageClient.request, remboursement(c, Math.round(c.total * 100)));
     await contexteClient.close();
     expect(stock(COOKIE.pistache)).toBe(48);
+    executerSql(`UPDATE produit SET disponible = 0 WHERE id = ${COOKIE.pistache}`); // désactivé à la main par l'admin
 
     await connecterAdmin(page);
     await ouvrirEdition(page, c.id);
@@ -140,6 +158,7 @@ test.describe('administration', () => {
     await enregistrer(page);
 
     expect(stock(COOKIE.pistache)).toBe(50);
+    expect(valeur(`SELECT disponible FROM produit WHERE id = ${COOKIE.pistache}`)).toBe('0'); // la remise en stock ne réactive jamais un produit
     expect(valeur(`SELECT stock_restitue FROM commande WHERE id = ${c.id}`)).toBe('1');
     expect(historique(c.id).at(-1).note).toContain('Stock remis en vente : 2 × Cookie Pistache Cannelle');
 

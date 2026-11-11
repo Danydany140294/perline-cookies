@@ -12,7 +12,7 @@ coller dans un fichier du dépôt ni dans un message). `STRIPE_WEBHOOK_SECRET` d
 Docker démarré, `symfony serve`, Mailpit (http://127.0.0.1:8025), et dans un terminal :
 
 ```bash
-./stripe.exe listen --api-key sk_test_XXX --forward-to http://127.0.0.1:8000/webhook/stripe --events checkout.session.completed,checkout.session.expired
+./stripe.exe listen --api-key sk_test_XXX --forward-to http://127.0.0.1:8000/webhook/stripe --events checkout.session.completed,checkout.session.expired,charge.refunded
 ```
 
 Pour regarder les commandes après chaque test :

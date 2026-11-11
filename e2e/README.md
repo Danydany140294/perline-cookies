@@ -2,7 +2,7 @@
 
 Scénarios automatiques des chapitres 1.1 et 1.2 : contrôles du panier, prix de la box personnalisable,
 paiement et webhook Stripe (grille S1 à S6), numéro de commande, statuts, historique, remboursements, administration
-(37 scénarios, environ 3 minutes).
+(38 scénarios, environ 3 minutes).
 
 ## Lancer les tests : une seule commande
 

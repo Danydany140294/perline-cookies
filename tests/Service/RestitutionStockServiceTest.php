@@ -103,4 +103,31 @@ class RestitutionStockServiceTest extends TestCase
         $this->expectExceptionMessage('jamais été retiré');
         $this->service()->restituer($this->commande);
     }
+
+    public function testLaRemiseEnStockNeReactiveJamaisUnProduitDesactive(): void
+    {
+        $this->a->setDisponible(false); // désactivé à la main par l'administrateur
+        $this->b->setStock(0)->setDisponible(false); // arrivé à 0 puis désactivé
+
+        $this->service()->restituer($this->commande);
+
+        $this->assertSame(15, $this->a->getStock(), 'Le stock augmente...');
+        $this->assertFalse($this->a->isDisponible(), '... mais le produit désactivé le reste');
+        $this->assertSame(2, $this->b->getStock());
+        $this->assertFalse($this->b->isDisponible(), 'Même un produit qui était à 0 : réactiver est un geste de l\'administrateur');
+    }
+
+    public function testIncrementerLeStockNeTouchePasADisponible(): void
+    {
+        $desactive = (new Produit())->setName('X')->setPrix(1.0)->setStock(0)->setDisponible(false);
+        $actif = (new Produit())->setName('Y')->setPrix(1.0)->setStock(3)->setDisponible(true);
+
+        $desactive->incrementerStock(5);
+        $actif->incrementerStock(2);
+
+        $this->assertSame(5, $desactive->getStock());
+        $this->assertFalse($desactive->isDisponible());
+        $this->assertTrue($actif->isDisponible());
+        $this->assertSame(5, $actif->getStock());
+    }
 }

@@ -44,6 +44,26 @@ class ChangementStatutCommande
         $this->workflow($commande)->apply($commande, $transition->getName());
     }
 
+    /** Statuts pour lesquels de l'argent a été encaissé (ou reçu) : annuler une telle commande oblige à penser au remboursement. */
+    private const STATUTS_ARGENT_ENCAISSE = [
+        CommandeStatut::PAYEE,
+        CommandeStatut::CONFIRMEE,
+        CommandeStatut::EN_PREPARATION,
+        CommandeStatut::A_VERIFIER,
+    ];
+
+    /**
+     * Message à afficher (et à inscrire dans l'historique) quand on annule une commande dont le paiement a été encaissé :
+     * l'annulation ne rembourse PAS, le remboursement se fait dans le tableau de bord Stripe.
+     */
+    public function avertissementAnnulation(?CommandeStatut $de, CommandeStatut $vers): ?string
+    {
+        if ($vers !== CommandeStatut::ANNULEE || $de === null || !in_array($de, self::STATUTS_ARGENT_ENCAISSE, true)) {
+            return null;
+        }
+
+        return 'Cette commande est payée : pense à la rembourser dans Stripe.';
+    }
     /** Ce changement est-il autorisé par le workflow ? (même statut = rien à faire = autorisé) */
     public function peutAller(Commande $commande, ?CommandeStatut $de, CommandeStatut $vers): bool
     {

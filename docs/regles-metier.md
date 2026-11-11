@@ -105,6 +105,8 @@ des statuts possibles.
 
 - **Le remboursement se fait dans le tableau de bord Stripe.** Stripe envoie alors `charge.refunded` au webhook
   (à ajouter aux événements du point d'entrée : `checkout.session.completed`, `checkout.session.expired`, `charge.refunded`).
+  En local, la commande à lancer est :
+  `./stripe.exe listen --api-key sk_test_XXX --forward-to http://127.0.0.1:8000/webhook/stripe --events checkout.session.completed,checkout.session.expired,charge.refunded`.
 - **Remboursement total** → la commande passe **« Remboursée »**.
 - **Remboursement partiel** → le **montant remboursé** (cumulé) est enregistré sur la commande, une **note** est ajoutée à
   l'historique, le statut **ne change pas**. Un remboursement partiel suivi d'un total aboutit à « Remboursée ».
@@ -116,3 +118,8 @@ des statuts possibles.
   pour une commande **annulée ou remboursée** dont le stock avait été retiré par le système. La remise suit la **composition
   figée** de la commande, et une note est ajoutée à l'historique.
 - Une commande « En attente » qui expire n'a jamais retiré de stock : il n'y a rien à remettre.
+- **Annuler une commande déjà payée ne la rembourse pas.** Dans l'administration, passer une commande payée (Payée, Confirmée,
+  En préparation, À vérifier) à « Annulée » affiche l'avertissement « Cette commande est payée : pense à la rembourser dans
+  Stripe. » et l'inscrit dans l'historique. Le remboursement se fait ensuite dans Stripe (le webhook la passera « Remboursée »).
+- **La remise en stock ne change jamais le champ « disponible »** d'un produit : un produit désactivé à la main le reste. Seul le
+  retrait de stock désactive un produit arrivé à 0 ; le réactiver est un geste de l'administrateur.

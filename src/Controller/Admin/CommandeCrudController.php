@@ -166,7 +166,15 @@ class CommandeCrudController extends AbstractCrudController
                 return;
             }
 
-            $this->contexte->definir(CommandeHistorique::SOURCE_ADMIN, $this->getUser()?->getUserIdentifier());
+            // Annuler une commande payée n'annule pas le paiement : avertissement + trace dans l'historique
+            $avertissement = ($original instanceof CommandeStatut && $nouveau !== null)
+                ? $this->statuts->avertissementAnnulation($original, $nouveau)
+                : null;
+            if ($avertissement !== null) {
+                $this->addFlash('warning', $avertissement);
+            }
+
+            $this->contexte->definir(CommandeHistorique::SOURCE_ADMIN, $this->getUser()?->getUserIdentifier(), $avertissement);
 
             // Remise en stock : décision de l'administrateur (case à cocher), une seule fois, jamais défaite
             $dejaRestitue = (bool) ($entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance)['stockRestitue'] ?? false);

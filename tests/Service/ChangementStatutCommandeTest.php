@@ -124,4 +124,27 @@ class ChangementStatutCommandeTest extends KernelTestCase
         }
         $this->addToAssertionCount(1);
     }
+
+    public function testAnnulerUneCommandePayeeAvertitDeLaRembourserDansStripe(): void
+    {
+        $service = $this->changementStatut();
+
+        foreach ([CommandeStatut::PAYEE, CommandeStatut::CONFIRMEE, CommandeStatut::EN_PREPARATION, CommandeStatut::A_VERIFIER] as $de) {
+            $this->assertSame(
+                'Cette commande est payée : pense à la rembourser dans Stripe.',
+                $service->avertissementAnnulation($de, CommandeStatut::ANNULEE),
+                $de->value
+            );
+        }
+    }
+
+    public function testAucunAvertissementQuandAucunArgentNEstEncaisseOuPourUneAutreTransition(): void
+    {
+        $service = $this->changementStatut();
+
+        $this->assertNull($service->avertissementAnnulation(CommandeStatut::EN_ATTENTE, CommandeStatut::ANNULEE), 'Rien à rembourser');
+        $this->assertNull($service->avertissementAnnulation(CommandeStatut::PAYEE, CommandeStatut::CONFIRMEE));
+        $this->assertNull($service->avertissementAnnulation(CommandeStatut::PAYEE, CommandeStatut::REMBOURSEE));
+        $this->assertNull($service->avertissementAnnulation(null, CommandeStatut::ANNULEE));
+    }
 }

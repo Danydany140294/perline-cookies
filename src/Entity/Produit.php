@@ -431,11 +431,10 @@ class Produit
     {
         $this->stock += $quantite;
         $this->dateModification = new \DateTime();
-        
-        if ($this->stock > 0 && !$this->disponible) {
-            $this->disponible = true;
-        }
-        
+
+        // Volontairement SANS toucher à « disponible » : un produit désactivé à la main doit le rester.
+        // (Le retrait de stock, lui, désactive un produit arrivé à 0 : le réactiver est un geste de l'administrateur.)
+
         return $this;
     }
 
