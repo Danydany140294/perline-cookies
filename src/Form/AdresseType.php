@@ -97,6 +97,16 @@ class AdresseType extends AbstractType
                 ],
                 'data' => 'France'
             ])
+            ->add('telephone', TextType::class, [
+                'label' => 'Téléphone (facultatif)',
+                'required' => false,
+                'help' => 'Utile au transporteur pour vous prévenir de la livraison.',
+                'attr' => [
+                    'placeholder' => '06 12 34 56 78',
+                    'autocomplete' => 'tel',
+                    'class' => 'form-control',
+                ],
+            ])
             ->add('parDefaut', CheckboxType::class, [
                 'label' => 'Définir comme adresse par défaut',
                 'required' => false,

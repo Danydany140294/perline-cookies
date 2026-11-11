@@ -205,7 +205,10 @@ final class PaiementController extends AbstractController
             // Le webhook comparera le montant payé à CETTE commande, pas au panier du moment.
             $commande = $commandeService->creerCommande($user);
             $commande->setModeLivraison($mode);
-            $commande->setAdresseLivraison($adresse); // null en retrait
+            if ($adresse !== null) {
+                // Adresse COPIÉE dans la commande : la modifier ou la supprimer plus tard ne l'affecte jamais
+                $commande->figerAdresse($adresse, $user->getNomComplet(), $adresse->getTelephone() ?: $user->getTelephone());
+            }
 
             foreach ($lignes as $ligne) {
                 $lineItems[] = [
@@ -276,6 +279,7 @@ final class PaiementController extends AbstractController
             //    pour obtenir son id, transmis à Stripe via client_reference_id.
             if ($commande !== null) {
                 $commande->setTotalTTC(($sousTotalCentimes + $fraisCentimes) / 100);
+                $commande->setFraisLivraison($fraisCentimes / 100);
                 $em->persist($commande);
                 $em->flush();
             }

@@ -49,9 +49,40 @@ class Commande
     #[ORM\OneToMany(targetEntity: LigneCommande::class, mappedBy: 'commande', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $lignesCommande;
 
+    /**
+     * Lien vers l'adresse du compte au moment de la commande (conservé pour mémoire). Si le client supprime cette adresse,
+     * le lien devient NULL (ON DELETE SET NULL) : la commande, elle, garde sa COPIE ci-dessous.
+     */
     #[ORM\ManyToOne(targetEntity: Adresse::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Adresse $adresseLivraison = null;
+
+    // ── COPIE de l'adresse de livraison, figée au moment du paiement (comme les lignes de la commande) :
+    //    modifier ou supprimer une adresse du compte ne change jamais une commande déjà passée.
+    #[ORM\Column(length: 150, nullable: true)]
+    private ?string $livraisonDestinataire = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $livraisonRue = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $livraisonComplement = null;
+
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $livraisonCodePostal = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $livraisonVille = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $livraisonPays = null;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $livraisonTelephone = null;
+
+    /** Frais de livraison facturés (en euros) : total TTC = articles + frais. */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $fraisLivraison = 0.0;
 
     #[ORM\Column(length: 255, nullable: true, unique: true)]
     private ?string $stripeSessionId = null;
@@ -241,6 +272,97 @@ class Commande
     {
         $this->adresseLivraison = $adresseLivraison;
         return $this;
+    }
+
+    /** Copie l'adresse du compte dans la commande (destinataire, rue, complément, code postal, ville, pays, téléphone). */
+    public function figerAdresse(Adresse $adresse, ?string $destinataire, ?string $telephone = null): static
+    {
+        $this->adresseLivraison = $adresse;
+        $this->livraisonDestinataire = $destinataire;
+        $this->livraisonRue = $adresse->getRue();
+        $this->livraisonComplement = $adresse->getComplement();
+        $this->livraisonCodePostal = $adresse->getCodePostal();
+        $this->livraisonVille = $adresse->getVille();
+        $this->livraisonPays = $adresse->getPays();
+        $this->livraisonTelephone = $telephone;
+
+        return $this;
+    }
+
+    public function hasAdresseFigee(): bool
+    {
+        return $this->livraisonRue !== null;
+    }
+
+    /**
+     * Adresse de livraison de cette commande : la COPIE figée ; pour les commandes antérieures à la copie,
+     * l'adresse du compte si elle existe encore. Null en retrait sur place.
+     *
+     * @return array{destinataire: ?string, rue: ?string, complement: ?string, codePostal: ?string, ville: ?string, pays: ?string, telephone: ?string}|null
+     */
+    public function getAdresseLivraisonFigee(): ?array
+    {
+        if ($this->hasAdresseFigee()) {
+            return [
+                'destinataire' => $this->livraisonDestinataire,
+                'rue' => $this->livraisonRue,
+                'complement' => $this->livraisonComplement,
+                'codePostal' => $this->livraisonCodePostal,
+                'ville' => $this->livraisonVille,
+                'pays' => $this->livraisonPays,
+                'telephone' => $this->livraisonTelephone,
+            ];
+        }
+
+        $a = $this->adresseLivraison;
+        if ($a === null) {
+            return null;
+        }
+
+        return [
+            'destinataire' => $this->user?->getNomComplet(),
+            'rue' => $a->getRue(),
+            'complement' => $a->getComplement(),
+            'codePostal' => $a->getCodePostal(),
+            'ville' => $a->getVille(),
+            'pays' => $a->getPays(),
+            'telephone' => $a->getTelephone() ?: $this->user?->getTelephone(),
+        ];
+    }
+
+    /** Adresse mise en forme (une ligne par élément), pour l'administration. */
+    public function getAdresseLivraisonTexte(): string
+    {
+        $a = $this->getAdresseLivraisonFigee();
+        if ($a === null) {
+            return $this->isRetrait() ? 'Retrait sur place (pas d\'adresse)' : 'Aucune adresse enregistrée';
+        }
+
+        return implode("\n", array_filter([
+            $a['destinataire'],
+            $a['rue'],
+            $a['complement'],
+            trim(($a['codePostal'] ?? '') . ' ' . ($a['ville'] ?? '')),
+            $a['pays'],
+            $a['telephone'] ? 'Tél. ' . $a['telephone'] : null,
+        ]));
+    }
+
+    public function getFraisLivraison(): float
+    {
+        return $this->fraisLivraison;
+    }
+
+    public function setFraisLivraison(float $fraisLivraison): static
+    {
+        $this->fraisLivraison = $fraisLivraison;
+        return $this;
+    }
+
+    /** Total des articles (hors livraison). */
+    public function getSousTotalArticles(): float
+    {
+        return round((float) $this->getTotalTTC() - $this->fraisLivraison, 2);
     }
 
     public function getStripeSessionId(): ?string

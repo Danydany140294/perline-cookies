@@ -94,7 +94,10 @@ class CommandeCrudController extends AbstractCrudController
                     'Retrait sur place' => ModeLivraison::RETRAIT,
                 ]),
 
-            AssociationField::new('adresseLivraison', 'Adresse de livraison')->hideOnIndex(),
+            TextField::new('adresseLivraisonTexte', 'Adresse de livraison (copie figée)')
+                ->onlyOnDetail()
+                ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
+                ->renderAsHtml(),
 
             DateTimeField::new('dateCommande', 'Date de commande'),
             

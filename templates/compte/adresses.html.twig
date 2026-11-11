@@ -57,6 +57,7 @@
                                 {% endif %}
                                 <p class="text-gray-500 text-sm">{{ adresse.codePostal }} {{ adresse.ville }}</p>
                                 <p class="text-gray-400 text-sm">{{ adresse.pays }}</p>
+                                {% if adresse.telephone %}<p class="text-gray-400 text-sm">Tél. {{ adresse.telephone }}</p>{% endif %}
 
                                 {# Actions #}
                                 <div class="flex gap-2 mt-4 flex-wrap">
@@ -135,6 +136,14 @@
                         <div>
                             {{ form_label(addressForm.pays, null, {label_attr: {class: 'block text-sm font-medium text-gray-600 mb-1'}}) }}
                             {{ form_widget(addressForm.pays, {attr: {class: 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-chocolat transition'}}) }}
+                        </div>
+
+                        {# Téléphone (facultatif, pour le transporteur) #}
+                        <div>
+                            {{ form_label(addressForm.telephone, null, {label_attr: {class: 'block text-sm font-medium text-gray-600 mb-1'}}) }}
+                            {{ form_widget(addressForm.telephone, {attr: {class: 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-chocolat transition'}}) }}
+                            {{ form_errors(addressForm.telephone) }}
+                            {{ form_help(addressForm.telephone) }}
                         </div>
 
                         {# Par défaut #}
