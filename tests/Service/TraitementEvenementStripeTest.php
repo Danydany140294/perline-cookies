@@ -56,6 +56,7 @@ class TraitementEvenementStripeTest extends KernelTestCase
 
         return new TraitementEvenementStripe(
             new PaiementCommandeService($em, $logger, new StockCookiesService(), $this->changementStatut()),
+            $this->createMock(\App\Service\RemboursementCommandeService::class),
             $mailer,
             $twig,
             $logger,
@@ -132,7 +133,29 @@ class TraitementEvenementStripeTest extends KernelTestCase
 
     public function testAutreTypeDEvenementEstIgnore(): void
     {
-        $this->assertSame(TraitementEvenementStripe::IGNORE, $this->traitement()->traiter($this->evenement('charge.refunded')));
+        $this->assertSame(TraitementEvenementStripe::IGNORE, $this->traitement()->traiter($this->evenement('customer.created')));
+    }
+
+    public function testRemboursementTotalEtPartielSontTransmisAuService(): void
+    {
+        $service = $this->createMock(\App\Service\RemboursementCommandeService::class);
+        $appels = [];
+        $service->method('enregistrer')->willReturnCallback(function (...$args) use (&$appels) { $appels[] = $args; return ['remboursee', null]; });
+        $em = $this->createMock(EntityManagerInterface::class);
+        $traitement = new TraitementEvenementStripe(
+            new PaiementCommandeService($em, $this->createMock(LoggerInterface::class), new StockCookiesService(), $this->changementStatut()),
+            $service,
+            $this->createMock(MailerInterface::class),
+            $this->createMock(Environment::class),
+            $this->createMock(LoggerInterface::class),
+            []
+        );
+        $charge = static fn (array $o) => \Stripe\Event::constructFrom(['id' => 'evt_r', 'type' => 'charge.refunded', 'data' => ['object' => $o + ['id' => 'ch_1', 'payment_intent' => 'pi_9', 'amount' => 1238]]]);
+
+        $traitement->traiter($charge(['amount_refunded' => 500, 'refunded' => false]));
+        $traitement->traiter($charge(['amount_refunded' => 1238, 'refunded' => true]));
+        $traitement->traiter($charge(['amount_refunded' => 1238]), 'rattrapage');
+
+        $this->assertSame([['pi_9', 500, false, 'webhook_stripe'], ['pi_9', 1238, true, 'webhook_stripe'], ['pi_9', 1238, true, 'rattrapage']], $appels);
     }
 }
-

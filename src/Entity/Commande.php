@@ -11,6 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
+#[ORM\Index(name: 'idx_commande_payment_intent', columns: ['stripe_payment_intent_id'])]
 #[UniqueEntity(fields: ['numeroCommande'], message: 'Ce numéro de commande existe déjà.')]
 class Commande
 {
@@ -58,6 +59,22 @@ class Commande
     /** Livraison à domicile (adresse obligatoire) ou retrait sur place (pas d'adresse, frais à 0 €). */
     #[ORM\Column(length: 20, enumType: ModeLivraison::class, options: ['default' => 'livraison'])]
     private ModeLivraison $modeLivraison = ModeLivraison::LIVRAISON;
+
+    /** Identifiant du paiement chez Stripe (pi_…) : sert à retrouver la commande quand Stripe signale un remboursement. */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stripePaymentIntentId = null;
+
+    /** Total déjà remboursé (en euros, cumulé) d'après les événements Stripe ; égal au total TTC = remboursement complet. */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $montantRembourse = 0.0;
+
+    /** Le stock des articles a été retiré par le système (paiement confirmé). Faux pour les anciennes commandes. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $stockRetire = false;
+
+    /** L'administrateur a remis les articles en stock (jamais automatique : produits alimentaires). Irréversible. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $stockRestitue = false;
 
     /**
      * Historique des changements de statut (qui, quand, de quel statut vers quel statut), du plus ancien au plus récent.
@@ -251,6 +268,38 @@ public function setStripeSessionId(?string $stripeSessionId): static
     public function isRetrait(): bool
     {
         return $this->modeLivraison === ModeLivraison::RETRAIT;
+    }
+
+    public function getStripePaymentIntentId(): ?string { return $this->stripePaymentIntentId; }
+
+    public function setStripePaymentIntentId(?string $id): static
+    {
+        $this->stripePaymentIntentId = $id;
+        return $this;
+    }
+
+    public function getMontantRembourse(): float { return $this->montantRembourse; }
+
+    public function setMontantRembourse(float $montant): static
+    {
+        $this->montantRembourse = $montant;
+        return $this;
+    }
+
+    public function isStockRetire(): bool { return $this->stockRetire; }
+
+    public function setStockRetire(bool $stockRetire): static
+    {
+        $this->stockRetire = $stockRetire;
+        return $this;
+    }
+
+    public function isStockRestitue(): bool { return $this->stockRestitue; }
+
+    public function setStockRestitue(bool $stockRestitue): static
+    {
+        $this->stockRestitue = $stockRestitue;
+        return $this;
     }
 
     /** @return Collection<int, CommandeHistorique> */

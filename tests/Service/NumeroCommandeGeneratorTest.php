@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 class NumeroCommandeGeneratorTest extends TestCase
 {
-    private function generateur(callable $existe = null): NumeroCommandeGenerator
+    private function generateur(?callable $existe = null): NumeroCommandeGenerator
     {
         $repository = $this->createMock(CommandeRepository::class);
         $repository->method('numeroExiste')->willReturnCallback($existe ?? static fn () => false);

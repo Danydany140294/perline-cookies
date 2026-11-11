@@ -45,12 +45,13 @@ class PaiementCommandeService
         string $paymentStatus,
         ?string $devise,
         int $montantPayeCentimes,
-        string $source = CommandeHistorique::SOURCE_WEBHOOK
+        string $source = CommandeHistorique::SOURCE_WEBHOOK,
+        ?string $paymentIntentId = null
     ): array {
         // Une seule transaction + verrou sur la ligne de la commande : si Stripe livre deux fois
         // le même événement en même temps, le second attend, puis constate que la commande
         // n'est plus « En attente » (idempotence).
-        return $this->em->wrapInTransaction(function () use ($commandeId, $stripeSessionId, $paymentStatus, $devise, $montantPayeCentimes, $source): array {
+        return $this->em->wrapInTransaction(function () use ($commandeId, $stripeSessionId, $paymentStatus, $devise, $montantPayeCentimes, $source, $paymentIntentId): array {
             $commande = $this->em->find(Commande::class, $commandeId, LockMode::PESSIMISTIC_WRITE);
 
             if ($commande === null) {
@@ -86,6 +87,9 @@ class PaiementCommandeService
             if ($paymentStatus !== 'paid') {
                 return [self::NON_PAYEE, $commande];
             }
+
+            // Retrouver le paiement plus tard (remboursement signalé par Stripe)
+            $commande->setStripePaymentIntentId($paymentIntentId);
 
             $montantAttenduCentimes = (int) round(($commande->getTotalTTC() ?? 0) * 100);
 
@@ -152,6 +156,7 @@ class PaiementCommandeService
             // Paiement conforme et stock retiré : on valide et on vide le panier.
             // (Même transaction que le changement de statut : tout ou rien.)
             $this->statuts->appliquer($commande, CommandeStatut::PAYEE, $source, null, 'Paiement Stripe confirmé');
+            $commande->setStockRetire(true); // le stock vient d'être retiré (même transaction) : seul un stock réellement retiré pourra être remis
 
             // Panier : seuls les articles PAYÉS en sortent (ce qui a été ajouté depuis, par exemple dans un
             // autre onglet, reste dans le panier du client).

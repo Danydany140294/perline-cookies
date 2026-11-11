@@ -23,6 +23,7 @@ class TraitementEvenementStripe
 
     public function __construct(
         private PaiementCommandeService $paiementCommandeService,
+        private RemboursementCommandeService $remboursementService,
         private MailerInterface $mailer,
         private Environment $twig,
         private LoggerInterface $logger,
@@ -48,6 +49,23 @@ class TraitementEvenementStripe
             return $resultat;
         }
 
+        // Remboursement (fait dans le tableau de bord Stripe) : total -> « Remboursée », partiel -> note + montant
+        if ($event->type === 'charge.refunded') {
+            $paiement = (string) ($session->payment_intent ?? '');
+            if ($paiement === '') {
+                $this->logger->critical('Webhook Stripe : remboursement sans identifiant de paiement.', ['charge' => $session->id ?? null]);
+
+                return self::SANS_REFERENCE;
+            }
+
+            $rembourse = (int) ($session->amount_refunded ?? 0);
+            $total = ($session->refunded ?? false) === true || ($rembourse > 0 && $rembourse >= (int) ($session->amount ?? PHP_INT_MAX));
+
+            [$resultat] = $this->remboursementService->enregistrer($paiement, $rembourse, $total, $source);
+
+            return $resultat;
+        }
+
         if ($event->type !== 'checkout.session.completed') {
             return self::IGNORE;
         }
@@ -60,7 +78,8 @@ class TraitementEvenementStripe
                 (string) $session->payment_status,
                 $session->currency ?? null,
                 (int) $session->amount_total,
-                $source
+                $source,
+                isset($session->payment_intent) ? (string) $session->payment_intent : null
             );
 
             if ($resultat === PaiementCommandeService::PAYEE && $commande?->getUser()) {

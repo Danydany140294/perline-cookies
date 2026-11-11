@@ -6,6 +6,7 @@ use App\Entity\Commande;
 use App\Entity\CommandeHistorique;
 use App\Service\ChangementStatutCommande;
 use App\Service\ContexteChangementStatut;
+use App\Service\RestitutionStockService;
 use App\Enum\CommandeStatut;
 use App\Enum\ModeLivraison;
 use Doctrine\ORM\EntityManagerInterface;
@@ -13,6 +14,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -25,7 +27,8 @@ class CommandeCrudController extends AbstractCrudController
 {
     public function __construct(
         private ChangementStatutCommande $statuts,
-        private ContexteChangementStatut $contexte
+        private ContexteChangementStatut $contexte,
+        private RestitutionStockService $restitutionStock
     ) {
     }
 
@@ -81,6 +84,19 @@ class CommandeCrudController extends AbstractCrudController
 
             DateTimeField::new('dateCommande', 'Date de commande'),
             
+            MoneyField::new('montantRembourse', 'Remboursé (Stripe)')->setCurrency('EUR')->setStoredAsCents(false)
+                ->setFormTypeOption('disabled', true)
+                ->setHelp('Renseigné automatiquement par Stripe (événement charge.refunded). Le remboursement se fait dans le tableau de bord Stripe.')
+                ->hideOnIndex(),
+
+            BooleanField::new('stockRetire', 'Stock retiré par le système')
+                ->setFormTypeOption('disabled', true)
+                ->hideOnIndex(),
+
+            BooleanField::new('stockRestitue', 'Stock remis en vente')
+                ->setHelp('À cocher UNIQUEMENT pour une commande annulée ou remboursée dont les produits sont encore vendables (denrées alimentaires : jamais automatique). Impossible à annuler.')
+                ->hideOnIndex(),
+
             TextField::new('historiqueTexte', 'Historique des statuts')
                 ->onlyOnDetail()
                 ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
@@ -134,7 +150,22 @@ class CommandeCrudController extends AbstractCrudController
             }
 
             $this->contexte->definir(CommandeHistorique::SOURCE_ADMIN, $this->getUser()?->getUserIdentifier());
-        }
+
+            // Remise en stock : décision de l'administrateur (case à cocher), une seule fois, jamais défaite
+            $dejaRestitue = (bool) ($entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance)['stockRestitue'] ?? false);
+            if ($entityInstance->isStockRestitue() !== $dejaRestitue) {
+                $entityInstance->setStockRestitue($dejaRestitue); // on repart de l'état enregistré, le service refait le changement s'il est permis
+                if ($dejaRestitue) {
+                    $this->addFlash('danger', 'Le stock a déjà été remis en vente : cette case ne peut pas être décochée.');
+                } else {
+                    try {
+                        $this->restitutionStock->restituer($entityInstance, $this->getUser()?->getUserIdentifier());
+                        $this->addFlash('success', 'Stock remis en vente.');
+                    } catch (\DomainException $e) {
+                        $this->addFlash('danger', 'Remise en stock refusée : ' . $e->getMessage());
+                    }
+                }
+            }        }
 
         parent::updateEntity($entityManager, $entityInstance);
     }
