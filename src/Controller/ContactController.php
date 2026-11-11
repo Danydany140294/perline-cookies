@@ -37,7 +37,13 @@ final class ContactController extends AbstractController
                 $attente = max(1, (int) ceil(($limite->getRetryAfter()->getTimestamp() - time()) / 60));
                 $this->addFlash('error', sprintf('Trop de messages envoyés. Merci de réessayer dans %d minute(s).', $attente));
 
-                return $this->render('Page/contact.html.twig', ['form' => $form], new Response(status: Response::HTTP_TOO_MANY_REQUESTS));
+                // Le client ne perd pas sa saisie, et aucune erreur de validation n'est affichée :
+                // on réaffiche un formulaire NEUF (non soumis, donc non validé) prérempli avec ce qu'il a tapé.
+                return $this->render(
+                    'Page/contact.html.twig',
+                    ['form' => $this->createForm(ContactType::class, $this->saisieDe($request))],
+                    new Response(status: Response::HTTP_TOO_MANY_REQUESTS)
+                );
             }
         }
 
@@ -66,6 +72,26 @@ final class ContactController extends AbstractController
         return $this->render('Page/contact.html.twig', ['form' => $form], new Response(
             status: $form->isSubmitted() && !$form->isValid() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK
         ));
+    }
+
+    /**
+     * Ce que le client a saisi (champs texte uniquement, tronqués), pour le lui réafficher tel quel.
+     *
+     * @return array<string, string>
+     */
+    private function saisieDe(Request $request): array
+    {
+        $envoye = $request->request->all('contact');
+        $saisie = [];
+
+        foreach (['nom' => 100, 'email' => 180, 'sujet' => 20, 'message' => 5000] as $champ => $longueurMax) {
+            $valeur = $envoye[$champ] ?? null;
+            if (is_string($valeur) && $valeur !== '') {
+                $saisie[$champ] = mb_substr($valeur, 0, $longueurMax);
+            }
+        }
+
+        return $saisie;
     }
 
     /** @param array{nom: string, email: string, sujet: string, message: string} $donnees */
