@@ -206,4 +206,59 @@ class PaiementCommandeServiceTest extends TestCase
     {
         return (new Produit())->setName('B')->setPrix(2.0)->setStock(10)->setDisponible(true);
     }
+
+    // ───────────── Scénarios de paiement : session expirée, paiement tardif ─────────────
+
+    public function testSessionExpireeAnnuleLaCommandeEnAttenteSansLaSupprimer(): void
+    {
+        [$resultat] = $this->service($this->commande)->annulerSessionExpiree(1, self::SESSION);
+
+        $this->assertSame(PaiementCommandeService::ANNULEE, $resultat);
+        $this->assertSame(CommandeStatut::ANNULEE, $this->commande->getStatut());
+        $this->assertSame([], $this->supprimes, 'Annulée, jamais supprimée');
+        $this->assertSame(10, $this->produit->getStock(), 'Le stock n\'a jamais été touché');
+    }
+
+    public function testSessionExpireeNeToucheJamaisUneCommandePayeeOuAVerifier(): void
+    {
+        foreach ([CommandeStatut::PAYEE, CommandeStatut::A_VERIFIER] as $statut) {
+            $this->commande->setStatut($statut);
+
+            [$resultat] = $this->service($this->commande)->annulerSessionExpiree(1, self::SESSION);
+
+            $this->assertSame(PaiementCommandeService::DEJA_TRAITEE, $resultat);
+            $this->assertSame($statut, $this->commande->getStatut());
+        }
+    }
+
+    public function testSessionExpireeDUneAutreSessionEstIgnoree(): void
+    {
+        [$resultat] = $this->service($this->commande)->annulerSessionExpiree(1, 'cs_autre');
+
+        $this->assertSame(PaiementCommandeService::IGNOREE, $resultat);
+        $this->assertSame(CommandeStatut::EN_ATTENTE, $this->commande->getStatut());
+    }
+
+    public function testSessionExpireeRejoueeDeuxFoisResteAnnulee(): void
+    {
+        $service = $this->service($this->commande);
+
+        $service->annulerSessionExpiree(1, self::SESSION);
+        [$resultat] = $service->annulerSessionExpiree(1, self::SESSION);
+
+        $this->assertSame(PaiementCommandeService::DEJA_TRAITEE, $resultat);
+        $this->assertSame(CommandeStatut::ANNULEE, $this->commande->getStatut());
+    }
+
+    public function testPaiementTardifSurCommandeAnnuleeEstAVerifierEtJamaisIgnore(): void
+    {
+        $this->commande->setStatut(CommandeStatut::ANNULEE);
+
+        [$resultat] = $this->service($this->commande, true)->finaliser(1, self::SESSION, 'paid', 'eur', 1238);
+
+        $this->assertSame(PaiementCommandeService::A_VERIFIER, $resultat);
+        $this->assertSame(CommandeStatut::A_VERIFIER, $this->commande->getStatut());
+        $this->assertSame(10, $this->produit->getStock(), 'Rien n\'est retiré tant qu\'un humain n\'a pas vérifié');
+        $this->assertSame([], $this->supprimes);
+    }
 }

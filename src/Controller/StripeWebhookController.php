@@ -68,8 +68,19 @@ final class StripeWebhookController extends AbstractController
             return new JsonResponse(['error' => 'Signature invalide'], 400);
         }
 
-        // ✅ Session expirée — paiement abandonné
+        // ✅ Session expirée — paiement jamais fait : la commande « En attente » passe « Annulée »
+        //    (pas supprimée). Toujours 200 : rien à réessayer côté Stripe.
         if ($event->type === 'checkout.session.expired') {
+            $reference = $event->data->object->client_reference_id ?? null;
+            if ($reference !== null && ctype_digit((string) $reference)) {
+                [$resultat] = $this->paiementCommandeService->annulerSessionExpiree(
+                    (int) $reference,
+                    (string) $event->data->object->id
+                );
+
+                return new JsonResponse(['status' => $resultat]);
+            }
+
             return new JsonResponse(['status' => 'session_expired']);
         }
 

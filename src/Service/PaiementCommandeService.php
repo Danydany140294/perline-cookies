@@ -22,6 +22,8 @@ class PaiementCommandeService
     public const DEJA_TRAITEE = 'deja_traitee';
     public const NON_PAYEE = 'non_payee';
     public const INTROUVABLE = 'introuvable';
+    public const ANNULEE = 'annulee';
+    public const IGNOREE = 'ignoree';
 
     public function __construct(
         private EntityManagerInterface $em,
@@ -54,6 +56,22 @@ class PaiementCommandeService
                 ]);
 
                 return [self::INTROUVABLE, null];
+            }
+
+            // Argent reçu sur une commande déjà « Annulée » (session expirée puis paiement tardif, ou
+            // annulation manuelle) : on ne l'ignore SURTOUT pas, un humain doit regarder.
+            if ($commande->getStatut() === CommandeStatut::ANNULEE && $paymentStatus === 'paid') {
+                $commande->setStatut(CommandeStatut::A_VERIFIER);
+                $this->em->flush();
+
+                $this->logger->critical('Webhook Stripe : paiement reçu sur une commande annulée, commande à vérifier.', [
+                    'commande_id' => $commande->getId(),
+                    'numero' => $commande->getNumeroCommande(),
+                    'montant_paye_centimes' => $montantPayeCentimes,
+                    'stripe_session_id' => $stripeSessionId,
+                ]);
+
+                return [self::A_VERIFIER, $commande];
             }
 
             if ($commande->getStatut() !== CommandeStatut::EN_ATTENTE) {
@@ -145,6 +163,47 @@ class PaiementCommandeService
             $this->em->flush();
 
             return [self::PAYEE, $commande];
+        });
+    }
+
+    /**
+     * Session Stripe expirée (paiement jamais fait) : la commande « En attente » passe « Annulée ».
+     * Elle n'est PAS supprimée (traçabilité). Une commande déjà payée, à vérifier ou annulée n'est
+     * jamais touchée, et la session doit correspondre à celle de la commande.
+     *
+     * @return array{0: string, 1: ?Commande}
+     */
+    public function annulerSessionExpiree(int $commandeId, string $stripeSessionId): array
+    {
+        return $this->em->wrapInTransaction(function () use ($commandeId, $stripeSessionId): array {
+            $commande = $this->em->find(Commande::class, $commandeId, LockMode::PESSIMISTIC_WRITE);
+
+            if ($commande === null) {
+                $this->logger->warning('Webhook Stripe : session expirée pour une commande introuvable.', [
+                    'commande_id' => $commandeId,
+                    'stripe_session_id' => $stripeSessionId,
+                ]);
+
+                return [self::INTROUVABLE, null];
+            }
+
+            if ($commande->getStripeSessionId() !== $stripeSessionId) {
+                $this->logger->warning('Webhook Stripe : session expirée qui ne correspond pas à la commande, ignorée.', [
+                    'commande_id' => $commande->getId(),
+                    'stripe_session_id' => $stripeSessionId,
+                ]);
+
+                return [self::IGNOREE, $commande];
+            }
+
+            if ($commande->getStatut() !== CommandeStatut::EN_ATTENTE) {
+                return [self::DEJA_TRAITEE, $commande];
+            }
+
+            $commande->setStatut(CommandeStatut::ANNULEE);
+            $this->em->flush();
+
+            return [self::ANNULEE, $commande];
         });
     }
 }
