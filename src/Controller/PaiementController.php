@@ -13,6 +13,7 @@ use App\Repository\LignePanierRepository;
 use App\Service\CommandeService;
 use App\Service\FraisLivraisonService;
 use App\Service\StockCookiesService;
+use App\Service\ZoneLivraison;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -32,6 +33,7 @@ final class PaiementController extends AbstractController
 
     public function __construct(
         private FraisLivraisonService $fraisLivraisonService,
+        private ZoneLivraison $zoneLivraison,
         #[Autowire(param: 'retrait')] private array $retrait
     )
     {
@@ -105,18 +107,28 @@ final class PaiementController extends AbstractController
             return $this->redirectToRoute('app_panier_index');
         }
 
-        // Frais calculés par le service (centimes), convertis en euros pour l'affichage
+        // Frais calculés par le service (centimes), convertis en euros pour l'affichage (livraison à domicile)
         $fraisCentimes = $this->fraisLivraisonService->calculer(
             $sousTotalCentimes,
             FraisLivraisonService::MODE_LIVRAISON
         );
         $fraisLivraison = $fraisCentimes / 100;
         $totalFinal = ($sousTotalCentimes + $fraisCentimes) / 100;
+        $resteGratuite = max(0, $this->fraisLivraisonService->seuilGratuiteCentimes() - $sousTotalCentimes) / 100;
         $totalRetrait = $sousTotalCentimes / 100; // retrait : frais à 0 €
         $stripePublicKey = $_ENV['STRIPE_PUBLIC_KEY'] ?? '';
 
         // ✅ Récupérer les adresses de l'user (par défaut en premier)
         $adresses = $adresseRepo->findBy(['user' => $user], ['parDefaut' => 'DESC']);
+
+        // Adresses hors zone (Corse, outre-mer, étranger...) : non sélectionnables, avec la raison affichée
+        $adressesNonDesservies = [];
+        foreach ($adresses as $adresse) {
+            $message = $this->zoneLivraison->messageNonDesservie($adresse->getCodePostal(), $adresse->getPays());
+            if ($message !== null) {
+                $adressesNonDesservies[$adresse->getId()] = $message;
+            }
+        }
 
         return $this->render('Page/paiement.html.twig', [
             'show_success_modal' => false,
@@ -127,6 +139,12 @@ final class PaiementController extends AbstractController
             'retrait' => $this->retrait,
             'stripe_public_key' => $stripePublicKey,
             'adresses' => $adresses,
+            'adresses_non_desservies' => $adressesNonDesservies,
+            'livraison_possible' => count($adressesNonDesservies) < count($adresses),
+            'modes_disponibles' => $this->fraisLivraisonService->modesDisponibles(),
+            'mode_defaut' => $this->fraisLivraisonService->modeParDefaut(),
+            'transporteur' => $this->fraisLivraisonService->transporteur(),
+            'reste_gratuite' => $resteGratuite,
         ]);
     }
 
@@ -160,6 +178,11 @@ final class PaiementController extends AbstractController
             return new JsonResponse(['error' => 'Mode de livraison invalide'], 400);
         }
 
+        // Seuls les modes proposés (configuration) sont acceptés
+        if (!$this->fraisLivraisonService->estDisponible($mode->value)) {
+            return new JsonResponse(['error' => 'Ce mode de réception n\'est pas proposé pour le moment.'], 400);
+        }
+
         // Livraison : une adresse du client est obligatoire. Retrait : aucune adresse.
         $adresse = null;
         if ($mode === ModeLivraison::LIVRAISON) {
@@ -168,6 +191,12 @@ final class PaiementController extends AbstractController
 
             if ($adresse === null || $adresse->getUser()?->getId() !== $user->getId()) {
                 return new JsonResponse(['error' => 'Veuillez choisir une adresse de livraison.'], 400);
+            }
+
+            // Zone desservie : France métropolitaine hors Corse (vérifié ICI, jamais seulement dans le navigateur)
+            $nonDesservie = $this->zoneLivraison->messageNonDesservie($adresse->getCodePostal(), $adresse->getPays());
+            if ($nonDesservie !== null) {
+                return new JsonResponse(['error' => $nonDesservie, 'adresse_non_desservie' => true], 400);
             }
         }
 
@@ -403,13 +432,22 @@ final class PaiementController extends AbstractController
 
     // ✅ Sauvegarder l'adresse choisie en session
     #[Route('/paiement/choisir-adresse', name: 'app_paiement_choisir_adresse', methods: ['POST'])]
-    public function choisirAdresse(Request $request): JsonResponse
+    public function choisirAdresse(Request $request, AdresseRepository $adresseRepo): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
         $adresseId = $data['adresse_id'] ?? null;
 
         if (!$adresseId) {
             return new JsonResponse(['error' => 'Adresse invalide'], 400);
+        }
+
+        // L'adresse doit appartenir au client connecté et se trouver dans la zone desservie
+        $adresse = $adresseRepo->find($adresseId);
+        if ($adresse === null || $adresse->getUser()?->getId() !== $this->getUser()?->getId()) {
+            return new JsonResponse(['error' => 'Adresse invalide'], 400);
+        }
+        if (($nonDesservie = $this->zoneLivraison->messageNonDesservie($adresse->getCodePostal(), $adresse->getPays())) !== null) {
+            return new JsonResponse(['error' => $nonDesservie], 400);
         }
 
         $session = $this->container->get('request_stack')->getSession();

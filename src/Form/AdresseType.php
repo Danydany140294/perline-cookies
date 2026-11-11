@@ -9,10 +9,16 @@ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use App\Service\ZoneLivraison;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 class AdresseType extends AbstractType
 {
+    public function __construct(private ZoneLivraison $zone)
+    {
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
@@ -67,7 +73,13 @@ class AdresseType extends AbstractType
                     new Assert\Regex([
                         'pattern' => '/^[0-9]{5}$/',
                         'message' => 'Le code postal doit contenir 5 chiffres'
-                    ])
+                    ]),
+                    // Zone desservie : message clair si le code postal est en Corse, outre-mer, etc.
+                    new Assert\Callback(function (?string $valeur, ExecutionContextInterface $context): void {
+                        if ($valeur !== null && preg_match('/^[0-9]{5}$/', $valeur) && ($raison = $this->zone->raisonCodePostal($valeur)) !== null) {
+                            $context->buildViolation('Cette adresse n\'est pas desservie : ' . $raison)->addViolation();
+                        }
+                    }),
                 ]
             ])
             ->add('ville', TextType::class, [
@@ -82,22 +94,13 @@ class AdresseType extends AbstractType
                     ])
                 ]
             ])
+            // Pays figé : nous ne livrons qu'en France métropolitaine pour le moment (voir ZoneLivraison)
             ->add('pays', ChoiceType::class, [
                 'label' => 'Pays',
-                'choices' => [
-                    'France' => 'France',
-                    'Belgique' => 'Belgique',
-                    'Suisse' => 'Suisse',
-                    'Luxembourg' => 'Luxembourg',
-                    'Canada' => 'Canada',
-                    'Autre' => 'Autre'
-                ],
-                'attr' => [
-                    'class' => 'form-control'
-                ],
-                'data' => 'France'
-            ])
-            ->add('telephone', TextType::class, [
+                'choices' => [$this->zone->pays() => $this->zone->pays()],
+                'attr' => ['class' => 'form-control'],
+                'data' => $this->zone->pays(),
+            ])            ->add('telephone', TextType::class, [
                 'label' => 'Téléphone (facultatif)',
                 'required' => false,
                 'help' => 'Utile au transporteur pour vous prévenir de la livraison.',
