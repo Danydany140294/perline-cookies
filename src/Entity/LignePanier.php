@@ -171,28 +171,26 @@ class LignePanier
     }
 
     /**
-     * Récupère le prix unitaire
+     * Prix unitaire, TOUJOURS calculé côté serveur à partir du catalogue :
+     * cookie = son prix ; box classique = son prix ; box personnalisable = le prix de sa taille
+     * (champs prix6/prix12/prix24 de l'admin, seule source). Pas de prix de repli : si le prix d'une
+     * box personnalisable n'est pas défini, 0 est renvoyé et le paiement est bloqué
+     * (voir StockCookiesService::verifierPrix).
      */
-    private const PRIX_BOX_PERSO = [
-    6  => 12.00,
-    12 => 24.00,
-    24 => 30.00,
-];
-
-public function getPrixUnitaire(): float
-{
-    if ($this->produit) {
-        return $this->produit->getPrix();
-    }
-
-    if ($this->box) {
-        // Box personnalisable avec taille connue → prix dynamique
-        if ($this->box->getType() === 'personnalisable' && $this->tailleBox !== null) {
-            return self::PRIX_BOX_PERSO[$this->tailleBox] ?? $this->box->getPrix();
+    public function getPrixUnitaire(): float
+    {
+        if ($this->produit) {
+            return $this->produit->getPrix();
         }
-        return $this->box->getPrix();
-    }
 
-    return 0;
-}
+        if ($this->box) {
+            if ($this->box->getType() === 'personnalisable') {
+                return $this->tailleBox !== null ? ($this->box->getPrixPourTaille($this->tailleBox) ?? 0.0) : 0.0;
+            }
+
+            return $this->box->getPrix();
+        }
+
+        return 0.0;
+    }
 }

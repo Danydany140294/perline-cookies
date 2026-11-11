@@ -237,7 +237,7 @@ public function viderPanier(Request $request): Response
         // Taille envoyée par box.js (6, 12 ou 24) — défaut 12 pour compatibilité
         $taille = isset($data['taille']) ? (int) $data['taille'] : 12;
 
-        if (!in_array($taille, [6, 12, 24], true)) {
+        if (!in_array($taille, Box::TAILLES_PERSO, true)) {
             return $this->json([
                 'success' => false,
                 'message' => 'Taille invalide (6, 12 ou 24 uniquement)',
@@ -464,8 +464,8 @@ public function viderPanier(Request $request): Response
                 }
             }
 
-            // Prix dynamique stocké en session (sinon fallback sur box)
-            $prixUnitaire = $item['prix'] ?? $item['box']->getPrix();
+            // Prix de la taille (admin), actualisé à chaque lecture du panier : aucun prix de repli
+            $prixUnitaire = $item['prix'];
             $taille       = $item['taille'] ?? null;
 
             $items[] = [
@@ -572,8 +572,8 @@ public function viderPanier(Request $request): Response
         }
 
         foreach ($panier['boxes_perso'] ?? [] as $item) {
-            // Utiliser le prix dynamique stocké en session
-            $total += $item['prix'] ?? $item['box']->getPrix();
+            // Prix de la taille (admin), actualisé à chaque lecture du panier
+            $total += $item['prix'];
         }
 
         return $total;

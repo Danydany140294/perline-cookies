@@ -32,11 +32,13 @@ class BoxCrudController extends AbstractCrudController
                 'Fixe (recette ci-dessous)' => 'fixe',
                 'Personnalisable' => 'personnalisable',
             ]),
-            MoneyField::new('prix', 'Prix')->setCurrency('EUR')->setStoredAsCents(false),
+            MoneyField::new('prix', 'Prix')->setCurrency('EUR')->setStoredAsCents(false)
+                ->setHelp('Prix des boxes classiques. IGNORÉ pour la box personnalisable : ses prix sont ceux des trois tailles ci-dessous.'),
             IntegerField::new('taille', 'Taille')->hideOnIndex(),
-            MoneyField::new('prix6', 'Prix (6)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
-            MoneyField::new('prix12', 'Prix (12)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
-            MoneyField::new('prix24', 'Prix (24)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
+            MoneyField::new('prix6', 'Prix (6 cookies)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex()
+                ->setHelp('Box personnalisable : SEULE source du prix facturé et affiché pour cette taille (obligatoire, supérieur à 0).'),
+            MoneyField::new('prix12', 'Prix (12 cookies)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
+            MoneyField::new('prix24', 'Prix (24 cookies)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
             BooleanField::new('isActive', 'Active'),
             IntegerField::new('stockDisponible', 'Stock (calculé)')->onlyOnIndex(),
             CollectionField::new('compositions', 'Recette : cookies et quantités')

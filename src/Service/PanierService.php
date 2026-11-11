@@ -18,16 +18,6 @@ class PanierService
 {
     private const SESSION_KEY = 'panier';
 
-    /** Tailles autorisées */
-    private const TAILLES_BOX_PERSO = [6, 12, 24];
-
-    /** Prix fixes par taille */
-    private const PRIX_BOX_PERSO = [
-        6  => 12.00,
-        12 => 24.00,
-        24 => 30.00,
-    ];
-
     public function __construct(
         private EntityManagerInterface $entityManager,
         private PanierRepository $panierRepository,
@@ -71,7 +61,32 @@ class PanierService
             ];
         }
 
+        // Les prix des box perso affichées viennent TOUJOURS de l'admin du moment (jamais d'un prix figé en session)
+        $panier['boxes_perso'] = $this->actualiserBoxesPerso($panier['boxes_perso'] ?? []);
+
         return $panier;
+    }
+
+    /**
+     * Relit en base chaque box perso du panier de session : box fraîche et prix de sa taille (admin).
+     * Une box dont le prix n'est plus défini est retirée. Les clés sont conservées (elles servent d'identifiant).
+     */
+    private function actualiserBoxesPerso(array $boxesPerso): array
+    {
+        foreach ($boxesPerso as $cle => $item) {
+            $box = isset($item['box']) ? $this->entityManager->getRepository(Box::class)->find($item['box']->getId()) : null;
+            $prix = $box?->getPrixPourTaille((int) ($item['taille'] ?? 0));
+
+            if ($prix === null) {
+                unset($boxesPerso[$cle]);
+                continue;
+            }
+
+            $boxesPerso[$cle]['box'] = $box;
+            $boxesPerso[$cle]['prix'] = $prix;
+        }
+
+        return $boxesPerso;
     }
 
     private function getPanierBDD(User $user): array
@@ -299,11 +314,17 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
         int $taille
     ): void {
 
-        if (!in_array($taille, self::TAILLES_BOX_PERSO)) {
+        if (!in_array($taille, Box::TAILLES_PERSO, true)) {
             throw new \Exception("Taille invalide");
         }
 
         $this->verifierBoxVendable($box);
+
+        // Prix : uniquement celui de l'admin pour cette taille (aucun prix de repli)
+        $prix = $box->getPrixPourTaille($taille);
+        if ($prix === null) {
+            throw new \Exception(sprintf('La box de %d cookies n\'est pas disponible pour le moment.', $taille));
+        }
 
         $user = $this->security->getUser();
 
@@ -314,10 +335,8 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
             $user instanceof User ? $this->panierRepository->findByUser($user) : null
         );
 
-        $prix = self::PRIX_BOX_PERSO[$taille] ?? $box->getPrix();
-
         $user instanceof User
-            ? $this->ajouterBoxPersoBDD($user, $box, $cookies, $taille, $prix)
+            ? $this->ajouterBoxPersoBDD($user, $box, $cookies, $taille)
             : $this->ajouterBoxPersoSession($box, $cookies, $taille, $prix);
     }
 
@@ -430,7 +449,7 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
         $session->set(self::SESSION_KEY, $panier);
     }
 
-    private function ajouterBoxPersoBDD(User $user, Box $box, array $cookies, int $taille, float $prix): void
+    private function ajouterBoxPersoBDD(User $user, Box $box, array $cookies, int $taille): void
     {
         $panier = $this->panierRepository->findByUser($user);
 
@@ -672,10 +691,11 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
         // Boxes personnalisées : chaque composition est une ligne à part, on les ajoute telles quelles
         foreach ($panierSession['boxes_perso'] ?? [] as $item) {
             $box = $this->entityManager->getRepository(Box::class)->find($item['box']->getId());
-            if (!$box) {
+            // Box dont le prix de cette taille n'est plus défini : on ne la reprend pas
+            if (!$box || $box->getPrixPourTaille((int) $item['taille']) === null) {
                 continue;
             }
-            $this->ajouterBoxPersoBDD($user, $box, $item['cookies'], $item['taille'], $item['prix']);
+            $this->ajouterBoxPersoBDD($user, $box, $item['cookies'], $item['taille']);
         }
 
         // Vider la session après migration

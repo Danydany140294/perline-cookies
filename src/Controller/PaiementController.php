@@ -188,6 +188,7 @@ final class PaiementController extends AbstractController
             // Boxes encore vendables, puis stock : cookies seuls + cookies des boxes classiques + box perso, cumulés.
             // Blocage AVANT toute création de commande, avec le détail du cookie en cause.
             $problemesStock = [
+                ...$stockCookies->verifierPrix($lignes),
                 ...$stockCookies->verifierBoxes($lignes),
                 ...$stockCookies->verifier($stockCookies->besoinsDepuisPanier($lignes)),
             ];

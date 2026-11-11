@@ -117,6 +117,25 @@ class StockCookiesService
 
         return array_values(array_unique($messages));
     }
+    /**
+     * Garde-fou : aucune ligne du panier ne peut être payée à 0 € (prix non défini : box personnalisable
+     * dont la taille n'a plus de prix dans l'admin, article sans prix...).
+     *
+     * @param iterable<LignePanier> $lignes
+     * @return list<string>
+     */
+    public function verifierPrix(iterable $lignes): array
+    {
+        $messages = [];
+
+        foreach ($lignes as $ligne) {
+            if ($ligne->getPrixUnitaire() <= 0) {
+                $messages[] = sprintf('Le prix de « %s » n\'est pas disponible pour le moment.', $ligne->getNomArticle());
+            }
+        }
+
+        return array_values(array_unique($messages));
+    }
     private function ajouter(array &$besoins, ?Produit $produit, int $quantite): void
     {
         if ($produit === null || $quantite <= 0) {

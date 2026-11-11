@@ -153,7 +153,7 @@ class PaiementCheckoutRefusTest extends TestCase
     {
         // Stock 5 : 2 cookies seuls + 2 boxes x 2 cookies = 6 demandés
         $pistache = $this->cookie('Cookie Pistache', 5);
-        $box = new Box();
+        $box = (new Box())->setPrix(19.9);
         $box->addComposition((new BoxProduit())->setProduit($pistache)->setQuantite(2));
         $seul = (new LignePanier())->setProduit($pistache)->setQuantite(2);
         $laBox = (new LignePanier())->setBox($box)->setQuantite(2);
@@ -166,7 +166,7 @@ class PaiementCheckoutRefusTest extends TestCase
 
     public function testBoxDesactiveeEstBlockeeAuClicSurPayerSansCreerDeCommande(): void
     {
-        $box = (new Box())->setNom('Box Gourmande')->setType('fixe')->setIsActive(false);
+        $box = (new Box())->setNom('Box Gourmande')->setType('fixe')->setPrix(24.9)->setIsActive(false);
         $ligne = (new LignePanier())->setBox($box)->setQuantite(1);
 
         [$statut, $json] = $this->appeler('{"mode":"retrait"}', null, null, [$ligne]);
@@ -177,12 +177,23 @@ class PaiementCheckoutRefusTest extends TestCase
 
     public function testBoxClassiqueSansRecetteNEstPasVendue(): void
     {
-        $box = (new Box())->setNom('Box Vide')->setType('fixe');
+        $box = (new Box())->setNom('Box Vide')->setType('fixe')->setPrix(19.9);
         $ligne = (new LignePanier())->setBox($box)->setQuantite(1);
 
         [$statut, $json] = $this->appeler('{"mode":"retrait"}', null, null, [$ligne]);
 
         $this->assertSame(409, $statut);
         $this->assertStringContainsString('Box Vide', $json['error']);
+    }
+
+    public function testBoxPersoSansPrixPourSaTailleBloqueLePaiementSansCreerDeCommande(): void
+    {
+        $box = (new Box())->setNom('Box Personnalisable')->setType('personnalisable')->setPrix(19.90)->setPrix6(12.99)->setPrix12(null)->setPrix24(29.99);
+        $ligne = (new LignePanier())->setBox($box)->setQuantite(1)->setTailleBox(12);
+
+        [$statut, $json] = $this->appeler('{"mode":"retrait"}', null, null, [$ligne]);
+
+        $this->assertSame(409, $statut);
+        $this->assertStringContainsString('Le prix de « Box Personnalisable » n\'est pas disponible', $json['error']);
     }
 }
