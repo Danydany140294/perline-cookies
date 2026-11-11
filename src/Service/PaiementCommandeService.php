@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Entity\Commande;
+use App\Entity\LigneCommande;
+use App\Entity\LignePanier;
 use App\Entity\Panier;
 use App\Enum\CommandeStatut;
 use Doctrine\DBAL\LockMode;
@@ -148,17 +150,9 @@ class PaiementCommandeService
             // (Même transaction que le changement de statut : tout ou rien.)
             $commande->setStatut(CommandeStatut::PAYEE);
 
-            // Vider le panier du client
-            $user = $commande->getUser();
-            if ($user !== null) {
-                $panier = $this->em->getRepository(Panier::class)->findOneBy(['user' => $user]);
-                if ($panier !== null) {
-                    foreach ($panier->getLignesPanier() as $lignePanier) {
-                        $this->em->remove($lignePanier);
-                    }
-                    $this->em->remove($panier);
-                }
-            }
+            // Panier : seuls les articles PAYÉS en sortent (ce qui a été ajouté depuis, par exemple dans un
+            // autre onglet, reste dans le panier du client).
+            $this->retirerArticlesPayesDuPanier($commande);
 
             $this->em->flush();
 
@@ -166,6 +160,81 @@ class PaiementCommandeService
         });
     }
 
+    /**
+     * Retire du panier du client ce que la commande contient, ligne à ligne (quantité par quantité).
+     * Le panier lui-même n'est supprimé que s'il est vide ensuite.
+     */
+    private function retirerArticlesPayesDuPanier(Commande $commande): void
+    {
+        $user = $commande->getUser();
+        if ($user === null) {
+            return;
+        }
+
+        $panier = $this->em->getRepository(Panier::class)->findOneBy(['user' => $user]);
+        if ($panier === null) {
+            return;
+        }
+
+        foreach ($commande->getLignesCommande() as $ligneCommande) {
+            $aRetirer = (int) $ligneCommande->getQuantite();
+
+            foreach ($panier->getLignesPanier()->toArray() as $lignePanier) {
+                if ($aRetirer <= 0) {
+                    break;
+                }
+                if (!$this->memeArticle($lignePanier, $ligneCommande)) {
+                    continue;
+                }
+
+                $retire = min($aRetirer, (int) $lignePanier->getQuantite());
+                $aRetirer -= $retire;
+                $reste = (int) $lignePanier->getQuantite() - $retire;
+
+                if ($reste > 0) {
+                    $lignePanier->setQuantite($reste);
+                } else {
+                    $panier->removeLignePanier($lignePanier);
+                    $this->em->remove($lignePanier);
+                }
+            }
+        }
+
+        if ($panier->getLignesPanier()->isEmpty()) {
+            $this->em->remove($panier);
+        }
+    }
+
+    /** Une ligne de panier correspond-elle à une ligne de la commande ? (même cookie, même box, même composition) */
+    private function memeArticle(LignePanier $lignePanier, LigneCommande $ligneCommande): bool
+    {
+        if ($ligneCommande->isBoxPersonnalisable()) {
+            return $lignePanier->isBoxPersonnalisable()
+                && $lignePanier->getBox() === $ligneCommande->getBox()
+                && $this->signature($lignePanier->getCompositionsPanier()) === $this->signature($ligneCommande->getCompositionsBox());
+        }
+
+        if ($ligneCommande->getBox() !== null) {
+            return $lignePanier->getBox() === $ligneCommande->getBox()
+                && $lignePanier->getProduit() === null
+                && !$lignePanier->isBoxPersonnalisable();
+        }
+
+        return $ligneCommande->getProduit() !== null && $lignePanier->getProduit() === $ligneCommande->getProduit();
+    }
+
+    /** Empreinte d'une composition (cookie:quantité, triée) pour comparer deux box personnalisées. */
+    private function signature(iterable $compositions): string
+    {
+        $parties = [];
+        foreach ($compositions as $composition) {
+            $produit = $composition->getProduit();
+            $parties[] = ($produit?->getId() ?? spl_object_id($produit)) . ':' . $composition->getQuantite();
+        }
+        sort($parties);
+
+        return implode('|', $parties);
+    }
     /**
      * Session Stripe expirée (paiement jamais fait) : la commande « En attente » passe « Annulée ».
      * Elle n'est PAS supprimée (traçabilité). Une commande déjà payée, à vérifier ou annulée n'est
