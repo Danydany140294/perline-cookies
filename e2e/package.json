@@ -1,0 +1,14 @@
+{
+  "name": "perline-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Tests de bout en bout (Playwright) de Perline Cookies, sur une base MySQL jetable dédiée",
+  "scripts": {
+    "e2e": "node run.mjs",
+    "e2e:keep": "node run.mjs --keep",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}
