@@ -47,15 +47,16 @@ class EnregistreurHistoriqueStatut
                 continue;
             }
 
-            [$ancien, $nouveau] = $changements['statut'];
+            // Selon le chemin de chargement, Doctrine donne l'ancien statut en énumération OU en texte brut : on normalise
+            [$ancien, $nouveau] = array_map(static fn ($v) => $v instanceof \BackedEnum ? $v->value : $v, $changements['statut']);
             if ($ancien === $nouveau || $nouveau === null) {
                 continue;
             }
 
             $this->ecrire($em, $uow, $meta, new CommandeHistorique(
                 $entite,
-                $ancien?->value,
-                $nouveau->value,
+                $ancien,
+                $nouveau,
                 $this->contexte->source(),
                 $this->contexte->auteur(),
                 $this->contexte->note()

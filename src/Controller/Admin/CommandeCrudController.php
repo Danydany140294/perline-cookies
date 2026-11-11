@@ -39,15 +39,18 @@ class CommandeCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
-        return [
-            IdField::new('id')->hideOnForm(),
-            
-            TextField::new('numeroCommande', 'N° Commande'),
-            
-            // C'est "user" et non "utilisateur"
-            AssociationField::new('user', 'Client'),
-            
-            ChoiceField::new('statut', 'Statut')
+        // Formulaire : les choix sont les cas de l'énumération (Symfony compare des objets, pas du texte : avec des
+        // chaînes, la page d'édition plantait « Object of class CommandeStatut could not be converted to string »).
+        // Liste et détail : valeurs texte et badges de couleur.
+        if (in_array($pageName, [Crud::PAGE_EDIT, Crud::PAGE_NEW], true)) {
+            $statut = ChoiceField::new('statut', 'Statut')
+                ->setChoices(array_combine(
+                    array_map(static fn (CommandeStatut $s): string => $s->getLibelle(), CommandeStatut::cases()),
+                    CommandeStatut::cases()
+                ))
+                ->setHelp('Seules les transitions prévues sont acceptées (voir docs/regles-metier.md). Chaque changement est inscrit dans l\'historique.');
+        } else {
+            $statut = ChoiceField::new('statut', 'Statut')
                 ->setChoices([
                     'En attente' => CommandeStatut::EN_ATTENTE->value,
                     'Payée' => CommandeStatut::PAYEE->value,
@@ -69,7 +72,18 @@ class CommandeCrudController extends AbstractCrudController
                     CommandeStatut::ANNULEE->value => 'danger',
                     CommandeStatut::A_VERIFIER->value => 'danger',
                     CommandeStatut::REMBOURSEE->value => 'secondary',
-                ]),
+                ]);
+        }
+
+        return [
+            IdField::new('id')->hideOnForm(),
+            
+            TextField::new('numeroCommande', 'N° Commande'),
+            
+            // C'est "user" et non "utilisateur"
+            AssociationField::new('user', 'Client'),
+            
+            $statut,
             
             // total_ttc est stocké en euros (pas en centimes) : pas de division par 100
             MoneyField::new('totalTTC', 'Total TTC')->setCurrency('EUR')->setStoredAsCents(false),
@@ -132,6 +146,9 @@ class CommandeCrudController extends AbstractCrudController
     {
         if ($entityInstance instanceof Commande) {
             $original = $entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance)['statut'] ?? null;
+            if (is_string($original)) {
+                $original = CommandeStatut::tryFrom($original); // texte brut selon le chemin de chargement
+            }
             $nouveau = $entityInstance->getStatut();
 
             if ($original instanceof CommandeStatut && $nouveau !== null && $nouveau !== $original

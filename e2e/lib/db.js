@@ -6,7 +6,7 @@ function executer(requete) {
   if (base !== 'creaself_e2e') throw new Error('Garde-fou : la base de test doit être creaself_e2e (variables E2E_* absentes ? lancez `npm run e2e`).');
   return execFileSync(
     'docker',
-    ['exec', process.env.E2E_MYSQL_CONTENEUR, 'mysql', '-uroot', `-p${process.env.E2E_MYSQL_MDP}`, base, '-N', '-B', '-e', requete],
+    ['exec', process.env.E2E_MYSQL_CONTENEUR, 'mysql', '-uroot', `-p${process.env.E2E_MYSQL_MDP}`, '--default-character-set=utf8mb4', base, '-N', '-B', '-e', requete],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }, // stderr ignoré : avertissement « mot de passe en ligne de commande »
   );
 }

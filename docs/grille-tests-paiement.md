@@ -4,6 +4,9 @@ Dans les commandes ci-dessous, remplacez `sk_test_XXX` par votre clé secrète *
 coller dans un fichier du dépôt ni dans un message). `STRIPE_WEBHOOK_SECRET` de `.env.local` doit être le
 `whsec_` affiché par `stripe listen`.
 
+> Depuis le chapitre 1.2, charge.refunded doit aussi être transmis (remboursements faits dans le tableau de bord Stripe).
+> La plupart de ces scénarios sont **automatisés** : voir 2e/README.md (cd e2e && npm run e2e). Seul S1 (carte refusée) reste manuel.
+
 ## Prérequis
 
 Docker démarré, `symfony serve`, Mailpit (http://127.0.0.1:8025), et dans un terminal :

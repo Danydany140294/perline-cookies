@@ -61,3 +61,58 @@ le prix de 6 (tests `PanierBoxPersoValidationTest`).
   bloqué (« Le prix de … n'est pas disponible », aucune commande créée). Jamais de vente à 0 €.
 - Le panier invité relit le prix à chaque affichage : un prix modifié dans l'admin s'applique tout de suite.
 - Les commandes déjà passées gardent le prix de leur époque (lignes figées).
+
+## 5. Numéro de commande (décidé le 11 novembre 2026)
+
+Format **`PER-AAAAMMJJ-XXXXXX`** (exemple : `PER-20261111-K7M4QZ`), généré par `NumeroCommandeGenerator`.
+
+- `XXXXXX` : 6 caractères tirés avec `random_int()` (générateur sûr) dans l'alphabet `23456789ABCDEFGHJKMNPQRSTUVWXYZ`
+  (31 caractères, **sans 0, O, 1, I, L** : on peut le dicter au téléphone sans confusion).
+- **Non séquentiel** : il ne révèle pas le volume de ventes. La numérotation séquentielle est réservée aux **factures**
+  (obligation légale, chapitre 1.4).
+- **Unicité** garantie par un index unique en base (`commande.numero_commande`) ; le générateur vérifie et retente jusqu'à 10 fois
+  en cas de collision (31⁶ ≈ 887 millions de combinaisons par jour : une collision est quasi impossible).
+- Les anciens numéros (`CMD-…`) ne sont jamais modifiés.
+
+## 6. Statuts de commande : workflow et historique (décidé le 11 novembre 2026)
+
+Le cycle de vie est un **workflow Symfony** (`config/packages/workflow.yaml`, type « state machine »). Aucun changement de
+statut n'est possible en dehors de ces transitions ; tout passe par `ChangementStatutCommande`.
+
+| Transition | De | Vers |
+|---|---|---|
+| payer | En attente | Payée |
+| signaler_ecart | En attente, Annulée | À vérifier |
+| valider_verification | À vérifier | Payée |
+| confirmer | Payée | Confirmée |
+| preparer | Payée, Confirmée | En préparation |
+| expedier | En préparation | Expédiée |
+| livrer (livrée ou retirée sur place) | En préparation, Expédiée | Livrée |
+| annuler | En attente, Payée, Confirmée, En préparation, À vérifier | Annulée |
+| rembourser | Payée, Confirmée, En préparation, Expédiée, Livrée, À vérifier, Annulée | Remboursée |
+
+« Remboursée » est un statut final. Aucun retour en arrière (une livrée ne redevient pas « En attente »).
+
+**Historique** (table `commande_historique`) : une ligne par changement, avec la **date**, le statut **avant** et **après**, la
+**source** (`client`, `admin`, `webhook_stripe`, `rattrapage`, `systeme`), l'**auteur** (e-mail du client ou de l'administrateur) et
+une **note** (par exemple « Écart : montant_different »). Elle est écrite automatiquement pour tout changement (création
+comprise), quel que soit le chemin, et s'affiche sur la page de détail de la commande dans l'administration.
+
+**Administration** : le formulaire d'édition n'accepte qu'une transition autorisée ; sinon le changement est refusé avec la liste
+des statuts possibles.
+
+## 7. Remboursements et remise en stock (décidé le 11 novembre 2026)
+
+- **Le remboursement se fait dans le tableau de bord Stripe.** Stripe envoie alors `charge.refunded` au webhook
+  (à ajouter aux événements du point d'entrée : `checkout.session.completed`, `checkout.session.expired`, `charge.refunded`).
+- **Remboursement total** → la commande passe **« Remboursée »**.
+- **Remboursement partiel** → le **montant remboursé** (cumulé) est enregistré sur la commande, une **note** est ajoutée à
+  l'historique, le statut **ne change pas**. Un remboursement partiel suivi d'un total aboutit à « Remboursée ».
+- **Idempotent** : un événement rejoué, ou un ancien événement arrivé après un plus récent, ne change rien.
+- La commande est retrouvée par l'identifiant du paiement Stripe (`payment_intent`, mémorisé au paiement) ; pour une commande
+  antérieure, via la session Stripe. Un remboursement pour un paiement inconnu est journalisé en critique.
+- **La remise en stock n'est JAMAIS automatique** (produits alimentaires : un cookie annulé ou rendu n'est pas forcément
+  revendable). L'administrateur coche « **Stock remis en vente** » sur la commande : possible une seule fois, irréversible, seulement
+  pour une commande **annulée ou remboursée** dont le stock avait été retiré par le système. La remise suit la **composition
+  figée** de la commande, et une note est ajoutée à l'historique.
+- Une commande « En attente » qui expire n'a jamais retiré de stock : il n'y a rien à remettre.
