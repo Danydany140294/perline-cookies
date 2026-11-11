@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Commande;
+use App\Entity\CommandeHistorique;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mailer\MailerInterface;
@@ -22,6 +23,7 @@ class TraitementEvenementStripe
 
     public function __construct(
         private PaiementCommandeService $paiementCommandeService,
+        private RemboursementCommandeService $remboursementService,
         private MailerInterface $mailer,
         private Environment $twig,
         private LoggerInterface $logger,
@@ -30,7 +32,7 @@ class TraitementEvenementStripe
     }
 
     /** @return string statut lisible (constantes de PaiementCommandeService ou de cette classe) */
-    public function traiter(\Stripe\Event $event): string
+    public function traiter(\Stripe\Event $event, string $source = CommandeHistorique::SOURCE_WEBHOOK): string
     {
         $session = $event->data->object ?? null;
         $reference = $session->client_reference_id ?? null;
@@ -42,7 +44,24 @@ class TraitementEvenementStripe
                 return self::SESSION_EXPIREE_SANS_REFERENCE;
             }
 
-            [$resultat] = $this->paiementCommandeService->annulerSessionExpiree((int) $reference, (string) $session->id);
+            [$resultat] = $this->paiementCommandeService->annulerSessionExpiree((int) $reference, (string) $session->id, $source);
+
+            return $resultat;
+        }
+
+        // Remboursement (fait dans le tableau de bord Stripe) : total -> « Remboursée », partiel -> note + montant
+        if ($event->type === 'charge.refunded') {
+            $paiement = (string) ($session->payment_intent ?? '');
+            if ($paiement === '') {
+                $this->logger->critical('Webhook Stripe : remboursement sans identifiant de paiement.', ['charge' => $session->id ?? null]);
+
+                return self::SANS_REFERENCE;
+            }
+
+            $rembourse = (int) ($session->amount_refunded ?? 0);
+            $total = ($session->refunded ?? false) === true || ($rembourse > 0 && $rembourse >= (int) ($session->amount ?? PHP_INT_MAX));
+
+            [$resultat] = $this->remboursementService->enregistrer($paiement, $rembourse, $total, $source);
 
             return $resultat;
         }
@@ -58,7 +77,9 @@ class TraitementEvenementStripe
                 (string) $session->id,
                 (string) $session->payment_status,
                 $session->currency ?? null,
-                (int) $session->amount_total
+                (int) $session->amount_total,
+                $source,
+                isset($session->payment_intent) ? (string) $session->payment_intent : null
             );
 
             if ($resultat === PaiementCommandeService::PAYEE && $commande?->getUser()) {

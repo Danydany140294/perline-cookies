@@ -6,10 +6,15 @@ use App\Repository\BoxRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: BoxRepository::class)]
 class Box
 {
+    /** Tailles autorisées pour la box personnalisable (une seule définition pour tout le projet). */
+    public const TAILLES_PERSO = [6, 12, 24];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -160,6 +165,41 @@ public function setPrix12(?float $prix12): static { $this->prix12 = $prix12; ret
 public function getPrix24(): ?float { return $this->prix24; }
 public function setPrix24(?float $prix24): static { $this->prix24 = $prix24; return $this; }
 
+
+    /**
+     * Prix de la box personnalisable pour une taille donnée : SEULE source de vérité = les champs
+     * « prix6 / prix12 / prix24 » saisis dans l'admin. Null si le prix n'est pas défini (ou nul) :
+     * il n'y a volontairement AUCUN prix de repli (le champ « prix » ne sert qu'aux box classiques).
+     */
+    public function getPrixPourTaille(int $taille): ?float
+    {
+        $prix = match ($taille) {
+            6 => $this->prix6,
+            12 => $this->prix12,
+            24 => $this->prix24,
+            default => null,
+        };
+
+        return ($prix !== null && $prix > 0) ? $prix : null;
+    }
+
+    /** Une box personnalisable doit avoir un prix > 0 pour chacune de ses tailles (sinon elle serait vendue à 0 €). */
+    #[Assert\Callback]
+    public function validerPrixDesTailles(ExecutionContextInterface $context): void
+    {
+        if (!$this->estPersonnalisable()) {
+            return;
+        }
+
+        foreach (self::TAILLES_PERSO as $taille) {
+            if ($this->getPrixPourTaille($taille) === null) {
+                $context->buildViolation('Le prix de la box de {{ taille }} cookies est obligatoire (supérieur à 0).')
+                    ->setParameter('{{ taille }}', (string) $taille)
+                    ->atPath('prix' . $taille)
+                    ->addViolation();
+            }
+        }
+    }
 
     public function isActive(): bool
     {

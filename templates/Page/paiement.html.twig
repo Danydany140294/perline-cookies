@@ -258,6 +258,13 @@
         });
     }
 
+    // Remet le bouton « Payer » dans son état normal (après une erreur)
+    function reactiverBouton(btn) {
+        btn.disabled = false;
+        btn.classList.remove('btn-payer-disabled');
+        btn.innerHTML = '💳 Payer ' + LIBELLES[mode].total + ' <span class="btn-sparkle">✨</span>';
+    }
+
     document.getElementById('checkout-btn').addEventListener('click', () => {
         if (mode === 'livraison' && !selectedAdresseId) {
             document.getElementById('adresse-warning').classList.remove('d-none');
@@ -283,14 +290,14 @@
                 const stripe = Stripe('{{ stripe_public_key }}');
                 stripe.redirectToCheckout({ sessionId: data.sessionId });
             } else {
-                alert(data.error || 'Erreur lors du paiement');
-                btn.disabled = false;
-                btn.textContent = '💳 Payer ' + LIBELLES[mode].total;
+                // Message intégré à la page (non bloquant), bouton réactivé aussitôt
+                afficherBandeau(data.error || 'Erreur lors du paiement', data.stock_insuffisant ? 'warning' : 'error');
+                reactiverBouton(btn);
             }
         })
         .catch(() => {
-            alert('Erreur réseau');
-            btn.disabled = false;
+            afficherBandeau('Erreur réseau : merci de réessayer.', 'error');
+            reactiverBouton(btn);
         });
     });
 </script>

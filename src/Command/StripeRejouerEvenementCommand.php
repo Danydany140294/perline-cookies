@@ -2,7 +2,9 @@
 
 namespace App\Command;
 
+use App\Entity\CommandeHistorique;
 use App\Service\PaiementCommandeService;
+use App\Service\RemboursementCommandeService;
 use App\Service\StripeEvenements;
 use App\Service\TraitementEvenementStripe;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -19,7 +21,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class StripeRejouerEvenementCommand extends Command
 {
-    private const TYPES_ACCEPTES = ['checkout.session.completed', 'checkout.session.expired'];
+    private const TYPES_ACCEPTES = ['checkout.session.completed', 'checkout.session.expired', 'charge.refunded'];
 
     public function __construct(
         private StripeEvenements $stripeEvenements,
@@ -64,9 +66,9 @@ class StripeRejouerEvenementCommand extends Command
         $io->definitionList(
             ['Événement' => $event->id . ' (' . $event->type . ')'],
             ['Session Stripe' => $session->id ?? '?'],
-            ['Commande (client_reference_id)' => $session->client_reference_id ?? '(aucune)'],
-            ['Statut du paiement' => $session->payment_status ?? '?'],
-            ['Montant' => number_format(((int) ($session->amount_total ?? 0)) / 100, 2, ',', ' ') . ' ' . strtoupper((string) ($session->currency ?? ''))]
+            ['Commande (client_reference_id)' => $session->client_reference_id ?? $session->payment_intent ?? '(aucune)'],
+            ['Statut du paiement' => $session->payment_status ?? (isset($session->amount_refunded) ? 'remboursement' : '?')],
+            ['Montant' => number_format(((int) ($session->amount_total ?? $session->amount_refunded ?? 0)) / 100, 2, ',', ' ') . ' ' . strtoupper((string) ($session->currency ?? ''))]
         );
 
         if ($input->getOption('dry-run')) {
@@ -75,11 +77,13 @@ class StripeRejouerEvenementCommand extends Command
             return Command::SUCCESS;
         }
 
-        $resultat = $this->traitement->traiter($event);
+        $resultat = $this->traitement->traiter($event, CommandeHistorique::SOURCE_RATTRAPAGE);
 
         return match ($resultat) {
             PaiementCommandeService::PAYEE => $this->succes($io, 'Commande payée : stock retiré, panier vidé, e-mail de confirmation envoyé.'),
             PaiementCommandeService::ANNULEE => $this->succes($io, 'Commande annulée (session expirée).'),
+            RemboursementCommandeService::REMBOURSEE => $this->succes($io, 'Commande passée « Remboursée » (stock NON remis : à cocher dans l\'administration).'),
+            RemboursementCommandeService::REMBOURSEMENT_PARTIEL => $this->succes($io, 'Remboursement partiel enregistré (montant et note d\'historique).'),
             PaiementCommandeService::DEJA_TRAITEE => $this->succes($io, 'Déjà traité : rien n\'a changé (idempotence).'),
             PaiementCommandeService::NON_PAYEE, PaiementCommandeService::IGNOREE, TraitementEvenementStripe::IGNORE => $this->succes($io, sprintf('Aucun changement (%s).', $resultat)),
             PaiementCommandeService::A_VERIFIER => $this->attention($io, 'Commande passée « À vérifier » (écart de montant, de devise ou de stock) : voir les logs critiques.'),

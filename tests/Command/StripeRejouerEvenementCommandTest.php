@@ -82,7 +82,7 @@ class StripeRejouerEvenementCommandTest extends TestCase
 
     public function testTypeNonGereEstRefuse(): void
     {
-        $testeur = $this->testeur($this->evenement('charge.refunded'), PaiementCommandeService::PAYEE, false);
+        $testeur = $this->testeur($this->evenement('customer.created'), PaiementCommandeService::PAYEE, false);
 
         $this->assertSame(Command::FAILURE, $testeur->execute(['evenement' => 'evt_123']));
         $this->assertStringContainsString('non géré', $testeur->getDisplay());

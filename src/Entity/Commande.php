@@ -8,8 +8,11 @@ use App\Repository\CommandeRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
+#[ORM\Index(name: 'idx_commande_payment_intent', columns: ['stripe_payment_intent_id'])]
+#[UniqueEntity(fields: ['numeroCommande'], message: 'Ce numéro de commande existe déjà.')]
 class Commande
 {
     #[ORM\Id]
@@ -17,7 +20,8 @@ class Commande
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 50)]
+    /** Format PER-AAAAMMJJ-XXXXXX (voir NumeroCommandeGenerator) ; anciennes commandes : CMD-… */
+    #[ORM\Column(length: 50, unique: true)]
     private ?string $numeroCommande = null;
 
     #[ORM\Column(type: 'datetime')]
@@ -56,8 +60,34 @@ class Commande
     #[ORM\Column(length: 20, enumType: ModeLivraison::class, options: ['default' => 'livraison'])]
     private ModeLivraison $modeLivraison = ModeLivraison::LIVRAISON;
 
+    /** Identifiant du paiement chez Stripe (pi_…) : sert à retrouver la commande quand Stripe signale un remboursement. */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stripePaymentIntentId = null;
+
+    /** Total déjà remboursé (en euros, cumulé) d'après les événements Stripe ; égal au total TTC = remboursement complet. */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $montantRembourse = 0.0;
+
+    /** Le stock des articles a été retiré par le système (paiement confirmé). Faux pour les anciennes commandes. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $stockRetire = false;
+
+    /** L'administrateur a remis les articles en stock (jamais automatique : produits alimentaires). Irréversible. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $stockRestitue = false;
+
+    /**
+     * Historique des changements de statut (qui, quand, de quel statut vers quel statut), du plus ancien au plus récent.
+     *
+     * @var Collection<int, CommandeHistorique>
+     */
+    #[ORM\OneToMany(targetEntity: CommandeHistorique::class, mappedBy: 'commande', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['date' => 'ASC', 'id' => 'ASC'])]
+    private Collection $historique;
+
     public function __construct()
     {
+        $this->historique = new ArrayCollection();
         $this->lignesCommande = new ArrayCollection();
         $this->dateCommande = new \DateTime();
         $this->statut = CommandeStatut::EN_ATTENTE;
@@ -103,6 +133,20 @@ class Commande
     {
         $this->statut = $statut;
         return $this;
+    }
+
+    /**
+     * Statut sous forme de texte, pour le composant Workflow (marking store method, propriété « statutValue »).
+     * Ne pas appeler directement : passer par ChangementStatutCommande (transitions contrôlées + historique).
+     */
+    public function getStatutValue(): ?string
+    {
+        return $this->statut?->value;
+    }
+
+    public function setStatutValue(string $valeur): void
+    {
+        $this->statut = CommandeStatut::from($valeur);
     }
 
     public function getTotalTTC(): ?float
@@ -226,6 +270,54 @@ public function setStripeSessionId(?string $stripeSessionId): static
         return $this->modeLivraison === ModeLivraison::RETRAIT;
     }
 
+    public function getStripePaymentIntentId(): ?string { return $this->stripePaymentIntentId; }
+
+    public function setStripePaymentIntentId(?string $id): static
+    {
+        $this->stripePaymentIntentId = $id;
+        return $this;
+    }
+
+    public function getMontantRembourse(): float { return $this->montantRembourse; }
+
+    public function setMontantRembourse(float $montant): static
+    {
+        $this->montantRembourse = $montant;
+        return $this;
+    }
+
+    public function isStockRetire(): bool { return $this->stockRetire; }
+
+    public function setStockRetire(bool $stockRetire): static
+    {
+        $this->stockRetire = $stockRetire;
+        return $this;
+    }
+
+    public function isStockRestitue(): bool { return $this->stockRestitue; }
+
+    public function setStockRestitue(bool $stockRestitue): static
+    {
+        $this->stockRestitue = $stockRestitue;
+        return $this;
+    }
+
+    /** @return Collection<int, CommandeHistorique> */
+    public function getHistorique(): Collection
+    {
+        return $this->historique;
+    }
+
+    /** Historique mis en forme (une ligne par changement), pour l'affichage dans l'administration. */
+    public function getHistoriqueTexte(): string
+    {
+        if ($this->historique->isEmpty()) {
+            return 'Aucun historique (commande antérieure à la mise en place du suivi).';
+        }
+
+        return implode("\n", array_map(static fn (CommandeHistorique $h): string => $h->__toString(), $this->historique->toArray()));
+    }
+
     // ========================================
     // MÉTHODES MÉTIER
     // ========================================
@@ -311,7 +403,8 @@ public function setStripeSessionId(?string $stripeSessionId): static
     {
         return !in_array($this->statut, [
             CommandeStatut::LIVREE,
-            CommandeStatut::ANNULEE
+            CommandeStatut::ANNULEE,
+            CommandeStatut::REMBOURSEE,
         ]);
     }
 
@@ -338,6 +431,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::LIVREE => 'Livrée',
             CommandeStatut::ANNULEE => 'Annulée',
             CommandeStatut::A_VERIFIER => 'À vérifier',
+            CommandeStatut::REMBOURSEE => 'Remboursée',
             default => 'Inconnu',
         };
     }
@@ -354,6 +448,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::LIVREE => 'badge-success',
             CommandeStatut::ANNULEE => 'badge-danger',
             CommandeStatut::A_VERIFIER => 'badge-danger',
+            CommandeStatut::REMBOURSEE => 'badge-secondary',
             default => 'badge-secondary',
         };
     }

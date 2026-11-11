@@ -3,6 +3,10 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Commande;
+use App\Entity\CommandeHistorique;
+use App\Service\ChangementStatutCommande;
+use App\Service\ContexteChangementStatut;
+use App\Service\RestitutionStockService;
 use App\Enum\CommandeStatut;
 use App\Enum\ModeLivraison;
 use Doctrine\ORM\EntityManagerInterface;
@@ -10,6 +14,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -20,6 +25,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 
 class CommandeCrudController extends AbstractCrudController
 {
+    public function __construct(
+        private ChangementStatutCommande $statuts,
+        private ContexteChangementStatut $contexte,
+        private RestitutionStockService $restitutionStock
+    ) {
+    }
+
     public static function getEntityFqcn(): string
     {
         return Commande::class;
@@ -27,15 +39,18 @@ class CommandeCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
-        return [
-            IdField::new('id')->hideOnForm(),
-            
-            TextField::new('numeroCommande', 'N° Commande'),
-            
-            // C'est "user" et non "utilisateur"
-            AssociationField::new('user', 'Client'),
-            
-            ChoiceField::new('statut', 'Statut')
+        // Formulaire : les choix sont les cas de l'énumération (Symfony compare des objets, pas du texte : avec des
+        // chaînes, la page d'édition plantait « Object of class CommandeStatut could not be converted to string »).
+        // Liste et détail : valeurs texte et badges de couleur.
+        if (in_array($pageName, [Crud::PAGE_EDIT, Crud::PAGE_NEW], true)) {
+            $statut = ChoiceField::new('statut', 'Statut')
+                ->setChoices(array_combine(
+                    array_map(static fn (CommandeStatut $s): string => $s->getLibelle(), CommandeStatut::cases()),
+                    CommandeStatut::cases()
+                ))
+                ->setHelp('Seules les transitions prévues sont acceptées (voir docs/regles-metier.md). Chaque changement est inscrit dans l\'historique.');
+        } else {
+            $statut = ChoiceField::new('statut', 'Statut')
                 ->setChoices([
                     'En attente' => CommandeStatut::EN_ATTENTE->value,
                     'Payée' => CommandeStatut::PAYEE->value,
@@ -45,6 +60,7 @@ class CommandeCrudController extends AbstractCrudController
                     'Livrée' => CommandeStatut::LIVREE->value,
                     'Annulée' => CommandeStatut::ANNULEE->value,
                     'À vérifier' => CommandeStatut::A_VERIFIER->value,
+                    'Remboursée' => CommandeStatut::REMBOURSEE->value,
                 ])
                 ->renderAsBadges([
                     CommandeStatut::EN_ATTENTE->value => 'warning',
@@ -55,7 +71,19 @@ class CommandeCrudController extends AbstractCrudController
                     CommandeStatut::LIVREE->value => 'success',
                     CommandeStatut::ANNULEE->value => 'danger',
                     CommandeStatut::A_VERIFIER->value => 'danger',
-                ]),
+                    CommandeStatut::REMBOURSEE->value => 'secondary',
+                ]);
+        }
+
+        return [
+            IdField::new('id')->hideOnForm(),
+            
+            TextField::new('numeroCommande', 'N° Commande'),
+            
+            // C'est "user" et non "utilisateur"
+            AssociationField::new('user', 'Client'),
+            
+            $statut,
             
             // total_ttc est stocké en euros (pas en centimes) : pas de division par 100
             MoneyField::new('totalTTC', 'Total TTC')->setCurrency('EUR')->setStoredAsCents(false),
@@ -70,6 +98,24 @@ class CommandeCrudController extends AbstractCrudController
 
             DateTimeField::new('dateCommande', 'Date de commande'),
             
+            MoneyField::new('montantRembourse', 'Remboursé (Stripe)')->setCurrency('EUR')->setStoredAsCents(false)
+                ->setFormTypeOption('disabled', true)
+                ->setHelp('Renseigné automatiquement par Stripe (événement charge.refunded). Le remboursement se fait dans le tableau de bord Stripe.')
+                ->hideOnIndex(),
+
+            BooleanField::new('stockRetire', 'Stock retiré par le système')
+                ->setFormTypeOption('disabled', true)
+                ->hideOnIndex(),
+
+            BooleanField::new('stockRestitue', 'Stock remis en vente')
+                ->setHelp('À cocher UNIQUEMENT pour une commande annulée ou remboursée dont les produits sont encore vendables (denrées alimentaires : jamais automatique). Impossible à annuler.')
+                ->hideOnIndex(),
+
+            TextField::new('historiqueTexte', 'Historique des statuts')
+                ->onlyOnDetail()
+                ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
+                ->renderAsHtml(),
+
             CollectionField::new('lignesCommande', 'Lignes de commande')
                 ->hideOnIndex()
                 ->onlyOnDetail(),
@@ -89,6 +135,72 @@ class CommandeCrudController extends AbstractCrudController
         return $actions
             ->update(Crud::PAGE_INDEX, Action::DELETE, $masquerSiAVerifier)
             ->update(Crud::PAGE_DETAIL, Action::DELETE, $masquerSiAVerifier);
+    }
+
+    /**
+     * Le statut ne peut changer que selon le workflow (config/packages/workflow.yaml) : un changement interdit
+     * est refusé avec la liste des statuts possibles. Chaque changement accepté est inscrit dans l'historique
+     * (source « admin », avec l'e-mail de l'administrateur).
+     */
+    public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if ($entityInstance instanceof Commande) {
+            $original = $entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance)['statut'] ?? null;
+            if (is_string($original)) {
+                $original = CommandeStatut::tryFrom($original); // texte brut selon le chemin de chargement
+            }
+            $nouveau = $entityInstance->getStatut();
+
+            if ($original instanceof CommandeStatut && $nouveau !== null && $nouveau !== $original
+                && !$this->statuts->peutAller($entityInstance, $original, $nouveau)) {
+                $possibles = array_map(static fn (CommandeStatut $s) => $s->getLibelle(), $this->statutsDepuis($entityInstance, $original));
+                $entityInstance->setStatut($original); // le changement interdit n'est pas enregistré
+
+                $this->addFlash('danger', sprintf(
+                    'Changement de statut refusé : « %s » → « %s ». Statuts possibles : %s.',
+                    $original->getLibelle(),
+                    $nouveau->getLibelle(),
+                    $possibles === [] ? 'aucun (statut final)' : implode(', ', $possibles)
+                ));
+
+                return;
+            }
+
+            // Annuler une commande payée n'annule pas le paiement : avertissement + trace dans l'historique
+            $avertissement = ($original instanceof CommandeStatut && $nouveau !== null)
+                ? $this->statuts->avertissementAnnulation($original, $nouveau)
+                : null;
+            if ($avertissement !== null) {
+                $this->addFlash('warning', $avertissement);
+            }
+
+            $this->contexte->definir(CommandeHistorique::SOURCE_ADMIN, $this->getUser()?->getUserIdentifier(), $avertissement);
+
+            // Remise en stock : décision de l'administrateur (case à cocher), une seule fois, jamais défaite
+            $dejaRestitue = (bool) ($entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance)['stockRestitue'] ?? false);
+            if ($entityInstance->isStockRestitue() !== $dejaRestitue) {
+                $entityInstance->setStockRestitue($dejaRestitue); // on repart de l'état enregistré, le service refait le changement s'il est permis
+                if ($dejaRestitue) {
+                    $this->addFlash('danger', 'Le stock a déjà été remis en vente : cette case ne peut pas être décochée.');
+                } else {
+                    try {
+                        $this->restitutionStock->restituer($entityInstance, $this->getUser()?->getUserIdentifier());
+                        $this->addFlash('success', 'Stock remis en vente.');
+                    } catch (\DomainException $e) {
+                        $this->addFlash('danger', 'Remise en stock refusée : ' . $e->getMessage());
+                    }
+                }
+            }        }
+
+        parent::updateEntity($entityManager, $entityInstance);
+    }
+
+    /** @return list<CommandeStatut> les statuts atteignables depuis $depuis (le statut en mémoire a pu changer) */
+    private function statutsDepuis(Commande $commande, CommandeStatut $depuis): array
+    {
+        $copie = (new Commande())->setStatut($depuis);
+
+        return $this->statuts->statutsPossibles($copie);
     }
 
     /**

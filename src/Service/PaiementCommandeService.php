@@ -3,6 +3,9 @@
 namespace App\Service;
 
 use App\Entity\Commande;
+use App\Entity\CommandeHistorique;
+use App\Entity\LigneCommande;
+use App\Entity\LignePanier;
 use App\Entity\Panier;
 use App\Enum\CommandeStatut;
 use Doctrine\DBAL\LockMode;
@@ -28,7 +31,8 @@ class PaiementCommandeService
     public function __construct(
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
-        private StockCookiesService $stockCookies
+        private StockCookiesService $stockCookies,
+        private ChangementStatutCommande $statuts
     ) {
     }
 
@@ -40,12 +44,14 @@ class PaiementCommandeService
         string $stripeSessionId,
         string $paymentStatus,
         ?string $devise,
-        int $montantPayeCentimes
+        int $montantPayeCentimes,
+        string $source = CommandeHistorique::SOURCE_WEBHOOK,
+        ?string $paymentIntentId = null
     ): array {
         // Une seule transaction + verrou sur la ligne de la commande : si Stripe livre deux fois
         // le même événement en même temps, le second attend, puis constate que la commande
         // n'est plus « En attente » (idempotence).
-        return $this->em->wrapInTransaction(function () use ($commandeId, $stripeSessionId, $paymentStatus, $devise, $montantPayeCentimes): array {
+        return $this->em->wrapInTransaction(function () use ($commandeId, $stripeSessionId, $paymentStatus, $devise, $montantPayeCentimes, $source, $paymentIntentId): array {
             $commande = $this->em->find(Commande::class, $commandeId, LockMode::PESSIMISTIC_WRITE);
 
             if ($commande === null) {
@@ -61,7 +67,7 @@ class PaiementCommandeService
             // Argent reçu sur une commande déjà « Annulée » (session expirée puis paiement tardif, ou
             // annulation manuelle) : on ne l'ignore SURTOUT pas, un humain doit regarder.
             if ($commande->getStatut() === CommandeStatut::ANNULEE && $paymentStatus === 'paid') {
-                $commande->setStatut(CommandeStatut::A_VERIFIER);
+                $this->statuts->appliquer($commande, CommandeStatut::A_VERIFIER, $source, null, 'Paiement reçu sur une commande annulée');
                 $this->em->flush();
 
                 $this->logger->critical('Webhook Stripe : paiement reçu sur une commande annulée, commande à vérifier.', [
@@ -81,6 +87,9 @@ class PaiementCommandeService
             if ($paymentStatus !== 'paid') {
                 return [self::NON_PAYEE, $commande];
             }
+
+            // Retrouver le paiement plus tard (remboursement signalé par Stripe)
+            $commande->setStripePaymentIntentId($paymentIntentId);
 
             $montantAttenduCentimes = (int) round(($commande->getTotalTTC() ?? 0) * 100);
 
@@ -127,7 +136,7 @@ class PaiementCommandeService
             }
 
             if ($ecarts !== []) {
-                $commande->setStatut(CommandeStatut::A_VERIFIER);
+                $this->statuts->appliquer($commande, CommandeStatut::A_VERIFIER, $source, null, 'Écart : ' . implode(', ', $ecarts));
                 $this->em->flush();
 
                 $this->logger->critical('Webhook Stripe : paiement reçu avec un écart, commande à vérifier.', [
@@ -146,19 +155,12 @@ class PaiementCommandeService
 
             // Paiement conforme et stock retiré : on valide et on vide le panier.
             // (Même transaction que le changement de statut : tout ou rien.)
-            $commande->setStatut(CommandeStatut::PAYEE);
+            $this->statuts->appliquer($commande, CommandeStatut::PAYEE, $source, null, 'Paiement Stripe confirmé');
+            $commande->setStockRetire(true); // le stock vient d'être retiré (même transaction) : seul un stock réellement retiré pourra être remis
 
-            // Vider le panier du client
-            $user = $commande->getUser();
-            if ($user !== null) {
-                $panier = $this->em->getRepository(Panier::class)->findOneBy(['user' => $user]);
-                if ($panier !== null) {
-                    foreach ($panier->getLignesPanier() as $lignePanier) {
-                        $this->em->remove($lignePanier);
-                    }
-                    $this->em->remove($panier);
-                }
-            }
+            // Panier : seuls les articles PAYÉS en sortent (ce qui a été ajouté depuis, par exemple dans un
+            // autre onglet, reste dans le panier du client).
+            $this->retirerArticlesPayesDuPanier($commande);
 
             $this->em->flush();
 
@@ -167,15 +169,90 @@ class PaiementCommandeService
     }
 
     /**
+     * Retire du panier du client ce que la commande contient, ligne à ligne (quantité par quantité).
+     * Le panier lui-même n'est supprimé que s'il est vide ensuite.
+     */
+    private function retirerArticlesPayesDuPanier(Commande $commande): void
+    {
+        $user = $commande->getUser();
+        if ($user === null) {
+            return;
+        }
+
+        $panier = $this->em->getRepository(Panier::class)->findOneBy(['user' => $user]);
+        if ($panier === null) {
+            return;
+        }
+
+        foreach ($commande->getLignesCommande() as $ligneCommande) {
+            $aRetirer = (int) $ligneCommande->getQuantite();
+
+            foreach ($panier->getLignesPanier()->toArray() as $lignePanier) {
+                if ($aRetirer <= 0) {
+                    break;
+                }
+                if (!$this->memeArticle($lignePanier, $ligneCommande)) {
+                    continue;
+                }
+
+                $retire = min($aRetirer, (int) $lignePanier->getQuantite());
+                $aRetirer -= $retire;
+                $reste = (int) $lignePanier->getQuantite() - $retire;
+
+                if ($reste > 0) {
+                    $lignePanier->setQuantite($reste);
+                } else {
+                    $panier->removeLignePanier($lignePanier);
+                    $this->em->remove($lignePanier);
+                }
+            }
+        }
+
+        if ($panier->getLignesPanier()->isEmpty()) {
+            $this->em->remove($panier);
+        }
+    }
+
+    /** Une ligne de panier correspond-elle à une ligne de la commande ? (même cookie, même box, même composition) */
+    private function memeArticle(LignePanier $lignePanier, LigneCommande $ligneCommande): bool
+    {
+        if ($ligneCommande->isBoxPersonnalisable()) {
+            return $lignePanier->isBoxPersonnalisable()
+                && $lignePanier->getBox() === $ligneCommande->getBox()
+                && $this->signature($lignePanier->getCompositionsPanier()) === $this->signature($ligneCommande->getCompositionsBox());
+        }
+
+        if ($ligneCommande->getBox() !== null) {
+            return $lignePanier->getBox() === $ligneCommande->getBox()
+                && $lignePanier->getProduit() === null
+                && !$lignePanier->isBoxPersonnalisable();
+        }
+
+        return $ligneCommande->getProduit() !== null && $lignePanier->getProduit() === $ligneCommande->getProduit();
+    }
+
+    /** Empreinte d'une composition (cookie:quantité, triée) pour comparer deux box personnalisées. */
+    private function signature(iterable $compositions): string
+    {
+        $parties = [];
+        foreach ($compositions as $composition) {
+            $produit = $composition->getProduit();
+            $parties[] = ($produit?->getId() ?? spl_object_id($produit)) . ':' . $composition->getQuantite();
+        }
+        sort($parties);
+
+        return implode('|', $parties);
+    }
+    /**
      * Session Stripe expirée (paiement jamais fait) : la commande « En attente » passe « Annulée ».
      * Elle n'est PAS supprimée (traçabilité). Une commande déjà payée, à vérifier ou annulée n'est
      * jamais touchée, et la session doit correspondre à celle de la commande.
      *
      * @return array{0: string, 1: ?Commande}
      */
-    public function annulerSessionExpiree(int $commandeId, string $stripeSessionId): array
+    public function annulerSessionExpiree(int $commandeId, string $stripeSessionId, string $source = CommandeHistorique::SOURCE_WEBHOOK): array
     {
-        return $this->em->wrapInTransaction(function () use ($commandeId, $stripeSessionId): array {
+        return $this->em->wrapInTransaction(function () use ($commandeId, $stripeSessionId, $source): array {
             $commande = $this->em->find(Commande::class, $commandeId, LockMode::PESSIMISTIC_WRITE);
 
             if ($commande === null) {
@@ -200,7 +277,7 @@ class PaiementCommandeService
                 return [self::DEJA_TRAITEE, $commande];
             }
 
-            $commande->setStatut(CommandeStatut::ANNULEE);
+            $this->statuts->appliquer($commande, CommandeStatut::ANNULEE, $source, null, 'Session Stripe expirée (paiement jamais effectué)');
             $this->em->flush();
 
             return [self::ANNULEE, $commande];

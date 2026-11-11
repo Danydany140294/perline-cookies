@@ -11,7 +11,8 @@ use App\Service\PaiementCommandeService;
 use App\Service\StockCookiesService;
 use App\Service\TraitementEvenementStripe;
 use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\TestCase;
+use App\Tests\Support\AvecWorkflow;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Twig\Environment;
@@ -19,8 +20,10 @@ use Twig\Environment;
 /**
  * Traitement d'un événement Stripe authentifié (webhook ou rejeu) : idempotent, sans base ni réseau.
  */
-class TraitementEvenementStripeTest extends TestCase
+class TraitementEvenementStripeTest extends KernelTestCase
 {
+    use AvecWorkflow;
+
     private const SESSION = 'cs_test_abc';
 
     private Commande $commande;
@@ -52,7 +55,8 @@ class TraitementEvenementStripeTest extends TestCase
         $twig->method('render')->willReturn('<p>ok</p>');
 
         return new TraitementEvenementStripe(
-            new PaiementCommandeService($em, $logger, new StockCookiesService()),
+            new PaiementCommandeService($em, $logger, new StockCookiesService(), $this->changementStatut()),
+            $this->createMock(\App\Service\RemboursementCommandeService::class),
             $mailer,
             $twig,
             $logger,
@@ -129,7 +133,29 @@ class TraitementEvenementStripeTest extends TestCase
 
     public function testAutreTypeDEvenementEstIgnore(): void
     {
-        $this->assertSame(TraitementEvenementStripe::IGNORE, $this->traitement()->traiter($this->evenement('charge.refunded')));
+        $this->assertSame(TraitementEvenementStripe::IGNORE, $this->traitement()->traiter($this->evenement('customer.created')));
+    }
+
+    public function testRemboursementTotalEtPartielSontTransmisAuService(): void
+    {
+        $service = $this->createMock(\App\Service\RemboursementCommandeService::class);
+        $appels = [];
+        $service->method('enregistrer')->willReturnCallback(function (...$args) use (&$appels) { $appels[] = $args; return ['remboursee', null]; });
+        $em = $this->createMock(EntityManagerInterface::class);
+        $traitement = new TraitementEvenementStripe(
+            new PaiementCommandeService($em, $this->createMock(LoggerInterface::class), new StockCookiesService(), $this->changementStatut()),
+            $service,
+            $this->createMock(MailerInterface::class),
+            $this->createMock(Environment::class),
+            $this->createMock(LoggerInterface::class),
+            []
+        );
+        $charge = static fn (array $o) => \Stripe\Event::constructFrom(['id' => 'evt_r', 'type' => 'charge.refunded', 'data' => ['object' => $o + ['id' => 'ch_1', 'payment_intent' => 'pi_9', 'amount' => 1238]]]);
+
+        $traitement->traiter($charge(['amount_refunded' => 500, 'refunded' => false]));
+        $traitement->traiter($charge(['amount_refunded' => 1238, 'refunded' => true]));
+        $traitement->traiter($charge(['amount_refunded' => 1238]), 'rattrapage');
+
+        $this->assertSame([['pi_9', 500, false, 'webhook_stripe'], ['pi_9', 1238, true, 'webhook_stripe'], ['pi_9', 1238, true, 'rattrapage']], $appels);
     }
 }
-

@@ -80,30 +80,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => {
-                if (response.redirected) {
-                    // Si Symfony redirige, c'est que l'ajout a réussi
-                    showNotification(`✅ "${productName}" ajouté au panier !`, 'success');
-                    updateCartCount();
-                    
-                    // Réactiver le bouton
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = '<i class="fas fa-shopping-cart"></i> Ajouter au panier';
-                    
-                    // Animation de succès sur la carte
-                    const card = form.closest('.nc-product-card');
-                    card.classList.add('pulse-success');
-                    setTimeout(() => card.classList.remove('pulse-success'), 600);
-                    
-                } else {
-                    throw new Error('Erreur lors de l\'ajout au panier');
+            .then(response => response.json().catch(() => null).then(data => ({ response, data })))
+            .then(({ response, data }) => {
+                // Le serveur répond en JSON : succès, ou refus expliqué (stock insuffisant, indisponible...)
+                const succes = data ? data.success === true : response.redirected;
+
+                if (!succes) {
+                    throw new Error((data && data.message) || 'Erreur lors de l\'ajout au panier');
                 }
+
+                showNotification(`✅ "${echapperHtml(productName)}" ajouté au panier !`, 'success');
+                updateCartCount();
+
+                // Animation de succès sur la carte
+                const card = form.closest('.nc-product-card');
+                card.classList.add('pulse-success');
+                setTimeout(() => card.classList.remove('pulse-success'), 600);
             })
             .catch(error => {
                 console.error('Erreur:', error);
-                showNotification('❌ Erreur lors de l\'ajout au panier', 'error');
-                
-                // Réactiver le bouton
+                showNotification('❌ ' + echapperHtml(error.message || 'Erreur lors de l\'ajout au panier'), 'error', 6000);
+            })
+            .finally(() => {
+                // Bouton toujours réactivé, succès ou refus
                 submitButton.disabled = false;
                 submitButton.innerHTML = '<i class="fas fa-shopping-cart"></i> Ajouter au panier';
             });
@@ -111,6 +110,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+/** Neutralise le HTML d'un texte avant de l'insérer dans une notification (innerHTML). */
+function echapperHtml(texte) {
+    return String(texte).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 /* ========================================
    NOTIFICATION TOAST
    Affiche un message temporaire

@@ -16,7 +16,8 @@ class CommandeService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private CommandeRepository $commandeRepository
+        private CommandeRepository $commandeRepository,
+        private NumeroCommandeGenerator $numeroCommandeGenerator
     ) {}
 
     /**
@@ -26,7 +27,7 @@ class CommandeService
     {
         $commande = new Commande();
         $commande->setUser($user);
-        $commande->setNumeroCommande($this->genererNumeroCommande());
+        $commande->setNumeroCommande($this->numeroCommandeGenerator->generer());
         $commande->setStatut(CommandeStatut::EN_ATTENTE);
         $commande->setDateCommande(new \DateTime());
         $commande->setTotalTTC(0);
@@ -235,14 +236,6 @@ class CommandeService
 
         $commande->setStatut($nouveauStatut);
         $this->entityManager->flush();
-    }
-
-    /**
-     * Génère un numéro de commande unique
-     */
-    private function genererNumeroCommande(): string
-    {
-        return 'CMD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
     }
 
     /**

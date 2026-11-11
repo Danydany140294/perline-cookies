@@ -325,17 +325,14 @@ if (item.image) {
                 })
             });
             
-            if (!response.ok) {
-                throw new Error('Erreur serveur');
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
+            // Le serveur explique ses refus (stock insuffisant, box indisponible...) : on lit toujours sa réponse
+            const data = await response.json().catch(() => null);
+
+            if (data && data.success) {
                 // Recharger le panier
                 await this.open();
             } else {
-                this.showNotification(data.message || 'Erreur lors de la mise à jour', 'error');
+                this.showNotification((data && data.message) || 'Erreur lors de la mise à jour', 'error');
             }
         } catch (error) {
             console.error('Erreur updateQuantity:', error);
@@ -401,8 +398,13 @@ if (item.image) {
      * Afficher une notification
      */
     showNotification(message, type = 'info') {
-        // Implémentation simple avec alert (à améliorer avec un toast)
-        alert(message);
+        // Bandeau de la page (non bloquant, visible au-dessus de la modale) à la place de alert()
+        const styles = { success: 'success', error: 'error' };
+        if (window.afficherBandeau) {
+            window.afficherBandeau(message, styles[type] || 'warning');
+        } else {
+            console.warn(message);
+        }
     }
 
     /**

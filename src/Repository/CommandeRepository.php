@@ -72,6 +72,19 @@ class CommandeRepository extends ServiceEntityRepository
     }
 
     /**
+     * Ce numéro de commande est-il déjà pris ?
+     */
+    public function numeroExiste(string $numeroCommande): bool
+    {
+        return (int) $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->andWhere('c.numeroCommande = :numero')
+            ->setParameter('numero', $numeroCommande)
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
+    }
+
+    /**
      * Trouve les commandes récentes (avec lignes et produits)
      */
     public function findRecentWithDetails(int $limit = 10): array

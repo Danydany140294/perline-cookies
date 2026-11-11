@@ -14,6 +14,7 @@ use App\Service\CommandeService;
 use App\Service\FraisLivraisonService;
 use App\Service\StockCookiesService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -137,7 +138,8 @@ final class PaiementController extends AbstractController
         CommandeService $commandeService,
         AdresseRepository $adresseRepo,
         StockCookiesService $stockCookies,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        LoggerInterface $logger
     ): JsonResponse
     {
         // Compte obligatoire pour payer (achat invité : prévu plus tard, avec e-mail et lien de suivi).
@@ -185,9 +187,13 @@ final class PaiementController extends AbstractController
                 return new JsonResponse(['error' => 'Votre panier est vide'], 400);
             }
 
-            // Stock : cookies seuls + cookies des boxes classiques + cookies des box perso, cumulés.
+            // Boxes encore vendables, puis stock : cookies seuls + cookies des boxes classiques + box perso, cumulés.
             // Blocage AVANT toute création de commande, avec le détail du cookie en cause.
-            $problemesStock = $stockCookies->verifier($stockCookies->besoinsDepuisPanier($lignes));
+            $problemesStock = [
+                ...$stockCookies->verifierPrix($lignes),
+                ...$stockCookies->verifierBoxes($lignes),
+                ...$stockCookies->verifier($stockCookies->besoinsDepuisPanier($lignes)),
+            ];
             if ($problemesStock !== []) {
                 return new JsonResponse([
                     'error' => implode("\n", $problemesStock),
@@ -306,7 +312,10 @@ final class PaiementController extends AbstractController
             return new JsonResponse(['sessionId' => $checkoutSession->id]);
 
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => $e->getMessage()], 500);
+            // Le détail technique (SQL, Stripe...) va dans les logs, jamais au navigateur du client
+            $logger->error('Création de la session de paiement en échec.', ['erreur' => $e->getMessage(), 'classe' => $e::class]);
+
+            return new JsonResponse(['error' => 'Une erreur est survenue lors de la création du paiement. Merci de réessayer dans un instant.'], 500);
         }
     }
 

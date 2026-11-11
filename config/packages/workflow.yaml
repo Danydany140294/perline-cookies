@@ -1,0 +1,56 @@
+framework:
+    workflows:
+        # Cycle de vie d'une commande : seules les transitions listées sont possibles (voir aussi docs/regles-metier.md).
+        # Toute modification de statut passe par App\Service\ChangementStatutCommande, et chaque changement est
+        # enregistré dans l'historique (table commande_historique : qui, quand, de quel statut vers quel statut).
+        commande:
+            type: state_machine
+            audit_trail:
+                enabled: false
+            marking_store:
+                type: method
+                property: statutValue
+            supports:
+                - App\Entity\Commande
+            initial_marking: en_attente
+            places:
+                - en_attente
+                - payee
+                - confirmee
+                - en_preparation
+                - expediee
+                - livree
+                - annulee
+                - a_verifier
+                - remboursee
+            transitions:
+                # Paiement
+                payer:
+                    from: en_attente
+                    to: payee
+                signaler_ecart:       # montant, devise, stock... : à contrôler à la main
+                    from: [en_attente, annulee]
+                    to: a_verifier
+                valider_verification: # un humain a vérifié et accepte la commande
+                    from: a_verifier
+                    to: payee
+                # Préparation et remise au client
+                confirmer:
+                    from: payee
+                    to: confirmee
+                preparer:
+                    from: [payee, confirmee]
+                    to: en_preparation
+                expedier:
+                    from: en_preparation
+                    to: expediee
+                livrer:               # livrée au client, ou retirée sur place
+                    from: [en_preparation, expediee]
+                    to: livree
+                # Fin de parcours
+                annuler:
+                    from: [en_attente, payee, confirmee, en_preparation, a_verifier]
+                    to: annulee
+                rembourser:
+                    from: [payee, confirmee, en_preparation, expediee, livree, a_verifier, annulee]
+                    to: remboursee

@@ -175,8 +175,17 @@ public function viderPanier(Request $request): Response
 
         try {
             $this->panierService->ajouterProduit($produit, $quantite);
-            $this->addFlash('success', sprintf('"%s" ajouté au panier !', $produit->getName()));
+            $message = sprintf('"%s" ajouté au panier !', $produit->getName());
+
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => true, 'message' => $message]);
+            }
+            $this->addFlash('success', $message);
         } catch (\Exception $e) {
+            // Refus (stock cumulé insuffisant, produit indisponible...) : le message dit pourquoi
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => false, 'message' => $e->getMessage()], 409);
+            }
             $this->addFlash('error', $e->getMessage());
         }
 
@@ -190,8 +199,16 @@ public function viderPanier(Request $request): Response
 
         try {
             $this->panierService->ajouterBox($box, $quantite);
-            $this->addFlash('success', sprintf('"%s" ajoutée au panier !', $box->getNom()));
+            $message = sprintf('"%s" ajoutée au panier !', $box->getNom());
+
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => true, 'message' => $message]);
+            }
+            $this->addFlash('success', $message);
         } catch (\Exception $e) {
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => false, 'message' => $e->getMessage()], 409);
+            }
             $this->addFlash('error', $e->getMessage());
         }
 
@@ -220,7 +237,7 @@ public function viderPanier(Request $request): Response
         // Taille envoyée par box.js (6, 12 ou 24) — défaut 12 pour compatibilité
         $taille = isset($data['taille']) ? (int) $data['taille'] : 12;
 
-        if (!in_array($taille, [6, 12, 24], true)) {
+        if (!in_array($taille, Box::TAILLES_PERSO, true)) {
             return $this->json([
                 'success' => false,
                 'message' => 'Taille invalide (6, 12 ou 24 uniquement)',
@@ -272,101 +289,33 @@ public function viderPanier(Request $request): Response
     #[Route('/update-quantity', name: 'app_panier_update_quantity', methods: ['POST'])]
     public function updateQuantity(Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        $id = $data['id'] ?? null;
+        $type = $data['type'] ?? null;
+        $change = (int) ($data['change'] ?? 0);
+
+        if ($id === null || !is_numeric($id) || !$type) {
+            return $this->json(['success' => false, 'message' => 'Données invalides'], 400);
+        }
+
         try {
-            $data   = json_decode($request->getContent(), true);
-            $id     = $data['id']     ?? null;
-            $type   = $data['type']   ?? null;
-            $change = (int) ($data['change'] ?? 0);
-
-            if ($id === null || !$type) {
-                return $this->json([
-                    'success' => false,
-                    'message' => 'Données invalides',
-                ], 400);
-            }
-
             $user = $this->security->getUser();
 
-            // Utilisateur connecté
-            if ($user instanceof User) {
-                $panier = $this->panierRepository->findByUser($user);
+            // Les règles (signe, plafond, stock cumulé, box active) sont appliquées côté serveur
+            $quantite = $user instanceof User
+                ? $this->panierService->modifierQuantiteLigne($user, (int) $id, $change)
+                : $this->panierService->modifierQuantiteSession((int) $id, (string) $type, $change);
 
-                if (!$panier) {
-                    return $this->json([
-                        'success' => false,
-                        'message' => 'Panier introuvable',
-                    ], 404);
-                }
-
-                foreach ($panier->getLignesPanier() as $ligne) {
-                    if ($ligne->getId() == $id) {
-                        $nouvelleQuantite = $ligne->getQuantite() + $change;
-
-                        if ($nouvelleQuantite <= 0) {
-                            $panier->removeLignePanier($ligne);
-                            $this->entityManager->remove($ligne);
-                        } else {
-                            $ligne->setQuantite($nouvelleQuantite);
-                        }
-
-                        $this->entityManager->flush();
-
-                        return $this->json([
-                            'success' => true,
-                            'message' => 'Quantité mise à jour',
-                        ]);
-                    }
-                }
-
-                return $this->json([
-                    'success' => false,
-                    'message' => 'Article introuvable',
-                ], 404);
-            }
-
-            // Session
-            $panier    = $this->panierService->getPanier();
-            $itemFound = false;
-
-            foreach ($panier['produits'] ?? [] as $key => $item) {
-                if ($item['produit']->getId() == $id && $type === 'Cookie') {
-                    $panier['produits'][$key]['quantite'] += $change;
-
-                    if ($panier['produits'][$key]['quantite'] <= 0) {
-                        unset($panier['produits'][$key]);
-                    }
-
-                    $itemFound = true;
-                }
-            }
-
-            foreach ($panier['boxes'] ?? [] as $key => $item) {
-                if ($item['box']->getId() == $id && str_starts_with($type, 'Box')) {
-                    $panier['boxes'][$key]['quantite'] += $change;
-
-                    if ($panier['boxes'][$key]['quantite'] <= 0) {
-                        unset($panier['boxes'][$key]);
-                    }
-
-                    $itemFound = true;
-                }
-            }
-
-            $request->getSession()->set('panier', $panier);
-
-            return $this->json([
-                'success' => $itemFound,
-                'message' => $itemFound ? 'Quantité mise à jour' : 'Article introuvable',
-            ], $itemFound ? 200 : 404);
-
+            return $this->json(['success' => true, 'message' => 'Quantité mise à jour', 'quantite' => $quantite]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['success' => false, 'message' => $e->getMessage()], 400);
+        } catch (\OutOfBoundsException $e) {
+            return $this->json(['success' => false, 'message' => $e->getMessage()], 404);
         } catch (\Exception $e) {
-            return $this->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 500);
+            // Stock insuffisant ou box indisponible : refus fonctionnel, message affichable au client
+            return $this->json(['success' => false, 'message' => $e->getMessage()], 409);
         }
     }
-
     // ======================================================
     // SUPPRESSION D'ARTICLE
     // ======================================================
@@ -515,8 +464,8 @@ public function viderPanier(Request $request): Response
                 }
             }
 
-            // Prix dynamique stocké en session (sinon fallback sur box)
-            $prixUnitaire = $item['prix'] ?? $item['box']->getPrix();
+            // Prix de la taille (admin), actualisé à chaque lecture du panier : aucun prix de repli
+            $prixUnitaire = $item['prix'];
             $taille       = $item['taille'] ?? null;
 
             $items[] = [
@@ -623,8 +572,8 @@ public function viderPanier(Request $request): Response
         }
 
         foreach ($panier['boxes_perso'] ?? [] as $item) {
-            // Utiliser le prix dynamique stocké en session
-            $total += $item['prix'] ?? $item['box']->getPrix();
+            // Prix de la taille (admin), actualisé à chaque lecture du panier
+            $total += $item['prix'];
         }
 
         return $total;
