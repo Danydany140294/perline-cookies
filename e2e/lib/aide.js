@@ -64,10 +64,10 @@ export function bandeau(page) {
  * (appel réel à l'API Stripe en mode test), puis le navigateur est redirigé vers Stripe : on COUPE cette
  * redirection (aucune saisie sur la page Stripe). Renvoie la commande créée, ou null si le paiement est refusé.
  */
-export async function cliquerSurPayer(page, mode = 'retrait') {
+export async function cliquerSurPayer(page, mode = 'retrait', { naviguer = true } = {}) {
   // La page hébergée par Stripe est REMPLACÉE par une page vide : aucune saisie ne se fait chez Stripe
   await page.route(/checkout\.stripe\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>Page Stripe simulée</body></html>' }));
-  await page.goto('/paiement');
+  if (naviguer) await page.goto('/paiement'); // naviguer = false : la page de paiement est déjà ouverte (sélection faite à la main)
   await page.check(`input[name="mode"][value="${mode}"]`);
   await page.waitForLoadState('networkidle'); // l'adresse par défaut est enregistrée en session par un appel asynchrone
   const avant = nombreDeCommandes();

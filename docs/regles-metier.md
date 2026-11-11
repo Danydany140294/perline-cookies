@@ -123,3 +123,29 @@ des statuts possibles.
   Stripe. » et l'inscrit dans l'historique. Le remboursement se fait ensuite dans Stripe (le webhook la passera « Remboursée »).
 - **La remise en stock ne change jamais le champ « disponible »** d'un produit : un produit désactivé à la main le reste. Seul le
   retrait de stock désactive un produit arrivé à 0 ; le réactiver est un geste de l'administrateur.
+
+## 8. Livraison, zones et frais (décidé le 11 novembre 2026, chapitre 1.3)
+
+**Une seule source : le paramètre `livraison` de `config/services.yaml`.** Il alimente le calcul serveur, le panier, la page de
+paiement et les CGV (variable Twig globale `livraison`) : un montant ne peut plus être différent d'une page à l'autre.
+
+| Réglage | Valeur actuelle |
+|---|---|
+| Modes proposés | livraison à domicile (**Colissimo avec suivi**) et retrait à l'atelier |
+| Masquer un mode | variables d'environnement `LIVRAISON_DOMICILE_ACTIF=0` ou `LIVRAISON_RETRAIT_ACTIF=0` (le serveur refuse aussi le mode masqué) |
+| Frais de livraison | **forfait 4,50 €** par commande (`frais_forfait_centimes: 450`) |
+| Livraison offerte | **dès 50 €** d'articles, seuil inclus (`seuil_gratuite_centimes: 5000`) |
+| Retrait sur place | gratuit |
+| Zone desservie | **France métropolitaine hors Corse** : pays figé sur France, codes postaux 01 à 95 sauf 20 ; DOM-TOM (97, 98) exclus ; pas d'étranger, pas de zone locale |
+
+Pour ouvrir la Corse plus tard : retirer `'20'` de `zone.departements_exclus`.
+
+- **Une adresse hors zone** (Corse, outre-mer, étranger, code postal inexistant) est refusée avec un message clair :
+  « Cette adresse n'est pas desservie : nous ne livrons pas encore la Corse. » Elle est refusée dans le formulaire d'adresse,
+  non sélectionnable sur la page de paiement (raison affichée) et refusée par le serveur (`/paiement/choisir-adresse`,
+  `/paiement/create-checkout-session`) même si la requête est forgée. Le retrait sur place reste possible sans adresse.
+- **Détail avant paiement** : sous-total, « Livraison (Colissimo) » (4,50 € ou offerte), total, et « Plus que X € pour la livraison
+  offerte » ; le montant des frais est copié sur la commande (`frais_livraison`).
+- **Adresse de livraison copiée dans la commande** au paiement (destinataire, rue, complément, code postal, ville, pays,
+  téléphone) : modifier ou supprimer une adresse du compte n'affecte jamais une commande passée (le lien devient NULL à la
+  suppression, la copie reste). Le téléphone est facultatif.

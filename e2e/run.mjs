@@ -122,7 +122,9 @@ try {
   // variables_order=EGPCS : le serveur intégré de PHP n'expose pas l'environnement dans $_ENV par défaut, et Dotenv
   // laisserait alors le fichier .env (base de DÉVELOPPEMENT) écraser DATABASE_URL.
   serveur = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort}`, '-t', 'public'], { cwd: RACINE, env: envApp, stdio: 'ignore' });
-  serveur2 = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort2}`, '-t', 'public'], { cwd: RACINE, env: envApp, stdio: 'ignore' });
+  // Le second serveur propose AUSSI de tester le réglage « retrait désactivé » (LIVRAISON_RETRAIT_ACTIF=0) : mêmes fichiers,
+  // même base, même session (cookies partagés sur 127.0.0.1), seule la configuration diffère.
+  serveur2 = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort2}`, '-t', 'public'], { cwd: RACINE, env: { ...envApp, LIVRAISON_RETRAIT_ACTIF: '0' }, stdio: 'ignore' });
   for (const port of [CONF.appPort, CONF.appPort2]) {
     let pret = false;
     for (let i = 0; i < 40 && !pret; i++) {
