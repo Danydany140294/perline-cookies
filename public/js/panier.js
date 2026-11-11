@@ -1,6 +1,6 @@
 // Message non bloquant (bandeau de la page) à la place de alert()
 function notifier(message) {
-    if (window.afficherBandeau) { window.afficherBandeau(message, 'error'); } else { window.alert(message); }
+    if (window.afficherBandeau) { window.afficherBandeau(message, 'error'); } else { console.error(message); }
 }
 
 // ========================================

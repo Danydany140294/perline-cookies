@@ -22,6 +22,7 @@
         bandeau.title = 'Cliquer pour fermer';
         bandeau.className = 'cursor-pointer rounded-lg px-4 py-3 text-white shadow-lg ' + (COULEURS[type] || COULEURS.error);
         bandeau.style.whiteSpace = 'pre-line'; // plusieurs messages (un par ligne)
+        conteneur.style.zIndex = '10000';      // au-dessus des modales (z-index 9999)
         bandeau.textContent = message;          // textContent : jamais de HTML injecté
         bandeau.addEventListener('click', function () { bandeau.remove(); });
         conteneur.appendChild(bandeau);

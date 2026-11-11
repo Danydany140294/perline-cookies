@@ -398,8 +398,13 @@ if (item.image) {
      * Afficher une notification
      */
     showNotification(message, type = 'info') {
-        // Implémentation simple avec alert (à améliorer avec un toast)
-        alert(message);
+        // Bandeau de la page (non bloquant, visible au-dessus de la modale) à la place de alert()
+        const styles = { success: 'success', error: 'error' };
+        if (window.afficherBandeau) {
+            window.afficherBandeau(message, styles[type] || 'warning');
+        } else {
+            console.warn(message);
+        }
     }
 
     /**
