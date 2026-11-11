@@ -325,17 +325,14 @@ if (item.image) {
                 })
             });
             
-            if (!response.ok) {
-                throw new Error('Erreur serveur');
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
+            // Le serveur explique ses refus (stock insuffisant, box indisponible...) : on lit toujours sa réponse
+            const data = await response.json().catch(() => null);
+
+            if (data && data.success) {
                 // Recharger le panier
                 await this.open();
             } else {
-                this.showNotification(data.message || 'Erreur lors de la mise à jour', 'error');
+                this.showNotification((data && data.message) || 'Erreur lors de la mise à jour', 'error');
             }
         } catch (error) {
             console.error('Erreur updateQuantity:', error);

@@ -175,8 +175,17 @@ public function viderPanier(Request $request): Response
 
         try {
             $this->panierService->ajouterProduit($produit, $quantite);
-            $this->addFlash('success', sprintf('"%s" ajouté au panier !', $produit->getName()));
+            $message = sprintf('"%s" ajouté au panier !', $produit->getName());
+
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => true, 'message' => $message]);
+            }
+            $this->addFlash('success', $message);
         } catch (\Exception $e) {
+            // Refus (stock cumulé insuffisant, produit indisponible...) : le message dit pourquoi
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => false, 'message' => $e->getMessage()], 409);
+            }
             $this->addFlash('error', $e->getMessage());
         }
 
@@ -190,8 +199,16 @@ public function viderPanier(Request $request): Response
 
         try {
             $this->panierService->ajouterBox($box, $quantite);
-            $this->addFlash('success', sprintf('"%s" ajoutée au panier !', $box->getNom()));
+            $message = sprintf('"%s" ajoutée au panier !', $box->getNom());
+
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => true, 'message' => $message]);
+            }
+            $this->addFlash('success', $message);
         } catch (\Exception $e) {
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => false, 'message' => $e->getMessage()], 409);
+            }
             $this->addFlash('error', $e->getMessage());
         }
 

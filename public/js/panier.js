@@ -1,3 +1,8 @@
+// Message non bloquant (bandeau de la page) à la place de alert()
+function notifier(message) {
+    if (window.afficherBandeau) { window.afficherBandeau(message, 'error'); } else { window.alert(message); }
+}
+
 // ========================================
 // GESTION DU PANIER - STRIPE CHECKOUT
 // ========================================
@@ -22,7 +27,7 @@ document.getElementById('checkout-button')?.addEventListener('click', async func
         const session = await response.json();
 
         if (session.error) {
-            alert('Erreur : ' + session.error);
+            notifier('Erreur : ' + session.error);
             this.disabled = false;
             this.innerHTML = 'PASSER AU PAIEMENT <span class="btn-sparkle">✨</span>';
             return;
@@ -34,14 +39,14 @@ document.getElementById('checkout-button')?.addEventListener('click', async func
         });
 
         if (result.error) {
-            alert(result.error.message);
+            notifier(result.error.message);
             this.disabled = false;
             this.innerHTML = 'PASSER AU PAIEMENT <span class="btn-sparkle">✨</span>';
         }
 
     } catch (error) {
         console.error('Erreur:', error);
-        alert('Une erreur est survenue');
+        notifier('Une erreur est survenue');
         this.disabled = false;
         this.innerHTML = 'PASSER AU PAIEMENT <span class="btn-sparkle">✨</span>';
     }
@@ -84,14 +89,14 @@ function changeQtyDB(id, type, delta) {
             // Recharger la page pour mettre à jour le total
             location.reload();
         } else {
-            alert(data.message);
+            notifier(data.message);
             // Revenir à l'ancienne valeur en cas d'erreur
             input.value = currentQty;
         }
     })
     .catch(error => {
         console.error('Erreur:', error);
-        alert('Une erreur est survenue');
+        notifier('Une erreur est survenue');
         input.value = currentQty;
     });
 }
@@ -126,7 +131,7 @@ function removeItemDB(id, type) {
                 // Recharger la page
                 location.reload();
             } else {
-                alert(data.message);
+                notifier(data.message);
                 // Annuler l'animation
                 row.style.opacity = '1';
                 row.style.transform = 'translateX(0) scale(1)';
@@ -134,7 +139,7 @@ function removeItemDB(id, type) {
         })
         .catch(error => {
             console.error('Erreur:', error);
-            alert('Une erreur est survenue');
+            notifier('Une erreur est survenue');
             row.style.opacity = '1';
             row.style.transform = 'translateX(0) scale(1)';
         });
@@ -178,13 +183,13 @@ function changeQtySession(id, type, delta) {
             // Recharger la page pour mettre à jour le total
             location.reload();
         } else {
-            alert(data.message);
+            notifier(data.message);
             input.value = currentQty;
         }
     })
     .catch(error => {
         console.error('Erreur:', error);
-        alert('Une erreur est survenue');
+        notifier('Une erreur est survenue');
         input.value = currentQty;
     });
 }
@@ -219,14 +224,14 @@ function removeItemSession(id, type) {
                 // Recharger la page
                 location.reload();
             } else {
-                alert(data.message);
+                notifier(data.message);
                 row.style.opacity = '1';
                 row.style.transform = 'translateX(0) scale(1)';
             }
         })
         .catch(error => {
             console.error('Erreur:', error);
-            alert('Une erreur est survenue');
+            notifier('Une erreur est survenue');
             row.style.opacity = '1';
             row.style.transform = 'translateX(0) scale(1)';
         });
