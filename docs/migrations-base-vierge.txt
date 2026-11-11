@@ -1,0 +1,109 @@
+Rejeu de TOUTES les migrations sur une base MySQL 8.0 vierge (conteneur Docker jetable, base creaself_vierge)
+Date : 2026-11-11 01:30  |  Branche : audit/etape-15-migrations  |  Commit de base : 525fd89 + migration 20260531223135 idempotente
+Base creee de zero juste avant ce rejeu : 0 table(s). Aucune migration marquee a la main.
+
+$ php bin/console doctrine:migrations:migrate --no-interaction
+[notice] Migrating up to DoctrineMigrations\Version20261110233004
+[warning] Migration DoctrineMigrations\Version20260531223135 was executed but did not result in any SQL statements.
+[notice] finished in 3437.1ms, used 24M memory, 10 migrations executed, 57 sql queries
+ [OK] Successfully migrated to version: DoctrineMigrations\Version20261110233004
+
+$ php bin/console doctrine:migrations:list
++------------------------------------------+----------+---------------------+----------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+| Migration Versions                                                                         |                                                                                                                                             |
++------------------------------------------+----------+---------------------+----------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+| Migration                                | Status   | Migrated At         | Execution Time | Description                                                                                                                                 |
++------------------------------------------+----------+---------------------+----------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+| DoctrineMigrations\Version20260203193207 | migrated | 2026-11-11 01:30:08 | 2.453s         |                                                                                                                                             |
+| DoctrineMigrations\Version20260204193631 | migrated | 2026-11-11 01:30:10 | 0.166s         |                                                                                                                                             |
+| DoctrineMigrations\Version20260204204010 | migrated | 2026-11-11 01:30:11 | 0.057s         |                                                                                                                                             |
+| DoctrineMigrations\Version20260423192729 | migrated | 2026-11-11 01:30:11 | 0.086s         |                                                                                                                                             |
+| DoctrineMigrations\Version20260423200027 | migrated | 2026-11-11 01:30:11 | 0.068s         |                                                                                                                                             |
+| DoctrineMigrations\Version20260519205016 | migrated | 2026-11-11 01:30:11 | 0.119s         |                                                                                                                                             |
+| DoctrineMigrations\Version20260531223135 | migrated | 2026-11-11 01:30:11 | 0.053s         | Clés étrangères : ajout seulement si absentes (idempotente), down() sans effet                                                              |
+| DoctrineMigrations\Version20260601200943 | migrated | 2026-11-11 01:30:11 | 0.062s         |                                                                                                                                             |
+| DoctrineMigrations\Version20261110230222 | migrated | 2026-11-11 01:30:11 | 0.063s         |                                                                                                                                             |
+| DoctrineMigrations\Version20261110233004 | migrated | 2026-11-11 01:30:11 | 0.246s         | Recette des boxes classiques : box_produit (sans quantite) remplacee par box_composition (avec quantite, 1 par defaut), liaisons conservees |
++------------------------------------------+----------+---------------------+----------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+
+$ php bin/console doctrine:schema:update --dump-sql
+ [OK] Nothing to update - your database is already in sync with the current entity metadata.
+
+$ php bin/console doctrine:fixtures:load --no-interaction
+   > purging database
+   > loading App\DataFixtures\UserFixtures
+   > loading App\DataFixtures\AppFixtures
+   > loading App\DataFixtures\ProduitFixtures
+   > loading App\DataFixtures\AdresseFixtures
+   > loading App\DataFixtures\AvisFixtures
+   > loading App\DataFixtures\BoxFixtures
+   > loading App\DataFixtures\CommandeFixtures
+   > loading App\DataFixtures\FavorisFixtures
+
+$ php bin/console dbal:run-sql --force-fetch "SELECT (SELECT COUNT(*) FROM produit) AS produits, (SELECT COUNT(*) FROM box) AS boxes, (SELECT COUNT(*) FROM box_composition) AS compositions, (SELECT COUNT(*) FROM user) AS users"
+ ---------- ------- -------------- -------
+  produits   boxes   compositions   users
+ ---------- ------- -------------- -------
+  5          5       13             16
+ ---------- ------- -------------- -------
+
+$ php bin/console dbal:run-sql --force-fetch "SELECT COUNT(*) AS cles_etrangeres FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='creaself_vierge' AND CONSTRAINT_TYPE='FOREIGN KEY'"
+ -----------------
+  cles_etrangeres
+ -----------------
+  24
+ -----------------
+
+=== Verification de l'idempotence de Version20260531223135 (meme base jetable) ===
+(une cle est supprimee a la main : la migration doit la recreer, et seulement celle-la)
+NB : l'erreur 1062 en fin de "execute --up" vient uniquement de l'enregistrement de la version (deja inscrite dans
+    doctrine_migration_versions apres le migrate). La cle a bien ete recreee : 23 -> 24 cles etrangeres.
+
+$ php bin/console dbal:run-sql "ALTER TABLE moyen_paiement DROP FOREIGN KEY FK_ED4417D2A76ED395"
+ [OK] 0 rows affected.
+
+$ php bin/console dbal:run-sql --force-fetch "SELECT COUNT(*) AS cles_etrangeres FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='creaself_vierge' AND CONSTRAINT_TYPE='FOREIGN KEY'"
+ -----------------
+  cles_etrangeres
+ -----------------
+  23
+ -----------------
+
+$ php bin/console doctrine:migrations:execute --up "DoctrineMigrations\Version20260531223135" --no-interaction
+[notice] Executing DoctrineMigrations\Version20260531223135 up
+[error] Migration DoctrineMigrations\Version20260531223135 failed during Post-Checks. Error: "An exception occurred while executing a query: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'DoctrineMigrations\Version20260531223135' for key 'doctrine_migration_versions.PRIMARY'"
+In ExceptionConverter.php line 62:
+  An exception occurred while executing a query: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entr
+  y 'DoctrineMigrations\Version20260531223135' for key 'doctrine_migration_versions.PRIMARY'
+In Exception.php line 24:
+  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'DoctrineMigrations\Version20260531223135' fo
+  r key 'doctrine_migration_versions.PRIMARY'
+In Statement.php line 130:
+  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'DoctrineMigrations\Version20260531223135' fo
+  r key 'doctrine_migration_versions.PRIMARY'
+doctrine:migrations:execute [--write-sql [WRITE-SQL]] [--dry-run] [--up] [--down] [--query-time] [--configuration CONFIGURATION] [--em EM] [--conn CONN] [--] <versions>...
+
+$ php bin/console dbal:run-sql --force-fetch "SELECT COUNT(*) AS cles_etrangeres FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='creaself_vierge' AND CONSTRAINT_TYPE='FOREIGN KEY'"
+ -----------------
+  cles_etrangeres
+ -----------------
+  24
+ -----------------
+
+$ php bin/console doctrine:migrations:execute --down "DoctrineMigrations\Version20260531223135" --no-interaction
+[notice] Executing DoctrineMigrations\Version20260531223135 down
+[notice] Version20260531223135 : down() sans effet (les clés appartiennent aux migrations qui les créent).
+[warning] Migration DoctrineMigrations\Version20260531223135 was executed but did not result in any SQL statements.
+[notice] finished in 12.9ms, used 24M memory, 1 migrations executed, 0 sql queries
+ [OK] Successfully migrated version(s): DoctrineMigrations\Version20260531223135: [DOWN]
+
+$ php bin/console dbal:run-sql --force-fetch "SELECT COUNT(*) AS cles_etrangeres FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='creaself_vierge' AND CONSTRAINT_TYPE='FOREIGN KEY'"
+ -----------------
+  cles_etrangeres
+ -----------------
+  24
+ -----------------
+
+$ php bin/console doctrine:schema:update --dump-sql
+ [OK] Nothing to update - your database is already in sync with the current entity metadata.
+
