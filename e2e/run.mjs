@@ -23,6 +23,7 @@ export const CONF = {
   mysql: { conteneur: 'creaself-e2e-mysql', port: 3311, base: 'creaself_e2e', motDePasse: 'e2e' },
   mailpit: { conteneur: 'creaself-e2e-mailpit', smtp: 1026, api: 8026 },
   appPort: 8001,
+  appPort2: 8004, // second serveur sur LA MÊME base : sert à tester de vraies requêtes simultanées (verrous MySQL)
   secretWebhook: 'whsec_e2e_secret_local_uniquement',
   utilisateur: { email: 'e2e@perline.test', motDePasse: 'E2e-Perline-2026!' },
 };
@@ -67,8 +68,11 @@ if (!dejaLa && lire('docker', ['run', '-d', '--name', CONF.mysql.conteneur, '-e'
 if (!dejaLa && lire('docker', ['run', '-d', '--name', CONF.mailpit.conteneur, '-p', `${CONF.mailpit.smtp}:1025`, '-p', `${CONF.mailpit.api}:8025`, 'axllent/mailpit']).code !== 0) echec('Impossible de démarrer Mailpit (ports 1026 / 8026 pris ?).');
 
 let serveur = null;
+let serveur2 = null;
 async function arreter() {
-  if (serveur) { serveur.kill(); if (process.platform === 'win32') lire('taskkill', ['/PID', String(serveur.pid), '/T', '/F']); }
+  for (const s of [serveur, serveur2]) {
+    if (s) { s.kill(); if (process.platform === 'win32') lire('taskkill', ['/PID', String(s.pid), '/T', '/F']); }
+  }
   if (!GARDER) lire('docker', ['rm', '-f', CONF.mysql.conteneur, CONF.mailpit.conteneur]);
   else console.log(`\n(--keep) base et Mailpit conservés : mysql ${CONF.mysql.port}, mailpit http://127.0.0.1:${CONF.mailpit.api}`);
 }
@@ -118,12 +122,15 @@ try {
   // variables_order=EGPCS : le serveur intégré de PHP n'expose pas l'environnement dans $_ENV par défaut, et Dotenv
   // laisserait alors le fichier .env (base de DÉVELOPPEMENT) écraser DATABASE_URL.
   serveur = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort}`, '-t', 'public'], { cwd: RACINE, env: envApp, stdio: 'ignore' });
-  let pret = false;
-  for (let i = 0; i < 40 && !pret; i++) {
-    await dormir(500);
-    try { pret = (await fetch(`http://127.0.0.1:${CONF.appPort}/`)).status < 500; } catch { /* pas encore prêt */ }
+  serveur2 = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort2}`, '-t', 'public'], { cwd: RACINE, env: envApp, stdio: 'ignore' });
+  for (const port of [CONF.appPort, CONF.appPort2]) {
+    let pret = false;
+    for (let i = 0; i < 40 && !pret; i++) {
+      await dormir(500);
+      try { pret = (await fetch(`http://127.0.0.1:${port}/`)).status < 500; } catch { /* pas encore prêt */ }
+    }
+    if (!pret) throw new Error(`L'application ne répond pas sur le port ${port}.`);
   }
-  if (!pret) throw new Error('L\'application ne répond pas.');
 
   // ── 5. Playwright ─────────────────────────────────────────────────────────────────────────
   log('Tests Playwright');
@@ -134,6 +141,7 @@ try {
     env: {
       ...process.env,
       E2E_BASE_URL: `http://127.0.0.1:${CONF.appPort}`,
+      E2E_BASE_URL2: `http://127.0.0.1:${CONF.appPort2}`,
       E2E_WHSEC: CONF.secretWebhook,
       E2E_MYSQL_CONTENEUR: CONF.mysql.conteneur,
       E2E_MYSQL_BASE: CONF.mysql.base,

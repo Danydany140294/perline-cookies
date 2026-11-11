@@ -2,7 +2,7 @@
 
 Scénarios automatiques des chapitres 1.1 et 1.2 : contrôles du panier, prix de la box personnalisable,
 paiement et webhook Stripe (grille S1 à S6), numéro de commande, statuts, historique, remboursements, administration
-(35 scénarios, environ 3 minutes).
+(37 scénarios, environ 3 minutes).
 
 ## Lancer les tests : une seule commande
 
@@ -52,6 +52,7 @@ personnalisable 12,99 / 19,99 / 29,99).
 | Numéro de commande PER-AAAAMMJJ-XXXXXX, unicité en base | oui | clic sur « Payer », insertion d'un doublon refusée |
 | Historique des statuts (client, webhook), remboursement partiel / total / rejeu, paiement inconnu | oui | webhook charge.refunded signé |
 | Administration : transition de statut autorisée / refusée, remise en stock à cocher (une fois) | oui | vraie page d'édition EasyAdmin (admin des fixtures) |
+| Deux paiements simultanés pour la dernière unité, même événement livré deux fois en parallèle | oui | **deux serveurs PHP sur la même base** : vraies transactions concurrentes |
 | **S1 carte refusée** (`4000 0000 0000 0002`) | **non, à la main** | se joue sur la page hébergée par Stripe : aucun numéro de carte n'est saisi par les tests |
 | Rattrapage `app:stripe-rejouer-evenement` | tests unitaires seulement | l'événement doit exister chez Stripe |
 
