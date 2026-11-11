@@ -11,7 +11,8 @@ use App\Service\PaiementCommandeService;
 use App\Service\StockCookiesService;
 use App\Service\TraitementEvenementStripe;
 use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\TestCase;
+use App\Tests\Support\AvecWorkflow;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Twig\Environment;
@@ -19,8 +20,10 @@ use Twig\Environment;
 /**
  * Traitement d'un événement Stripe authentifié (webhook ou rejeu) : idempotent, sans base ni réseau.
  */
-class TraitementEvenementStripeTest extends TestCase
+class TraitementEvenementStripeTest extends KernelTestCase
 {
+    use AvecWorkflow;
+
     private const SESSION = 'cs_test_abc';
 
     private Commande $commande;
@@ -52,7 +55,7 @@ class TraitementEvenementStripeTest extends TestCase
         $twig->method('render')->willReturn('<p>ok</p>');
 
         return new TraitementEvenementStripe(
-            new PaiementCommandeService($em, $logger, new StockCookiesService()),
+            new PaiementCommandeService($em, $logger, new StockCookiesService(), $this->changementStatut()),
             $mailer,
             $twig,
             $logger,

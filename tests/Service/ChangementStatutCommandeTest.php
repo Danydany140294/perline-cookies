@@ -1,0 +1,127 @@
+<?php
+
+namespace App\Tests\Service;
+
+use App\Entity\Commande;
+use App\Enum\CommandeStatut;
+use App\Tests\Support\AvecWorkflow;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+
+/** Transitions du workflow « commande » (config/packages/workflow.yaml), testées sur la vraie configuration. */
+class ChangementStatutCommandeTest extends KernelTestCase
+{
+    use AvecWorkflow;
+
+    private function commande(CommandeStatut $statut): Commande
+    {
+        return (new Commande())->setStatut($statut);
+    }
+
+    /** @return iterable<string, array{CommandeStatut, CommandeStatut}> */
+    public static function transitionsAutorisees(): iterable
+    {
+        yield 'paiement' => [CommandeStatut::EN_ATTENTE, CommandeStatut::PAYEE];
+        yield 'écart de paiement' => [CommandeStatut::EN_ATTENTE, CommandeStatut::A_VERIFIER];
+        yield 'session expirée' => [CommandeStatut::EN_ATTENTE, CommandeStatut::ANNULEE];
+        yield 'paiement tardif sur annulée' => [CommandeStatut::ANNULEE, CommandeStatut::A_VERIFIER];
+        yield 'vérification acceptée' => [CommandeStatut::A_VERIFIER, CommandeStatut::PAYEE];
+        yield 'vérification refusée' => [CommandeStatut::A_VERIFIER, CommandeStatut::ANNULEE];
+        yield 'confirmation' => [CommandeStatut::PAYEE, CommandeStatut::CONFIRMEE];
+        yield 'préparation depuis payée' => [CommandeStatut::PAYEE, CommandeStatut::EN_PREPARATION];
+        yield 'préparation depuis confirmée' => [CommandeStatut::CONFIRMEE, CommandeStatut::EN_PREPARATION];
+        yield 'expédition' => [CommandeStatut::EN_PREPARATION, CommandeStatut::EXPEDIEE];
+        yield 'livraison' => [CommandeStatut::EXPEDIEE, CommandeStatut::LIVREE];
+        yield 'retrait sur place' => [CommandeStatut::EN_PREPARATION, CommandeStatut::LIVREE];
+        yield 'annulation d\'une payée' => [CommandeStatut::PAYEE, CommandeStatut::ANNULEE];
+        yield 'remboursement d\'une payée' => [CommandeStatut::PAYEE, CommandeStatut::REMBOURSEE];
+        yield 'remboursement d\'une livrée' => [CommandeStatut::LIVREE, CommandeStatut::REMBOURSEE];
+        yield 'remboursement d\'une annulée' => [CommandeStatut::ANNULEE, CommandeStatut::REMBOURSEE];
+        yield 'remboursement d\'une à vérifier' => [CommandeStatut::A_VERIFIER, CommandeStatut::REMBOURSEE];
+    }
+
+    /** @return iterable<string, array{CommandeStatut, CommandeStatut}> */
+    public static function transitionsInterdites(): iterable
+    {
+        yield 'sauter la préparation' => [CommandeStatut::PAYEE, CommandeStatut::EXPEDIEE];
+        yield 'livrer sans préparer' => [CommandeStatut::PAYEE, CommandeStatut::LIVREE];
+        yield 'revenir en arrière (livrée -> en attente)' => [CommandeStatut::LIVREE, CommandeStatut::EN_ATTENTE];
+        yield 'revenir en arrière (livrée -> payée)' => [CommandeStatut::LIVREE, CommandeStatut::PAYEE];
+        yield 'revenir en arrière (expédiée -> en préparation)' => [CommandeStatut::EXPEDIEE, CommandeStatut::EN_PREPARATION];
+        yield 'ressusciter une annulée' => [CommandeStatut::ANNULEE, CommandeStatut::PAYEE];
+        yield 'rembourser sans paiement' => [CommandeStatut::EN_ATTENTE, CommandeStatut::REMBOURSEE];
+        yield 'confirmer sans paiement' => [CommandeStatut::EN_ATTENTE, CommandeStatut::CONFIRMEE];
+        yield 'annuler une livrée' => [CommandeStatut::LIVREE, CommandeStatut::ANNULEE];
+        yield 'sortir de remboursée (vers payée)' => [CommandeStatut::REMBOURSEE, CommandeStatut::PAYEE];
+        yield 'sortir de remboursée (vers annulée)' => [CommandeStatut::REMBOURSEE, CommandeStatut::ANNULEE];
+        yield 'sortir de remboursée (vers en attente)' => [CommandeStatut::REMBOURSEE, CommandeStatut::EN_ATTENTE];
+    }
+
+    /** @dataProvider transitionsAutorisees */
+    public function testTransitionAutorisee(CommandeStatut $de, CommandeStatut $vers): void
+    {
+        $service = $this->changementStatut();
+        $commande = $this->commande($de);
+
+        $this->assertTrue($service->peutAller($commande, $de, $vers));
+        $service->appliquer($commande, $vers, 'test');
+
+        $this->assertSame($vers, $commande->getStatut());
+        $this->assertSame('test', $this->contexteStatut->source(), 'La source est transmise pour l\'historique');
+    }
+
+    /** @dataProvider transitionsInterdites */
+    public function testTransitionInterdite(CommandeStatut $de, CommandeStatut $vers): void
+    {
+        $service = $this->changementStatut();
+        $commande = $this->commande($de);
+
+        $this->assertFalse($service->peutAller($commande, $de, $vers));
+        try {
+            $service->appliquer($commande, $vers, 'test');
+            $this->fail('Transition interdite acceptée');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('Changement de statut interdit', $e->getMessage());
+        }
+
+        $this->assertSame($de, $commande->getStatut(), 'Le statut n\'a pas bougé');
+    }
+
+    public function testResterAuMemeStatutNEstPasUnChangement(): void
+    {
+        $service = $this->changementStatut();
+        $commande = $this->commande(CommandeStatut::LIVREE);
+
+        $service->appliquer($commande, CommandeStatut::LIVREE, 'test');
+
+        $this->assertSame(CommandeStatut::LIVREE, $commande->getStatut());
+        $this->assertTrue($service->peutAller($commande, CommandeStatut::LIVREE, CommandeStatut::LIVREE));
+    }
+
+    public function testUneCommandeRembourseeEstUnCulDeSac(): void
+    {
+        $service = $this->changementStatut();
+        $commande = $this->commande(CommandeStatut::REMBOURSEE);
+
+        $this->assertSame([], $service->statutsPossibles($commande));
+    }
+
+    public function testStatutsPossiblesDepuisPayee(): void
+    {
+        $possibles = $this->changementStatut()->statutsPossibles($this->commande(CommandeStatut::PAYEE));
+        $valeurs = array_map(static fn (CommandeStatut $s) => $s->value, $possibles);
+        sort($valeurs);
+
+        $this->assertSame(['annulee', 'confirmee', 'en_preparation', 'remboursee'], $valeurs);
+    }
+
+    public function testTousLesStatutsDeLEnumSontDesPlacesDuWorkflow(): void
+    {
+        $service = $this->changementStatut();
+        foreach (CommandeStatut::cases() as $statut) {
+            $commande = $this->commande($statut);
+            $this->assertSame($statut->value, $commande->getStatutValue());
+            $service->statutsPossibles($commande); // lève une exception si le statut n'est pas une place du workflow
+        }
+        $this->addToAssertionCount(1);
+    }
+}

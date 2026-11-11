@@ -3,6 +3,9 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Commande;
+use App\Entity\CommandeHistorique;
+use App\Service\ChangementStatutCommande;
+use App\Service\ContexteChangementStatut;
 use App\Enum\CommandeStatut;
 use App\Enum\ModeLivraison;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,6 +23,12 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 
 class CommandeCrudController extends AbstractCrudController
 {
+    public function __construct(
+        private ChangementStatutCommande $statuts,
+        private ContexteChangementStatut $contexte
+    ) {
+    }
+
     public static function getEntityFqcn(): string
     {
         return Commande::class;
@@ -45,6 +54,7 @@ class CommandeCrudController extends AbstractCrudController
                     'Livrée' => CommandeStatut::LIVREE->value,
                     'Annulée' => CommandeStatut::ANNULEE->value,
                     'À vérifier' => CommandeStatut::A_VERIFIER->value,
+                    'Remboursée' => CommandeStatut::REMBOURSEE->value,
                 ])
                 ->renderAsBadges([
                     CommandeStatut::EN_ATTENTE->value => 'warning',
@@ -55,6 +65,7 @@ class CommandeCrudController extends AbstractCrudController
                     CommandeStatut::LIVREE->value => 'success',
                     CommandeStatut::ANNULEE->value => 'danger',
                     CommandeStatut::A_VERIFIER->value => 'danger',
+                    CommandeStatut::REMBOURSEE->value => 'secondary',
                 ]),
             
             // total_ttc est stocké en euros (pas en centimes) : pas de division par 100
@@ -70,6 +81,11 @@ class CommandeCrudController extends AbstractCrudController
 
             DateTimeField::new('dateCommande', 'Date de commande'),
             
+            TextField::new('historiqueTexte', 'Historique des statuts')
+                ->onlyOnDetail()
+                ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
+                ->renderAsHtml(),
+
             CollectionField::new('lignesCommande', 'Lignes de commande')
                 ->hideOnIndex()
                 ->onlyOnDetail(),
@@ -89,6 +105,46 @@ class CommandeCrudController extends AbstractCrudController
         return $actions
             ->update(Crud::PAGE_INDEX, Action::DELETE, $masquerSiAVerifier)
             ->update(Crud::PAGE_DETAIL, Action::DELETE, $masquerSiAVerifier);
+    }
+
+    /**
+     * Le statut ne peut changer que selon le workflow (config/packages/workflow.yaml) : un changement interdit
+     * est refusé avec la liste des statuts possibles. Chaque changement accepté est inscrit dans l'historique
+     * (source « admin », avec l'e-mail de l'administrateur).
+     */
+    public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if ($entityInstance instanceof Commande) {
+            $original = $entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance)['statut'] ?? null;
+            $nouveau = $entityInstance->getStatut();
+
+            if ($original instanceof CommandeStatut && $nouveau !== null && $nouveau !== $original
+                && !$this->statuts->peutAller($entityInstance, $original, $nouveau)) {
+                $possibles = array_map(static fn (CommandeStatut $s) => $s->getLibelle(), $this->statutsDepuis($entityInstance, $original));
+                $entityInstance->setStatut($original); // le changement interdit n'est pas enregistré
+
+                $this->addFlash('danger', sprintf(
+                    'Changement de statut refusé : « %s » → « %s ». Statuts possibles : %s.',
+                    $original->getLibelle(),
+                    $nouveau->getLibelle(),
+                    $possibles === [] ? 'aucun (statut final)' : implode(', ', $possibles)
+                ));
+
+                return;
+            }
+
+            $this->contexte->definir(CommandeHistorique::SOURCE_ADMIN, $this->getUser()?->getUserIdentifier());
+        }
+
+        parent::updateEntity($entityManager, $entityInstance);
+    }
+
+    /** @return list<CommandeStatut> les statuts atteignables depuis $depuis (le statut en mémoire a pu changer) */
+    private function statutsDepuis(Commande $commande, CommandeStatut $depuis): array
+    {
+        $copie = (new Commande())->setStatut($depuis);
+
+        return $this->statuts->statutsPossibles($copie);
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Commande;
+use App\Entity\CommandeHistorique;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mailer\MailerInterface;
@@ -30,7 +31,7 @@ class TraitementEvenementStripe
     }
 
     /** @return string statut lisible (constantes de PaiementCommandeService ou de cette classe) */
-    public function traiter(\Stripe\Event $event): string
+    public function traiter(\Stripe\Event $event, string $source = CommandeHistorique::SOURCE_WEBHOOK): string
     {
         $session = $event->data->object ?? null;
         $reference = $session->client_reference_id ?? null;
@@ -42,7 +43,7 @@ class TraitementEvenementStripe
                 return self::SESSION_EXPIREE_SANS_REFERENCE;
             }
 
-            [$resultat] = $this->paiementCommandeService->annulerSessionExpiree((int) $reference, (string) $session->id);
+            [$resultat] = $this->paiementCommandeService->annulerSessionExpiree((int) $reference, (string) $session->id, $source);
 
             return $resultat;
         }
@@ -58,7 +59,8 @@ class TraitementEvenementStripe
                 (string) $session->id,
                 (string) $session->payment_status,
                 $session->currency ?? null,
-                (int) $session->amount_total
+                (int) $session->amount_total,
+                $source
             );
 
             if ($resultat === PaiementCommandeService::PAYEE && $commande?->getUser()) {

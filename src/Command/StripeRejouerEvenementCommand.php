@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Entity\CommandeHistorique;
 use App\Service\PaiementCommandeService;
 use App\Service\StripeEvenements;
 use App\Service\TraitementEvenementStripe;
@@ -75,7 +76,7 @@ class StripeRejouerEvenementCommand extends Command
             return Command::SUCCESS;
         }
 
-        $resultat = $this->traitement->traiter($event);
+        $resultat = $this->traitement->traiter($event, CommandeHistorique::SOURCE_RATTRAPAGE);
 
         return match ($resultat) {
             PaiementCommandeService::PAYEE => $this->succes($io, 'Commande payée : stock retiré, panier vidé, e-mail de confirmation envoyé.'),

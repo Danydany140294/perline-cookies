@@ -59,8 +59,18 @@ class Commande
     #[ORM\Column(length: 20, enumType: ModeLivraison::class, options: ['default' => 'livraison'])]
     private ModeLivraison $modeLivraison = ModeLivraison::LIVRAISON;
 
+    /**
+     * Historique des changements de statut (qui, quand, de quel statut vers quel statut), du plus ancien au plus récent.
+     *
+     * @var Collection<int, CommandeHistorique>
+     */
+    #[ORM\OneToMany(targetEntity: CommandeHistorique::class, mappedBy: 'commande', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['date' => 'ASC', 'id' => 'ASC'])]
+    private Collection $historique;
+
     public function __construct()
     {
+        $this->historique = new ArrayCollection();
         $this->lignesCommande = new ArrayCollection();
         $this->dateCommande = new \DateTime();
         $this->statut = CommandeStatut::EN_ATTENTE;
@@ -106,6 +116,20 @@ class Commande
     {
         $this->statut = $statut;
         return $this;
+    }
+
+    /**
+     * Statut sous forme de texte, pour le composant Workflow (marking store method, propriété « statutValue »).
+     * Ne pas appeler directement : passer par ChangementStatutCommande (transitions contrôlées + historique).
+     */
+    public function getStatutValue(): ?string
+    {
+        return $this->statut?->value;
+    }
+
+    public function setStatutValue(string $valeur): void
+    {
+        $this->statut = CommandeStatut::from($valeur);
     }
 
     public function getTotalTTC(): ?float
@@ -229,6 +253,22 @@ public function setStripeSessionId(?string $stripeSessionId): static
         return $this->modeLivraison === ModeLivraison::RETRAIT;
     }
 
+    /** @return Collection<int, CommandeHistorique> */
+    public function getHistorique(): Collection
+    {
+        return $this->historique;
+    }
+
+    /** Historique mis en forme (une ligne par changement), pour l'affichage dans l'administration. */
+    public function getHistoriqueTexte(): string
+    {
+        if ($this->historique->isEmpty()) {
+            return 'Aucun historique (commande antérieure à la mise en place du suivi).';
+        }
+
+        return implode("\n", array_map(static fn (CommandeHistorique $h): string => $h->__toString(), $this->historique->toArray()));
+    }
+
     // ========================================
     // MÉTHODES MÉTIER
     // ========================================
@@ -314,7 +354,8 @@ public function setStripeSessionId(?string $stripeSessionId): static
     {
         return !in_array($this->statut, [
             CommandeStatut::LIVREE,
-            CommandeStatut::ANNULEE
+            CommandeStatut::ANNULEE,
+            CommandeStatut::REMBOURSEE,
         ]);
     }
 
@@ -341,6 +382,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::LIVREE => 'Livrée',
             CommandeStatut::ANNULEE => 'Annulée',
             CommandeStatut::A_VERIFIER => 'À vérifier',
+            CommandeStatut::REMBOURSEE => 'Remboursée',
             default => 'Inconnu',
         };
     }
@@ -357,6 +399,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::LIVREE => 'badge-success',
             CommandeStatut::ANNULEE => 'badge-danger',
             CommandeStatut::A_VERIFIER => 'badge-danger',
+            CommandeStatut::REMBOURSEE => 'badge-secondary',
             default => 'badge-secondary',
         };
     }

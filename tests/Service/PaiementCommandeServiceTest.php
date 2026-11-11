@@ -16,15 +16,18 @@ use App\Service\PaiementCommandeService;
 use App\Service\StockCookiesService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
-use PHPUnit\Framework\TestCase;
+use App\Tests\Support\AvecWorkflow;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Psr\Log\LoggerInterface;
 
 /**
  * Tests du cœur du webhook Stripe, sans base de données ni réseau
  * (l'EntityManager est simulé : la base de dev n'est jamais touchée).
  */
-class PaiementCommandeServiceTest extends TestCase
+class PaiementCommandeServiceTest extends KernelTestCase
 {
+    use AvecWorkflow;
+
     private const SESSION = 'cs_test_123';
 
     private Produit $produit;
@@ -49,7 +52,7 @@ class PaiementCommandeServiceTest extends TestCase
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($logCritique ? $this->atLeastOnce() : $this->never())->method('critical');
 
-        return new PaiementCommandeService($em, $logger, new StockCookiesService());
+        return new PaiementCommandeService($em, $logger, new StockCookiesService(), $this->changementStatut());
     }
 
     protected function setUp(): void
