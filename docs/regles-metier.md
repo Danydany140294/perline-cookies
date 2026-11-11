@@ -45,3 +45,19 @@ Le serveur valide la composition reçue du navigateur (jamais de confiance) :
 
 Faille corrigée le 11 novembre 2026 : une composition `{"1": 10, "2": -4}` (somme 6) passait et donnait 10 cookies pour
 le prix de 6 (tests `PanierBoxPersoValidationTest`).
+
+## 4. Prix de la box personnalisable (décidé le 11 novembre 2026)
+
+**Une seule source : les prix saisis dans l'admin** (champs « Prix (6 cookies) », « Prix (12 cookies) »,
+« Prix (24 cookies) » de la box personnalisable, colonnes `prix6`, `prix12`, `prix24`).
+
+- Ce prix est celui **affiché** (page `/box`), celui du **panier** et celui **facturé** (Stripe, commande figée) :
+  tout passe par `Box::getPrixPourTaille()`.
+- Il n'y a **aucun prix de repli**. Le champ « prix » de la box (19,90 €) ne sert qu'aux boxes classiques ; il est ignoré
+  pour la box personnalisable. Les anciennes constantes (12 / 24 / 30 €, dupliquées dans `PanierService` et `LignePanier`)
+  sont supprimées (un test vérifie qu'elles ne reviennent pas).
+- Un prix est **obligatoire et supérieur à 0** pour chacune des trois tailles (validation dans l'admin). Si un prix devient
+  indéfini malgré tout : la taille n'est plus vendable (ajout refusé), la box est retirée du panier invité, et le paiement est
+  bloqué (« Le prix de … n'est pas disponible », aucune commande créée). Jamais de vente à 0 €.
+- Le panier invité relit le prix à chaque affichage : un prix modifié dans l'admin s'applique tout de suite.
+- Les commandes déjà passées gardent le prix de leur époque (lignes figées).
