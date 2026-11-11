@@ -7,6 +7,9 @@ parameters:
     stripe_public_key: '%env(STRIPE_PUBLIC_KEY)%'
     stripe_secret_key: '%env(STRIPE_SECRET_KEY)%'
 
+    # Adresse qui reçoit les messages du formulaire de contact (valeur à ajuster)
+    contact_email: 'Perlecook@perline-cookies.com'
+
     # Retrait sur place : VALEURS PROVISOIRES, à remplacer (affichées sur la page de paiement
     # et dans l'e-mail de confirmation). Ce ne sont pas des secrets.
     retrait:
