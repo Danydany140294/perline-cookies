@@ -125,4 +125,36 @@ class ContactControllerTest extends WebTestCase
         $this->assertStringNotContainsString('preventDefault', $js);
         $this->assertStringNotContainsString('MESSAGE ENVOYÉ', $js);
     }
+
+    public function testLimitationGardeLaSaisieEtNAfficheAucuneErreurDeChamp(): void
+    {
+        $client = $this->client();
+        for ($i = 1; $i <= 3; $i++) {
+            $client->submit($this->formulaire($client));
+        }
+
+        // 4e envoi, avec une saisie : elle est réaffichée telle quelle, sans erreur sous les champs
+        $client->submit($this->formulaire($client, ['nom' => 'Léa Dupont', 'message' => 'Ma question, bien longue.']));
+
+        $this->assertResponseStatusCodeSame(429);
+        $this->assertSelectorTextContains('body', 'Trop de messages');
+        $this->assertSelectorNotExists('.field-error');
+        $this->assertInputValueSame('contact[nom]', 'Léa Dupont');
+        $this->assertInputValueSame('contact[email]', 'camille@example.com');
+        $this->assertSelectorTextContains('textarea', 'Ma question, bien longue.');
+    }
+
+    public function testLimitationAvecFormulaireVideNAfficheAucuneErreurDeChamp(): void
+    {
+        $client = $this->client();
+        for ($i = 1; $i <= 3; $i++) {
+            $client->submit($this->formulaire($client));
+        }
+
+        $client->submit($this->formulaire($client, ['nom' => '', 'email' => '', 'message' => '']));
+
+        $this->assertResponseStatusCodeSame(429);
+        $this->assertSelectorTextContains('body', 'Trop de messages');
+        $this->assertSelectorNotExists('.field-error', 'Seul le bandeau est affiché, pas « Merci d\'indiquer votre nom… »');
+    }
 }
