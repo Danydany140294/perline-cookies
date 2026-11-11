@@ -2,6 +2,8 @@
 
 namespace App\Command;
 
+use App\Entity\Commande;
+use App\Enum\CommandeStatut;
 use App\Repository\CommandeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -13,7 +15,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:nettoyer-commandes-en-attente',
-    description: 'Supprime les commandes « En attente » abandonnées (jamais les « À vérifier » ni les « Payées »)',
+    description: 'Supprime les commandes « En attente » abandonnées (jamais les « Annulées », « À vérifier » ni « Payées »)',
 )]
 class NettoyerCommandesEnAttenteCommand extends Command
 {
@@ -48,7 +50,12 @@ class NettoyerCommandesEnAttenteCommand extends Command
         }
 
         $limite = (new \DateTime())->modify(sprintf('-%d hours', $heures));
-        $commandes = $this->commandeRepository->findEnAttenteAvant($limite);
+        // Double sécurité : seules les « En attente » sont jamais supprimées (jamais « Annulée »,
+        // « À vérifier » ni « Payée »), quoi que renvoie la requête.
+        $commandes = array_values(array_filter(
+            $this->commandeRepository->findEnAttenteAvant($limite),
+            static fn (Commande $c): bool => $c->getStatut() === CommandeStatut::EN_ATTENTE
+        ));
 
         if ($commandes === []) {
             $io->info('Aucune commande « En attente » abandonnée à supprimer.');
