@@ -185,9 +185,12 @@ final class PaiementController extends AbstractController
                 return new JsonResponse(['error' => 'Votre panier est vide'], 400);
             }
 
-            // Stock : cookies seuls + cookies des boxes classiques + cookies des box perso, cumulés.
+            // Boxes encore vendables, puis stock : cookies seuls + cookies des boxes classiques + box perso, cumulés.
             // Blocage AVANT toute création de commande, avec le détail du cookie en cause.
-            $problemesStock = $stockCookies->verifier($stockCookies->besoinsDepuisPanier($lignes));
+            $problemesStock = [
+                ...$stockCookies->verifierBoxes($lignes),
+                ...$stockCookies->verifier($stockCookies->besoinsDepuisPanier($lignes)),
+            ];
             if ($problemesStock !== []) {
                 return new JsonResponse([
                     'error' => implode("\n", $problemesStock),

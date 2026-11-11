@@ -91,6 +91,32 @@ class StockCookiesService
         return $messages;
     }
 
+    /**
+     * Boxes du panier qui ne sont plus vendables : désactivées, ou classiques sans recette
+     * (on ne vendrait pas une box vide). Message par box concernée.
+     *
+     * @param iterable<LignePanier> $lignes
+     * @return list<string>
+     */
+    public function verifierBoxes(iterable $lignes): array
+    {
+        $messages = [];
+
+        foreach ($lignes as $ligne) {
+            $box = $ligne->getBox();
+            if ($box === null) {
+                continue;
+            }
+
+            if (!$box->isActive()) {
+                $messages[] = sprintf('La box « %s » n\'est plus disponible.', $box->getNom());
+            } elseif (!$ligne->isBoxPersonnalisable() && !$box->estPersonnalisable() && $box->getCompositions()->isEmpty()) {
+                $messages[] = sprintf('La box « %s » n\'est pas disponible pour le moment.', $box->getNom());
+            }
+        }
+
+        return array_values(array_unique($messages));
+    }
     private function ajouter(array &$besoins, ?Produit $produit, int $quantite): void
     {
         if ($produit === null || $quantite <= 0) {

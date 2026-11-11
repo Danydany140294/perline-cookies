@@ -163,4 +163,26 @@ class PaiementCheckoutRefusTest extends TestCase
         $this->assertSame(409, $statut);
         $this->assertStringContainsString('Cookie Pistache : 6 demandé(s), 5 disponible(s)', $json['error']);
     }
+
+    public function testBoxDesactiveeEstBlockeeAuClicSurPayerSansCreerDeCommande(): void
+    {
+        $box = (new Box())->setNom('Box Gourmande')->setType('fixe')->setIsActive(false);
+        $ligne = (new LignePanier())->setBox($box)->setQuantite(1);
+
+        [$statut, $json] = $this->appeler('{"mode":"retrait"}', null, null, [$ligne]);
+
+        $this->assertSame(409, $statut);
+        $this->assertSame('La box « Box Gourmande » n\'est plus disponible.', $json['error']);
+    }
+
+    public function testBoxClassiqueSansRecetteNEstPasVendue(): void
+    {
+        $box = (new Box())->setNom('Box Vide')->setType('fixe');
+        $ligne = (new LignePanier())->setBox($box)->setQuantite(1);
+
+        [$statut, $json] = $this->appeler('{"mode":"retrait"}', null, null, [$ligne]);
+
+        $this->assertSame(409, $statut);
+        $this->assertStringContainsString('Box Vide', $json['error']);
+    }
 }
