@@ -18,6 +18,7 @@ use App\Service\CommandeService;
 use App\Service\FraisLivraisonService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Session;
@@ -55,7 +56,7 @@ class PaiementCheckoutRefusTest extends TestCase
     }
 
     /** Appelle le contrôleur ; renvoie [statut HTTP, charge utile JSON]. */
-    private function appeler(string $corps, ?int $adresseEnSession, ?Adresse $adresseTrouvee = null, array $lignes = []): array
+    private function appeler(string $corps, ?int $adresseEnSession, ?Adresse $adresseTrouvee = null, array $lignes = [], ?\Throwable $echecCreation = null): array
     {
         $tokens = new TokenStorage();
         $tokens->setToken(new UsernamePasswordToken($this->client, 'main', []));
@@ -77,7 +78,11 @@ class PaiementCheckoutRefusTest extends TestCase
 
         // Aucune commande ne doit être créée, ni enregistrée
         $commandes = $this->createMock(CommandeService::class);
-        $commandes->expects($this->never())->method('creerCommande');
+        if ($echecCreation !== null) {
+            $commandes->method('creerCommande')->willThrowException($echecCreation);
+        } else {
+            $commandes->expects($this->never())->method('creerCommande');
+        }
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects($this->never())->method('persist');
         $em->expects($this->never())->method('flush');
@@ -94,7 +99,8 @@ class PaiementCheckoutRefusTest extends TestCase
             $commandes,
             $adresses,
             new StockCookiesService(),
-            $em
+            $em,
+            new NullLogger()
         );
 
         return [$reponse->getStatusCode(), json_decode($reponse->getContent(), true)];
@@ -195,5 +201,18 @@ class PaiementCheckoutRefusTest extends TestCase
 
         $this->assertSame(409, $statut);
         $this->assertStringContainsString('Le prix de « Box Personnalisable » n\'est pas disponible', $json['error']);
+    }
+
+    public function testUneErreurTechniqueNeFuiteJamaisVersLeNavigateur(): void
+    {
+        $cookie = (new Produit())->setName('Cookie A')->setPrix(3.0)->setStock(10)->setDisponible(true);
+        $ligne = (new LignePanier())->setProduit($cookie)->setQuantite(1);
+
+        [$statut, $json] = $this->appeler('{"mode":"retrait"}', null, null, [$ligne], new \RuntimeException('SQLSTATE[23000]: Duplicate entry secret-interne'));
+
+        $this->assertSame(500, $statut);
+        $this->assertStringNotContainsString('SQLSTATE', $json['error']);
+        $this->assertStringNotContainsString('secret-interne', $json['error']);
+        $this->assertStringContainsString('Merci de réessayer', $json['error']);
     }
 }

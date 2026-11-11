@@ -8,8 +8,10 @@ use App\Repository\CommandeRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
+#[UniqueEntity(fields: ['numeroCommande'], message: 'Ce numéro de commande existe déjà.')]
 class Commande
 {
     #[ORM\Id]
@@ -17,7 +19,8 @@ class Commande
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 50)]
+    /** Format PER-AAAAMMJJ-XXXXXX (voir NumeroCommandeGenerator) ; anciennes commandes : CMD-… */
+    #[ORM\Column(length: 50, unique: true)]
     private ?string $numeroCommande = null;
 
     #[ORM\Column(type: 'datetime')]

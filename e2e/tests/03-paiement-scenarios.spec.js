@@ -164,3 +164,28 @@ test('S6 nettoyage : seules les « En attente » anciennes sont supprimées', as
   expect(lireCommande(enAttente)).toBeNull();
   for (const id of [annulee, aVerifier, payee]) expect(lireCommande(id)).not.toBeNull();
 });
+
+test('numéro de commande : PER-AAAAMMJJ-XXXXXX sans caractère ambigu, unique en base, visible partout', async ({ page }) => {
+  const c = await commandeEnAttente(page);
+
+  expect(c.numero).toMatch(/^PER-\d{8}-[2-9A-HJKMNP-Z]{6}$/);
+
+  // Unicité garantie par la base : un doublon est refusé
+  expect(() => executerSql(`INSERT INTO commande (numero_commande, date_commande, statut, total_ttc, mode_livraison) VALUES ('${c.numero}', NOW(), 'en_attente', 1, 'retrait')`)).toThrow();
+  expect(nombreDeCommandes()).toBe(1);
+
+  // Le même numéro apparaît dans l'e-mail de confirmation et sur la page de succès
+  await poster(page.request, paiement(c));
+  await expect.poll(async () => (await emails())[0]?.Subject ?? '').toContain(c.numero);
+  await page.goto(`/paiement/success-stripe?session_id=${c.session}`);
+  await expect(page.locator('body')).toContainText(c.numero);
+});
+
+test('deux commandes successives : des numéros différents, sans suite croissante', async ({ page }) => {
+  await ajouterCookie(page.request, COOKIE.pistache, 1);
+  const a = await cliquerSurPayer(page);
+  const b = await cliquerSurPayer(page);
+
+  expect(a.numero).not.toBe(b.numero);
+  expect(a.numero.slice(-6)).not.toBe(b.numero.slice(-6));
+});
