@@ -39,11 +39,11 @@ class PanierController extends AbstractController
         $sousTotalCentimes = (int) round(($data['total'] ?? 0) * 100);
         $fraisCentimes = $this->fraisLivraisonService->calculer(
             $sousTotalCentimes,
-            FraisLivraisonService::MODE_LIVRAISON
+            $this->fraisLivraisonService->modeParDefaut() ?? FraisLivraisonService::MODE_LIVRAISON
         );
 
         $data['frais_livraison'] = $fraisCentimes / 100;
-        $data['seuil_gratuite']  = FraisLivraisonService::SEUIL_GRATUITE_CENTIMES / 100;
+        $data['seuil_gratuite']  = $this->fraisLivraisonService->seuilGratuiteCentimes() / 100;
         $data['total_ttc']       = ($sousTotalCentimes + $fraisCentimes) / 100;
 
         return $data;

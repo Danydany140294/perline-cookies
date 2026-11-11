@@ -10,6 +10,23 @@ parameters:
     # Adresse qui reçoit les messages du formulaire de contact (valeur à ajuster)
     contact_email: 'Perlecook@perline-cookies.com'
 
+    # Réglages par défaut des deux modes (surchargeables par variable d'environnement, sans toucher au code) :
+    # LIVRAISON_DOMICILE_ACTIF=0 masque la livraison, LIVRAISON_RETRAIT_ACTIF=0 masque le retrait sur place.
+    env(LIVRAISON_DOMICILE_ACTIF): '1'
+    env(LIVRAISON_RETRAIT_ACTIF): '1'
+
+    # Livraison (décisions du 11 novembre 2026) : UNE seule source pour les frais, les zones et les modes.
+    # Ces valeurs alimentent le calcul serveur, les pages (panier, paiement) ET les CGV.
+    livraison:
+        transporteur: 'Colissimo'
+        modes:
+            livraison: '%env(bool:LIVRAISON_DOMICILE_ACTIF)%'
+            retrait: '%env(bool:LIVRAISON_RETRAIT_ACTIF)%'
+        frais_forfait_centimes: 450       # forfait : 4,50 €
+        seuil_gratuite_centimes: 5000     # offerte dès 50,00 € d'articles
+        zone:
+            pays: 'France'
+            departements_exclus: ['20', '97', '98']   # Corse, DOM-TOM : pas encore desservis
     # Retrait sur place : VALEURS PROVISOIRES, à remplacer (affichées sur la page de paiement
     # et dans l'e-mail de confirmation). Ce ne sont pas des secrets.
     retrait:
