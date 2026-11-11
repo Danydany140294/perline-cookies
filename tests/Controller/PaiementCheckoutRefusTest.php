@@ -16,6 +16,7 @@ use App\Repository\AdresseRepository;
 use App\Repository\LignePanierRepository;
 use App\Repository\PanierRepository;
 use App\Service\CommandeService;
+use App\Service\DelaisLivraison;
 use App\Service\FraisLivraisonService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -64,7 +65,7 @@ class PaiementCheckoutRefusTest extends TestCase
         $conteneur = new Container();
         $conteneur->set('security.token_storage', $tokens);
 
-        $controleur = new PaiementController($frais ?? new FraisLivraisonService(), new ZoneLivraison(), []);
+        $controleur = new PaiementController($frais ?? new FraisLivraisonService(), new ZoneLivraison(), new DelaisLivraison(), []);
         $controleur->setContainer($conteneur);
 
         $request = Request::create('/paiement/create-checkout-session', 'POST', [], [], [], [], $corps);

@@ -69,6 +69,7 @@
                 <p>{{ retrait.lieu }}<br>{{ retrait.adresse }}<br>{{ retrait.horaires }}</p>
                 <p><em>{{ retrait.message }}</em></p>
             {% else %}
+                {% if commande.livraisonEstimeeTexte %}<p><strong>{{ commande.livraisonEstimeeTexte }}</strong></p>{% endif %}
                 {% set adresse = commande.adresseLivraisonFigee %}
                 {% if adresse %}
                     <p><strong>Livraison à :</strong></p>

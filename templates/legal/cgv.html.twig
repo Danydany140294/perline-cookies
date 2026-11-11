@@ -53,10 +53,11 @@
     <h2 class="legal-section-title">6. Livraison</h2>
     <p>Les commandes sont livrées en <strong>France métropolitaine, hors Corse</strong> (la Corse et l'outre-mer ne sont pas desservis pour le moment), par {{ livraison.transporteur }} avec suivi. Un retrait gratuit à l'atelier est également proposé : le lieu et les horaires sont indiqués avant la validation de la commande.</p>
     <ul class="legal-list">
-        <li><strong>Préparation :</strong> 48 heures ouvrées</li>
-        <li><strong>Livraison {{ livraison.transporteur }} :</strong> 2 à 5 jours ouvrés après l'expédition</li>
+        <li><strong>Préparation :</strong> {{ livraison.delais.preparation_jours_ouvres * 24 }} heures ouvrées</li>
+        <li><strong>Expédition :</strong> le {{ jours_expedition() }} (produits frais : le colis ne passe pas le week-end en entrepôt)</li>
+        <li><strong>Livraison {{ livraison.transporteur }} :</strong> {{ livraison.delais.transit_min_jours_ouvres }} à {{ livraison.delais.transit_max_jours_ouvres }} jours ouvrés après l'expédition</li>
     </ul>
-    <p>Ces délais sont indicatifs ; une date de livraison estimée est affichée avant la validation de la commande.</p>
+    <p>Ces délais sont indicatifs et calculés en jours ouvrés (hors jours de fermeture de l'atelier) ; une période de livraison estimée est affichée avant la validation de la commande, puis rappelée dans l'e-mail de confirmation.</p>
     <p>Les frais de livraison sont un <strong>forfait de {{ (livraison.frais_forfait_centimes / 100)|number_format(2, ',', ' ') }} €</strong> par commande, affiché avant la validation. La livraison est <strong>offerte à partir de {{ (livraison.seuil_gratuite_centimes / 100)|number_format(0, ',', ' ') }} € d'achat</strong> (hors frais de livraison). Le retrait à l'atelier est gratuit.</p>    <p>Perline Cookies SAS ne pourra être tenu responsable des retards de livraison dus au transporteur ou à des circonstances exceptionnelles.</p>
 </div>
 

@@ -11,6 +11,7 @@ use App\Repository\CommandeRepository;
 use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
 use App\Service\CommandeService;
+use App\Service\DelaisLivraison;
 use App\Service\FraisLivraisonService;
 use App\Service\StockCookiesService;
 use App\Service\ZoneLivraison;
@@ -34,6 +35,7 @@ final class PaiementController extends AbstractController
     public function __construct(
         private FraisLivraisonService $fraisLivraisonService,
         private ZoneLivraison $zoneLivraison,
+        private DelaisLivraison $delaisLivraison,
         #[Autowire(param: 'retrait')] private array $retrait
     )
     {
@@ -145,6 +147,8 @@ final class PaiementController extends AbstractController
             'mode_defaut' => $this->fraisLivraisonService->modeParDefaut(),
             'transporteur' => $this->fraisLivraisonService->transporteur(),
             'reste_gratuite' => $resteGratuite,
+            'livraison_estimee' => $this->delaisLivraison->phrase(new \DateTimeImmutable()),
+            'jours_expedition' => $this->delaisLivraison->joursExpeditionTexte(),
         ]);
     }
 
@@ -237,6 +241,10 @@ final class PaiementController extends AbstractController
             if ($adresse !== null) {
                 // Adresse COPIÉE dans la commande : la modifier ou la supprimer plus tard ne l'affecte jamais
                 $commande->figerAdresse($adresse, $user->getNomComplet(), $adresse->getTelephone() ?: $user->getTelephone());
+
+                // Période de livraison annoncée au client : mémorisée, pour l'e-mail et le compte (elle ne bouge plus ensuite)
+                $estimation = $this->delaisLivraison->estimer(new \DateTimeImmutable());
+                $commande->setLivraisonEstimee($estimation['debut'], $estimation['fin']);
             }
 
             foreach ($lignes as $ligne) {

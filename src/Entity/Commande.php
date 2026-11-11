@@ -80,6 +80,13 @@ class Commande
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $livraisonTelephone = null;
 
+    /** Période de livraison ANNONCÉE au client au moment de la commande (jours ouvrés, voir DelaisLivraison). */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $livraisonEstimeeDebut = null;
+
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $livraisonEstimeeFin = null;
+
     /** Frais de livraison facturés (en euros) : total TTC = articles + frais. */
     #[ORM\Column(options: ['default' => 0])]
     private float $fraisLivraison = 0.0;
@@ -346,6 +353,28 @@ class Commande
             $a['pays'],
             $a['telephone'] ? 'Tél. ' . $a['telephone'] : null,
         ]));
+    }
+
+    public function setLivraisonEstimee(?\DateTimeImmutable $debut, ?\DateTimeImmutable $fin): static
+    {
+        $this->livraisonEstimeeDebut = $debut;
+        $this->livraisonEstimeeFin = $fin;
+
+        return $this;
+    }
+
+    public function getLivraisonEstimeeDebut(): ?\DateTimeImmutable { return $this->livraisonEstimeeDebut; }
+
+    public function getLivraisonEstimeeFin(): ?\DateTimeImmutable { return $this->livraisonEstimeeFin; }
+
+    /** « Livraison estimée entre le vendredi 13 novembre et le mercredi 18 novembre » (null si aucune estimation enregistrée). */
+    public function getLivraisonEstimeeTexte(): ?string
+    {
+        if ($this->livraisonEstimeeDebut === null || $this->livraisonEstimeeFin === null) {
+            return null;
+        }
+
+        return 'Livraison estimée ' . \App\Service\FormatDateFr::periode($this->livraisonEstimeeDebut, $this->livraisonEstimeeFin);
     }
 
     public function getFraisLivraison(): float
@@ -644,6 +673,11 @@ public function setStripeSessionId(?string $stripeSessionId): static
      */
     public function getMessageLivraison(): string
     {
+        // Date annoncée au moment de la commande (nouvelles commandes) : c'est elle qui fait foi
+        if ($this->getLivraisonEstimeeTexte() !== null && !$this->isRetrait()) {
+            return $this->getLivraisonEstimeeTexte();
+        }
+
         $datePrevue = $this->getDateLivraisonPrevue();
         
         if (!$datePrevue) {

@@ -273,6 +273,13 @@ if (item.image) {
         this.updateElement('totalValue', this.formatPrice(total));
         this.updateElement('rewardTag', 'LIVRAISON OFFERTE DÈS ' + this.formatPrice(threshold));
 
+        // Livraison estimée (jours ouvrés), calculée par le serveur
+        const estimation = document.getElementById('deliveryEstimate');
+        if (estimation) {
+            estimation.textContent = subtotal > 0 && data.livraison_estimee ? '🚚 ' + data.livraison_estimee : '';
+            estimation.style.display = subtotal > 0 && data.livraison_estimee ? 'block' : 'none';
+        }
+
         // Mettre à jour la barre de progression
         this.updateShippingProgress(subtotal, threshold);
     }

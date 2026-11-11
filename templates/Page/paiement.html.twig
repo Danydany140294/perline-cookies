@@ -102,7 +102,9 @@
                         <span><strong>Livraison à domicile ({{ transporteur }}, avec suivi)</strong>
                             <small>{{ frais_livraison == 0 ? 'Offerte 🎉' : frais_livraison|number_format(2, ',', ' ') ~ ' €' }}
                                 · offerte dès {{ (livraison.seuil_gratuite_centimes / 100)|number_format(0, ',', ' ') }} € d'articles
-                                · France métropolitaine (hors Corse pour le moment)</small></span>
+                                · France métropolitaine (hors Corse pour le moment)</small>
+                            <small class="mode-estimation"><strong>{{ livraison_estimee }}</strong><br>
+                                Expédition le {{ jours_expedition }} (produits frais : le colis ne passe pas le week-end en entrepôt).</small></span>
                     </label>
                     {% endif %}
                     {% if 'retrait' in modes_disponibles %}
@@ -184,6 +186,7 @@
                         <span id="recap-frais-label">Livraison ({{ transporteur }})</span>
                         <span id="recap-frais">{{ frais_livraison == 0 ? 'Offerts 🎉' : frais_livraison|number_format(2, ',', ' ') ~ ' €' }}</span>
                     </div>
+                    <p class="recap-estimation" id="recap-estimation">🚚 {{ livraison_estimee }}</p>
                     {% if reste_gratuite > 0 and 'livraison' in modes_disponibles %}
                         <p class="recap-astuce" id="recap-astuce">Plus que {{ reste_gratuite|number_format(2, ',', ' ') }} € pour la livraison offerte.</p>
                     {% endif %}
@@ -228,6 +231,8 @@
         background: #fff5f5 !important;
     }
     .adresse-hors-zone { color: #b02a37; font-size: 0.85rem; margin: 8px 0 0; font-weight: 600; }
+    .mode-estimation { display: block; color: #198754 !important; margin-top: 4px; }
+    .recap-estimation { font-weight: 600; margin: 6px 0; }
     .recap-astuce { color: #6c757d; font-size: 0.85rem; margin: 4px 0 10px; }
     .adresse-card.selected {
         border-color: #198754 !important;
@@ -258,6 +263,8 @@
         document.getElementById('bloc-retrait').style.display = mode === 'retrait' ? '' : 'none';
         document.getElementById('recap-frais').textContent = LIBELLES[mode].frais;
         document.getElementById('recap-frais-label').textContent = mode === 'retrait' ? 'Retrait sur place' : 'Livraison ({{ transporteur }})';
+        const estimation = document.getElementById('recap-estimation');
+        if (estimation) { estimation.textContent = mode === 'retrait' ? '🛍️ {{ retrait.message|e('js') }}' : '🚚 {{ livraison_estimee|e('js') }}'; }
         const astuce = document.getElementById('recap-astuce');
         if (astuce) { astuce.style.display = mode === 'livraison' ? '' : 'none'; }
         document.getElementById('recap-total').textContent = LIBELLES[mode].total;
