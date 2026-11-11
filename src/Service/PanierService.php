@@ -32,7 +32,8 @@ class PanierService
         private EntityManagerInterface $entityManager,
         private PanierRepository $panierRepository,
         private RequestStack $requestStack,
-        private Security $security
+        private Security $security,
+        private StockCookiesService $stockCookies = new StockCookiesService()
     ) {}
 
     // ======================================================
@@ -282,17 +283,82 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
             throw new \Exception("Taille invalide");
         }
 
-        if (array_sum($cookies) !== $taille) {
-            throw new \Exception("La box doit contenir {$taille} cookies");
-        }
+        $user = $this->security->getUser();
+
+        // Le navigateur ne décide de rien : on valide la composition reçue (quantités, cookies, stock)
+        $cookies = $this->validerCompositionBoxPerso(
+            $cookies,
+            $taille,
+            $user instanceof User ? $this->panierRepository->findByUser($user) : null
+        );
 
         $prix = self::PRIX_BOX_PERSO[$taille] ?? $box->getPrix();
-
-        $user = $this->security->getUser();
 
         $user instanceof User
             ? $this->ajouterBoxPersoBDD($user, $box, $cookies, $taille, $prix)
             : $this->ajouterBoxPersoSession($box, $cookies, $taille, $prix);
+    }
+
+    /**
+     * Valide une composition de box personnalisable et la renvoie « nettoyée » (id du cookie => quantité > 0).
+     * Règles : quantités entières et positives (les 0 sont ignorés), cookies existants et disponibles,
+     * somme égale à la taille, stock suffisant (cumulé avec le reste du panier du client).
+     *
+     * @return array<int, int>
+     * @throws \Exception avec un message affichable au client
+     */
+    private function validerCompositionBoxPerso(array $cookies, int $taille, ?Panier $panier): array
+    {
+        $composition = [];
+
+        foreach ($cookies as $id => $quantite) {
+            if (!is_int($id) || !is_int($quantite) || $quantite < 0) {
+                throw new \Exception(sprintf('Composition invalide : la quantité du cookie n°%s doit être un entier positif.', (string) $id));
+            }
+            if ($quantite > 0) {
+                $composition[$id] = $quantite;
+            }
+        }
+
+        if (array_sum($composition) !== $taille) {
+            throw new \Exception("La box doit contenir {$taille} cookies");
+        }
+
+        $repo = $this->entityManager->getRepository(Produit::class);
+        $besoins = [];
+        foreach ($composition as $id => $quantite) {
+            $produit = $repo->find($id);
+            if (!$produit) {
+                throw new \Exception(sprintf('Cookie introuvable (n°%d) : votre composition n\'est plus valable.', $id));
+            }
+            $besoins[$id] = ['produit' => $produit, 'quantite' => $quantite];
+        }
+
+        $this->verifierStockCumule($panier, $besoins);
+
+        return $composition;
+    }
+
+    /**
+     * Vérifie que ce qui s'ajoute au panier, CUMULÉ avec ce qu'il contient déjà (cookies seuls, boxes,
+     * box perso), ne dépasse pas le stock des cookies concernés. Seuls les cookies de l'ajout sont signalés.
+     *
+     * @param array<int, array{produit: Produit, quantite: int}> $nouveauxBesoins
+     * @throws \Exception
+     */
+    private function verifierStockCumule(?Panier $panier, array $nouveauxBesoins): void
+    {
+        $cumul = $panier !== null ? $this->stockCookies->besoinsDepuisPanier($panier->getLignesPanier()) : [];
+
+        foreach ($nouveauxBesoins as $cle => $besoin) {
+            $cumul[$cle] ??= ['produit' => $besoin['produit'], 'quantite' => 0];
+            $cumul[$cle]['quantite'] += $besoin['quantite'];
+        }
+
+        $messages = $this->stockCookies->verifier(array_intersect_key($cumul, $nouveauxBesoins));
+        if ($messages !== []) {
+            throw new \Exception($messages[0]);
+        }
     }
 
     private function ajouterBoxPersoSession(Box $box, array $cookies, int $taille, float $prix): void
