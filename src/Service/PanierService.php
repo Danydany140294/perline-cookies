@@ -162,15 +162,23 @@ class PanierService
             throw new \Exception("Produit indisponible");
         }
 
-        if ($produit->getStock() < $quantite) {
-            throw new \Exception("Stock insuffisant");
-        }
-
         $user = $this->security->getUser();
+
+        // Stock : la quantité demandée CUMULÉE avec ce que le panier contient déjà (cookies seuls, boxes, box perso)
+        $this->verifierStockCumule(
+            $user instanceof User ? $this->panierRepository->findByUser($user) : null,
+            [$produit->getId() => ['produit' => $produit, 'quantite' => $quantite + $this->quantiteProduitEnSession($produit, $user)]]
+        );
 
         $user instanceof User
             ? $this->ajouterProduitBDD($user, $produit, $quantite)
             : $this->ajouterProduitSession($produit, $quantite);
+    }
+
+    /** Quantité déjà présente dans le panier de SESSION (invité) pour ce cookie ; 0 pour un client connecté. */
+    private function quantiteProduitEnSession(Produit $produit, mixed $user): int
+    {
+        return $user instanceof User ? 0 : (int) ($this->getPanierSession()['produits'][$produit->getId()]['quantite'] ?? 0);
     }
 
     private function ajouterProduitSession(Produit $produit, int $quantite): void
@@ -220,7 +228,19 @@ class PanierService
 
     public function ajouterBox(Box $box, int $quantite = 1): void
 {
+    if ($quantite <= 0) {
+        throw new \Exception("Quantité invalide");
+    }
+
     $user = $this->security->getUser();
+    $dejaEnSession = $user instanceof User ? 0 : (int) ($this->getPanierSession()['boxes'][$box->getId()]['quantite'] ?? 0);
+
+    // Box inactive ou sans recette : pas vendable. Sinon, ses cookies doivent être en stock (cumulé avec le panier).
+    $this->verifierBoxVendable($box);
+    $this->verifierStockCumule(
+        $user instanceof User ? $this->panierRepository->findByUser($user) : null,
+        $this->besoinsDeLaBox($box, $quantite + $dejaEnSession)
+    );
 
     $user instanceof User
         ? $this->ajouterBoxBDD($user, $box, $quantite)
@@ -283,6 +303,8 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
             throw new \Exception("Taille invalide");
         }
 
+        $this->verifierBoxVendable($box);
+
         $user = $this->security->getUser();
 
         // Le navigateur ne décide de rien : on valide la composition reçue (quantités, cookies, stock)
@@ -297,6 +319,36 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
         $user instanceof User
             ? $this->ajouterBoxPersoBDD($user, $box, $cookies, $taille, $prix)
             : $this->ajouterBoxPersoSession($box, $cookies, $taille, $prix);
+    }
+
+    /** @throws \Exception si la box est désactivée ou n'a pas de recette (box classique) */
+    private function verifierBoxVendable(Box $box): void
+    {
+        if (!$box->isActive()) {
+            throw new \Exception('Cette box n\'est plus disponible.');
+        }
+
+        if (!$box->estPersonnalisable() && $box->getCompositions()->isEmpty()) {
+            throw new \Exception('Cette box n\'est pas disponible pour le moment.');
+        }
+    }
+
+    /**
+     * Cookies nécessaires pour N exemplaires d'une box classique (recette actuelle).
+     *
+     * @return array<int, array{produit: Produit, quantite: int}>
+     */
+    private function besoinsDeLaBox(Box $box, int $quantite): array
+    {
+        $besoins = [];
+        foreach ($box->getCompositions() as $composition) {
+            $produit = $composition->getProduit();
+            if ($produit !== null) {
+                $besoins[$produit->getId()] = ['produit' => $produit, 'quantite' => $quantite * $composition->getQuantite()];
+            }
+        }
+
+        return $besoins;
     }
 
     /**
@@ -412,6 +464,146 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
         $this->entityManager->flush();
     }
 
+    // ======================================================
+    // MODIFICATION DE QUANTITÉ (boutons « + » et « − »)
+    // ======================================================
+
+    private const VARIATION_MAX = 99;
+
+    /**
+     * Modifie la quantité d'une ligne du panier d'un client connecté. Le navigateur ne décide ni du
+     * plafond ni du signe : une hausse est refusée si le stock des cookies concernés (cumulé avec tout le
+     * panier) ne suffit pas, ou si la box a été désactivée.
+     *
+     * @return int nouvelle quantité (0 = ligne supprimée)
+     * @throws \InvalidArgumentException variation invalide
+     * @throws \OutOfBoundsException     panier ou ligne introuvable
+     * @throws \Exception                stock insuffisant ou box indisponible (message affichable)
+     */
+    public function modifierQuantiteLigne(User $user, int $ligneId, int $variation): int
+    {
+        $this->verifierVariation($variation);
+
+        $panier = $this->panierRepository->findByUser($user);
+        if (!$panier) {
+            throw new \OutOfBoundsException('Panier introuvable');
+        }
+
+        foreach ($panier->getLignesPanier() as $ligne) {
+            if ($ligne->getId() !== $ligneId) {
+                continue;
+            }
+
+            $nouvelle = (int) $ligne->getQuantite() + $variation;
+
+            if ($nouvelle <= 0) {
+                $panier->removeLignePanier($ligne);
+                $this->entityManager->remove($ligne);
+                $this->entityManager->flush();
+
+                return 0;
+            }
+
+            if ($variation > 0) {
+                $this->verifierHausseDeLigne($panier, $ligne, $nouvelle);
+            }
+
+            $ligne->setQuantite($nouvelle);
+            $this->entityManager->flush();
+
+            return $nouvelle;
+        }
+
+        throw new \OutOfBoundsException('Article introuvable');
+    }
+
+    /**
+     * Même contrôle pour le panier de SESSION d'un invité ($type : « Cookie » ou « Box… »).
+     *
+     * @return int nouvelle quantité (0 = ligne supprimée)
+     */
+    public function modifierQuantiteSession(int $id, string $type, int $variation): int
+    {
+        $this->verifierVariation($variation);
+
+        $session = $this->requestStack->getSession();
+        $panier = $this->getPanierSession();
+
+        $cle = $type === 'Cookie' ? 'produits' : (str_starts_with($type, 'Box') ? 'boxes' : null);
+        $objet = $cle === 'produits' ? 'produit' : 'box';
+
+        foreach ($cle !== null ? ($panier[$cle] ?? []) : [] as $ligneCle => $item) {
+            if ($item[$objet]->getId() !== $id) {
+                continue;
+            }
+
+            $nouvelle = (int) $item['quantite'] + $variation;
+
+            if ($nouvelle <= 0) {
+                unset($panier[$cle][$ligneCle]);
+            } else {
+                if ($variation > 0) {
+                    // Entités relues en base : celles de la session peuvent être périmées
+                    if ($cle === 'produits') {
+                        $produit = $this->entityManager->getRepository(Produit::class)->find($id);
+                        $besoins = $produit ? [$id => ['produit' => $produit, 'quantite' => $nouvelle]] : [];
+                    } else {
+                        $box = $this->entityManager->getRepository(Box::class)->find($id);
+                        if (!$box) {
+                            throw new \OutOfBoundsException('Article introuvable');
+                        }
+                        $this->verifierBoxVendable($box);
+                        $besoins = $this->besoinsDeLaBox($box, $nouvelle);
+                    }
+                    $messages = $this->stockCookies->verifier($besoins);
+                    if ($messages !== []) {
+                        throw new \Exception($messages[0]);
+                    }
+                }
+                $panier[$cle][$ligneCle]['quantite'] = $nouvelle;
+            }
+
+            $session->set(self::SESSION_KEY, $panier);
+
+            return max(0, $nouvelle);
+        }
+
+        throw new \OutOfBoundsException('Article introuvable');
+    }
+
+    private function verifierVariation(int $variation): void
+    {
+        if ($variation === 0 || abs($variation) > self::VARIATION_MAX) {
+            throw new \InvalidArgumentException('Variation de quantité invalide.');
+        }
+    }
+
+    /**
+     * Teste la nouvelle quantité d'UNE ligne avec le reste du panier (sans la garder si le stock manque).
+     *
+     * @throws \Exception
+     */
+    private function verifierHausseDeLigne(Panier $panier, LignePanier $ligne, int $nouvelle): void
+    {
+        if ($ligne->getBox() !== null && !$ligne->getBox()->isActive()) {
+            throw new \Exception('Cette box n\'est plus disponible.');
+        }
+
+        $ancienne = $ligne->getQuantite();
+        $ligne->setQuantite($nouvelle);
+
+        try {
+            $cumul = $this->stockCookies->besoinsDepuisPanier($panier->getLignesPanier());
+            $concernes = $this->stockCookies->besoinsDepuisPanier([$ligne]);
+            $messages = $this->stockCookies->verifier(array_intersect_key($cumul, $concernes));
+        } finally {
+            $ligne->setQuantite($ancienne);
+        }
+
+        if ($messages !== []) {
+            throw new \Exception($messages[0]);
+        }
+    }
     /**
      * Fusionne le panier de session (invité) dans le panier en base du client qui vient de se connecter.
      * - panier existant : les articles s'y ajoutent (quantités additionnées pour un même produit / une même box) ;
