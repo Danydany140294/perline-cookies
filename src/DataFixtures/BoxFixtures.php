@@ -29,9 +29,9 @@ class BoxFixtures extends Fixture implements DependentFixtureInterface
         $box1->setImage('box-gourmande.jpg');
         $box1->setType('fixe');
         // Associer les produits
-        if ($macadamiaFramboise) $box1->addProduit($macadamiaFramboise);
-        if ($pecheCaramel) $box1->addProduit($pecheCaramel);
-        if ($pistacheCannelle) $box1->addProduit($pistacheCannelle);
+        if ($macadamiaFramboise) $box1->ajouterCookie($macadamiaFramboise, 1);
+        if ($pecheCaramel) $box1->ajouterCookie($pecheCaramel, 1);
+        if ($pistacheCannelle) $box1->ajouterCookie($pistacheCannelle, 1);
         $manager->persist($box1);
 
         // Box 2 : Découverte (fixe)
@@ -43,11 +43,11 @@ class BoxFixtures extends Fixture implements DependentFixtureInterface
         $box2->setImage('box-decouverte.jpg');
         $box2->setType('fixe');
         // Associer tous les produits
-        if ($pistacheCannelle) $box2->addProduit($pistacheCannelle);
-        if ($pecheCaramel) $box2->addProduit($pecheCaramel);
-        if ($noisetteVanille) $box2->addProduit($noisetteVanille);
-        if ($macadamiaFramboise) $box2->addProduit($macadamiaFramboise);
-        if ($fruitsRouges) $box2->addProduit($fruitsRouges);
+        if ($pistacheCannelle) $box2->ajouterCookie($pistacheCannelle, 1);
+        if ($pecheCaramel) $box2->ajouterCookie($pecheCaramel, 1);
+        if ($noisetteVanille) $box2->ajouterCookie($noisetteVanille, 1);
+        if ($macadamiaFramboise) $box2->ajouterCookie($macadamiaFramboise, 1);
+        if ($fruitsRouges) $box2->ajouterCookie($fruitsRouges, 1);
         $manager->persist($box2);
 
         // Box 3 : Surprise (fixe)
@@ -59,9 +59,9 @@ class BoxFixtures extends Fixture implements DependentFixtureInterface
         $box3->setImage('box-surprise.jpg');
         $box3->setType('fixe');
         // Produits aléatoires/du mois
-        if ($fruitsRouges) $box3->addProduit($fruitsRouges);
-        if ($noisetteVanille) $box3->addProduit($noisetteVanille);
-        if ($pistacheCannelle) $box3->addProduit($pistacheCannelle);
+        if ($fruitsRouges) $box3->ajouterCookie($fruitsRouges, 1);
+        if ($noisetteVanille) $box3->ajouterCookie($noisetteVanille, 1);
+        if ($pistacheCannelle) $box3->ajouterCookie($pistacheCannelle, 1);
         $manager->persist($box3);
 
         // Box 4 : Personnalisable
@@ -84,8 +84,8 @@ class BoxFixtures extends Fixture implements DependentFixtureInterface
         $box5->setImage('box-prestige.jpg');
         $box5->setType('fixe');
         // Les meilleurs produits
-        if ($macadamiaFramboise) $box5->addProduit($macadamiaFramboise);
-        if ($pistacheCannelle) $box5->addProduit($pistacheCannelle);
+        if ($macadamiaFramboise) $box5->ajouterCookie($macadamiaFramboise, 1);
+        if ($pistacheCannelle) $box5->ajouterCookie($pistacheCannelle, 1);
         $manager->persist($box5);
 
         $manager->flush();

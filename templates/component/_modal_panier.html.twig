@@ -1,8 +1,5 @@
 {# templates/panier/_modal_panier.html.twig #}
 
-{# ========== STYLES CSS ========== #}
-<link rel="stylesheet" href="{{ asset('css/_modal_panier.css') }}">
-
 {# Modal Panier #}
 <div id="modalPanier" class="cart-overlay" style="display: none;">
     <div class="cart-modal-container glass-premium">
@@ -41,7 +38,7 @@
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
                 </div>
-                <span class="reward-tag">LIVRAISON OFFERTE DÈS 50,00 €</span>
+                <span class="reward-tag" id="rewardTag">LIVRAISON OFFERTE</span>
             </div>
 
             <div class="bill-details" id="billDetails">
@@ -51,11 +48,7 @@
                 </div>
                 <div class="bill-line">
                     <span>Livraison</span>
-                    <span id="shippingValue">4,90 €</span>
-                </div>
-                <div class="bill-line">
-                    <span>TVA estimée</span>
-                    <span id="taxValue">0,00 €</span>
+                    <span id="shippingValue">0,00 €</span>
                 </div>
             </div>
 

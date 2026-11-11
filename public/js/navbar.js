@@ -84,7 +84,7 @@
     // ========================================
     async function chargerPanier() {
         try {
-            const response = await fetch('/panier/api/panier');
+            const response = await fetch('/panier/api');
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);

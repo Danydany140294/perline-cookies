@@ -90,6 +90,23 @@ class CommandeRepository extends ServiceEntityRepository
     }
 
     /**
+     * Commandes « En attente » (jamais payées) créées avant la date limite.
+     * Ne renvoie JAMAIS d'autre statut : ni « À vérifier », ni « Payée ».
+     *
+     * @return Commande[]
+     */
+    public function findEnAttenteAvant(\DateTimeInterface $limite): array
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.statut = :statut')
+            ->andWhere('c.dateCommande < :limite')
+            ->setParameter('statut', CommandeStatut::EN_ATTENTE)
+            ->setParameter('limite', $limite)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Calcule le total des commandes par statut
      */
     public function countByStatut(CommandeStatut $statut): int

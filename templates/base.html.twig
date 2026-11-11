@@ -37,6 +37,22 @@
     {% include 'component/navbar.html.twig' %}
     
 
+    {# Messages flash (succès, avertissement, erreur) affichés sur toutes les pages #}
+    {% set flash_messages = app.flashes %}
+    {% if flash_messages|length > 0 %}
+        <div class="fixed top-24 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 w-[90%] max-w-xl">
+            {% for type, messages in flash_messages %}
+                {% for message in messages %}
+                    <div role="alert" onclick="this.remove()" title="Cliquer pour fermer"
+                         class="cursor-pointer rounded-lg px-4 py-3 text-white shadow-lg
+                         {{ type == 'success' ? 'bg-green-600' : (type == 'warning' ? 'bg-amber-500' : 'bg-red-600') }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
     <main>
         {% block body %}
         

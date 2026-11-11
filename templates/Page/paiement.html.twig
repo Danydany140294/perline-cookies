@@ -86,8 +86,34 @@
 
         <div class="paiement-layout">
 
-            {# ===== ADRESSE DE LIVRAISON ===== #}
+            {# ===== MODE : LIVRAISON OU RETRAIT ===== #}
             <div class="paiement-card">
+                <div class="paiement-card-header">
+                    <span class="material-symbols-outlined">local_shipping</span>
+                    <h5>Mode de réception</h5>
+                </div>
+                <div class="paiement-card-body">
+                    <label class="mode-option">
+                        <input type="radio" name="mode" value="livraison" checked>
+                        <span><strong>Livraison à domicile</strong>
+                            <small>{{ frais_livraison == 0 ? 'Offerte 🎉' : frais_livraison|number_format(2, ',', ' ') ~ ' €' }}</small></span>
+                    </label>
+                    <label class="mode-option">
+                        <input type="radio" name="mode" value="retrait">
+                        <span><strong>Retrait sur place</strong> <small>Gratuit</small></span>
+                    </label>
+
+                    <div id="bloc-retrait" class="paiement-alert" style="display:none; margin-top:12px;">
+                        <strong>{{ retrait.lieu }}</strong><br>
+                        {{ retrait.adresse }}<br>
+                        {{ retrait.horaires }}<br>
+                        <em>{{ retrait.message }}</em>
+                    </div>
+                </div>
+            </div>
+
+            {# ===== ADRESSE DE LIVRAISON ===== #}
+            <div class="paiement-card" id="bloc-adresse">
                 <div class="paiement-card-header">
                     <span class="material-symbols-outlined">location_on</span>
                     <h5>Adresse de livraison</h5>
@@ -139,11 +165,11 @@
                     </div>
                     <div class="recap-line">
                         <span>Frais de livraison</span>
-                        <span>{{ frais_livraison == 0 ? 'Offerts 🎉' : frais_livraison|number_format(2, ',', ' ') ~ ' €' }}</span>
+                        <span id="recap-frais">{{ frais_livraison == 0 ? 'Offerts 🎉' : frais_livraison|number_format(2, ',', ' ') ~ ' €' }}</span>
                     </div>
                     <div class="recap-line recap-total">
                         <span>Total</span>
-                        <span class="total-amount">{{ total_final|number_format(2, ',', ' ') }} €</span>
+                        <span class="total-amount" id="recap-total">{{ total_final|number_format(2, ',', ' ') }} €</span>
                     </div>
                 </div>
             </div>
@@ -164,6 +190,8 @@
 </div>
 
 <style>
+    .mode-option { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; cursor: pointer; }
+    .mode-option small { display: block; color: #6c757d; }
     .adresse-card {
         cursor: pointer;
         transition: all 0.2s;
@@ -181,6 +209,30 @@
 <script src="https://js.stripe.com/v3/"></script>
 <script>
     let selectedAdresseId = null;
+    let mode = 'livraison';
+
+    const LIBELLES = {
+        livraison: { frais: {{ (frais_livraison == 0 ? 'Offerts 🎉' : frais_livraison|number_format(2, ',', ' ') ~ ' €')|json_encode|raw }},
+                     total: {{ (total_final|number_format(2, ',', ' ') ~ ' €')|json_encode|raw }} },
+        retrait:   { frais: 'Gratuit (retrait)',
+                     total: {{ (total_retrait|number_format(2, ',', ' ') ~ ' €')|json_encode|raw }} }
+    };
+
+    // Bascule livraison / retrait : adresse requise seulement en livraison, total mis à jour
+    function majMode() {
+        mode = document.querySelector('input[name="mode"]:checked').value;
+        const btn = document.getElementById('checkout-btn');
+        document.getElementById('bloc-adresse').style.display = mode === 'livraison' ? '' : 'none';
+        document.getElementById('bloc-retrait').style.display = mode === 'retrait' ? '' : 'none';
+        document.getElementById('recap-frais').textContent = LIBELLES[mode].frais;
+        document.getElementById('recap-total').textContent = LIBELLES[mode].total;
+        const bloque = mode === 'livraison' && {{ adresses is empty ? 'true' : 'false' }};
+        btn.disabled = bloque;
+        btn.classList.toggle('btn-payer-disabled', bloque);
+        btn.firstChild.textContent = '💳 Payer ' + LIBELLES[mode].total + ' ';
+        document.getElementById('adresse-warning').classList.add('d-none');
+    }
+    document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', majMode));
 
     // ✅ Pré-sélectionner l'adresse par défaut
     {% for adresse in adresses %}
@@ -207,7 +259,7 @@
     }
 
     document.getElementById('checkout-btn').addEventListener('click', () => {
-        if (!selectedAdresseId) {
+        if (mode === 'livraison' && !selectedAdresseId) {
             document.getElementById('adresse-warning').classList.remove('d-none');
             return;
         }
@@ -218,17 +270,22 @@
 
         fetch('{{ path('app_paiement_create_session') }}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: mode })
         })
         .then(res => res.json())
         .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect; // session expirée : reconnexion puis retour au panier
+                return;
+            }
             if (data.sessionId) {
                 const stripe = Stripe('{{ stripe_public_key }}');
                 stripe.redirectToCheckout({ sessionId: data.sessionId });
             } else {
                 alert(data.error || 'Erreur lors du paiement');
                 btn.disabled = false;
-                btn.textContent = '💳 Payer {{ total_final|number_format(2, ',', ' ') }} €';
+                btn.textContent = '💳 Payer ' + LIBELLES[mode].total;
             }
         })
         .catch(() => {

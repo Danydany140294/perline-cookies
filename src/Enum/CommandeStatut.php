@@ -11,6 +11,8 @@ enum CommandeStatut: string
     case EXPEDIEE = 'expediee';
     case LIVREE = 'livree';
     case ANNULEE = 'annulee';
+    /** Paiement reçu mais écart (montant, devise...) à contrôler à la main : jamais supprimable */
+    case A_VERIFIER = 'a_verifier';
 
     public function getLibelle(): string
     {
@@ -22,6 +24,7 @@ enum CommandeStatut: string
             self::EXPEDIEE => 'Expédiée',
             self::LIVREE => 'Livrée',
             self::ANNULEE => 'Annulée',
+            self::A_VERIFIER => 'À vérifier',
         };
     }
 
@@ -35,6 +38,7 @@ enum CommandeStatut: string
             self::EXPEDIEE => 'badge-secondary',
             self::LIVREE => 'badge-success',
             self::ANNULEE => 'badge-danger',
+            self::A_VERIFIER => 'badge-danger',
         };
     }
 }

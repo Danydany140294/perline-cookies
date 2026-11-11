@@ -487,3 +487,18 @@
         letter-spacing: 0.1em !important;
     }
 }
+
+/* ===== Formulaire réel : erreurs de validation et champ piège anti-spam ===== */
+.field-error {
+    color: #ff4d6d;
+    font-size: 0.85rem;
+    margin: 0.35rem 0 0;
+}
+
+.hp-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}

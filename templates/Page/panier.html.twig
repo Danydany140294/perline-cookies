@@ -228,7 +228,7 @@
 
                         <!-- Barre de progression pour livraison gratuite -->
                         <div class="shipping-info">
-                            {% set seuil_gratuit = 50 %}
+                            {% set seuil_gratuit = panier.seuil_gratuite %}
                             {% set reste = seuil_gratuit - panier.total %}
                             {% if reste > 0 %}
                                 <p>Livraison offerte : <span class="remaining">Plus que {{ reste|number_format(2, ',', ' ') }} €</span></p>
@@ -248,12 +248,12 @@
                             </div>
                             <div class="detail-line">
                                 <span>Livraison</span>
-                                <span>{{ reste > 0 ? '4,50 €' : 'Gratuite' }}</span>
+                                <span>{{ panier.frais_livraison > 0 ? panier.frais_livraison|number_format(2, ',', ' ') ~ ' €' : 'Gratuite' }}</span>
                             </div>
                             <div class="detail-line total">
                                 <span>TOTAL</span>
                                 <span class="final-amount">
-                                    {{ (reste > 0 ? panier.total + 4.50 : panier.total)|number_format(2, ',', ' ') }} €
+                                    {{ panier.total_ttc|number_format(2, ',', ' ') }} €
                                 </span>
                             </div>
                         </div>

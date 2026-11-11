@@ -160,7 +160,7 @@ function showNotification(message, type = 'success', duration = 3000) {
    ======================================== */
 
 function updateCartCount() {
-    fetch('/panier/api/panier', {
+    fetch('/panier/api', {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'

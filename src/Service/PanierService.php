@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Repository\PanierRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Security\Core\Security;
 
 class PanierService
@@ -345,49 +346,102 @@ private function ajouterBoxBDD(User $user, Box $box, int $quantite): void
         $this->entityManager->flush();
     }
 
+    /**
+     * Fusionne le panier de session (invité) dans le panier en base du client qui vient de se connecter.
+     * - panier existant : les articles s'y ajoutent (quantités additionnées pour un même produit / une même box) ;
+     * - sinon : le panier est créé ;
+     * - produits : jamais au-delà du stock disponible ;
+     * - le panier de session est vidé à la fin.
+     */
     public function migrerSessionVersBDD(User $user): void
-{
-    $session = $this->requestStack->getSession();
-    $panierSession = $session->get(self::SESSION_KEY);
+    {
+        $session = $this->requestStack->getSession();
+        $panierSession = $session->get(self::SESSION_KEY);
 
-    if (!$panierSession) {
-        return;
-    }
-
-    $panier = $this->panierRepository->findByUser($user);
-
-    if (!$panier) {
-        $panier = new Panier();
-        $panier->setUser($user);
-        $this->entityManager->persist($panier);
-    }
-
-    // Migrer les produits simples
-    foreach ($panierSession['produits'] ?? [] as $id => $item) {
-        $produit = $this->entityManager->getRepository(Produit::class)->find($id);
-        if ($produit) {
-            $this->ajouterProduitBDD($user, $produit, $item['quantite']);
+        if (!$panierSession) {
+            return;
         }
+
+        $panier = $this->panierRepository->findByUser($user);
+
+        if (!$panier) {
+            $panier = new Panier();
+            $panier->setUser($user);
+            $this->entityManager->persist($panier);
+            // Indispensable : sans flush, les ajouter*BDD() ci-dessous ne retrouveraient pas ce
+            // panier (Doctrine n'enregistre pas tout seul avant une requête) et en créeraient un
+            // second pour le même client -> erreur 1062 (un seul panier par utilisateur).
+            $this->entityManager->flush();
+        }
+
+        // Produits simples : on respecte le stock en tenant compte de ce que le client a déjà en panier
+        foreach ($panierSession['produits'] ?? [] as $id => $item) {
+            $produit = $this->entityManager->getRepository(Produit::class)->find($id);
+            if (!$produit || !$produit->isDisponible()) {
+                continue;
+            }
+
+            $dejaEnPanier = 0;
+            foreach ($panier->getLignesPanier() as $ligne) {
+                if ($ligne->getProduit() === $produit) {
+                    $dejaEnPanier += $ligne->getQuantite();
+                }
+            }
+
+            $demandee = (int) $item['quantite'];
+            $quantite = min($demandee, (int) $produit->getStock() - $dejaEnPanier);
+
+            if ($quantite > 0) {
+                $this->ajouterProduitBDD($user, $produit, $quantite);
+            }
+
+            if ($quantite < $demandee && $session instanceof FlashBagAwareSessionInterface) {
+                $session->getFlashBag()->add('warning', $quantite > 0
+                    ? sprintf('Stock limité : %s ramené à %d.', $produit->getName(), $dejaEnPanier + $quantite)
+                    : sprintf('Stock limité : %s n\'a pas pu être ajouté à votre panier.', $produit->getName())
+                );
+            }
+        }
+
+        // Boxes simples (leur stock = celui de leurs cookies : contrôlé au paiement, point D)
+        foreach ($panierSession['boxes'] ?? [] as $id => $item) {
+            $box = $this->entityManager->getRepository(Box::class)->find($id);
+            if ($box) {
+                $this->ajouterBoxBDD($user, $box, $item['quantite']);
+            }
+        }
+
+        // Boxes personnalisées : chaque composition est une ligne à part, on les ajoute telles quelles
+        foreach ($panierSession['boxes_perso'] ?? [] as $item) {
+            $box = $this->entityManager->getRepository(Box::class)->find($item['box']->getId());
+            if (!$box) {
+                continue;
+            }
+            $this->ajouterBoxPersoBDD($user, $box, $item['cookies'], $item['taille'], $item['prix']);
+        }
+
+        // Vider la session après migration
+        $this->viderPanierSession();
     }
+    /**
+     * Supprime les paniers (en base) dont la date d'expiration est dépassée.
+     * Passe par l'ORM (et non un DELETE direct) pour que les lignes et compositions partent avec.
+     *
+     * @return int nombre de paniers supprimés (ou, en simulation, qui le seraient)
+     */
+    public function nettoyerPaniersExpires(bool $simulation = false): int
+    {
+        $paniers = $this->panierRepository->findExpired();
 
-    // Migrer les boxes simples
-    foreach ($panierSession['boxes'] ?? [] as $id => $item) {
-    $box = $this->entityManager->getRepository(Box::class)->find($id);
-    if ($box) {
-        $this->ajouterBoxBDD($user, $box, $item['quantite']);
+        if (!$simulation) {
+            foreach ($paniers as $panier) {
+                $this->entityManager->remove($panier);
+            }
+            $this->entityManager->flush();
+        }
+
+        return count($paniers);
     }
-}
-
-    // Migrer les boxes personnalisées
-    foreach ($panierSession['boxes_perso'] ?? [] as $item) {
-    $box = $this->entityManager->getRepository(Box::class)->find($item['box']->getId());
-    if (!$box) continue;
-    $this->ajouterBoxPersoBDD($user, $box, $item['cookies'], $item['taille'], $item['prix']);
-}
-
-    // Vider la session après migration
-    $this->viderPanierSession();
-}
 
     // ======================================================
     // UTILITAIRES

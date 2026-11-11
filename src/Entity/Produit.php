@@ -47,12 +47,6 @@ class Produit
     // RELATIONS
     // ========================================
 
-    /**
-     * @var Collection<int, Box>
-     * EXTRA_LAZY empêche le chargement automatique des boxes → évite la boucle infinie
-     */
-    #[ORM\ManyToMany(targetEntity: Box::class, mappedBy: 'produits', fetch: 'EXTRA_LAZY')]
-    private Collection $boxes;
 
     /**
      * @var Collection<int, Avis>
@@ -69,7 +63,6 @@ class Produit
 
     public function __construct()
     {
-        $this->boxes = new ArrayCollection();
         $this->avis = new ArrayCollection();
         $this->utilisateursFavoris = new ArrayCollection();
         $this->dateCreation = new \DateTime();
@@ -187,35 +180,6 @@ class Produit
     public function setDateModification(?\DateTimeInterface $dateModification): static
     {
         $this->dateModification = $dateModification;
-        return $this;
-    }
-
-    // ========================================
-    // GESTION DES BOXES
-    // ========================================
-
-    /**
-     * @return Collection<int, Box>
-     */
-    public function getBoxes(): Collection
-    {
-        return $this->boxes;
-    }
-
-    public function addBox(Box $box): static
-    {
-        if (!$this->boxes->contains($box)) {
-            $this->boxes->add($box);
-            $box->addProduit($this);
-        }
-        return $this;
-    }
-
-    public function removeBox(Box $box): static
-    {
-        if ($this->boxes->removeElement($box)) {
-            $box->removeProduit($this);
-        }
         return $this;
     }
 
@@ -445,7 +409,12 @@ class Produit
      */
     public function decrémenterStock(int $quantite = 1): static
     {
-        $this->stock = max(0, $this->stock - $quantite);
+        // Jamais de stock négatif masqué : l'appelant doit avoir vérifié le stock avant.
+        if ($quantite > (int) $this->stock) {
+            throw new \DomainException(sprintf('Stock insuffisant pour %s : %d demandé(s), %d disponible(s).', $this->name, $quantite, (int) $this->stock));
+        }
+
+        $this->stock -= $quantite;
         $this->dateModification = new \DateTime();
         
         if ($this->stock === 0) {
