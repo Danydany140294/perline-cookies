@@ -82,3 +82,19 @@ Ne liste jamais une commande `annulee`, `a_verifier` ni `payee`. Seules les `en_
 - Commande de rattrapage : identifiant invalide, événement introuvable, type non géré, `--dry-run`, déjà traité.
 - Nettoyage : une commande `annulee`, `a_verifier` ou `payee` n'est jamais supprimée.
 - Paiement réussi, idempotence, écart de montant, stock insuffisant : voir `tests/Service/PaiementCommandeServiceTest.php`.
+
+## Résultats : grille jouée le 11 novembre 2026 (branche `audit/etape-16-scenarios-paiement`)
+
+Tous les scénarios sont **validés**.
+
+| # | Scénario | Résultat observé |
+|---|---|---|
+| S1 | Carte refusée | Erreur Stripe avec `4000 0000 0000 0002`, puis paiement accepté avec `4242 4242 4242 4242` sur la même page. Commande 96 `payee`, stock −1 (une seule fois). |
+| S2 | Annulation par le client | Retour au panier, contenu intact. Commande 97 `en_attente`. |
+| S3 | Session expirée | `checkout sessions expire` → `checkout.session.expired [200]`. Commande 97 `annulee`, non supprimée. |
+| S4 | Expiration rejouée | `app:stripe-rejouer-evenement` lancé deux fois → « Déjà traité » les deux fois. La commande 97 reste `annulee`. |
+| S5 | Webhook en retard | `stripe listen` coupé : bandeau « paiement en cours de confirmation », commande 98 `en_attente`, stock inchangé. Rattrapage : `payee`, Oreo 39 → 38, un seul e-mail. 2e rejeu : « Déjà traité », pas de second e-mail. |
+| S6 | Nettoyage | `--dry-run` : aucune commande à supprimer. |
+
+Conclusion : la dernière ligne du chapitre 1.1 du PDF (« Tester les paiements refusés, annulés, abandonnés,
+réussis et les webhooks reçus en retard ») est validée. Le chapitre 1.1 est terminé.
