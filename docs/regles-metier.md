@@ -174,3 +174,11 @@ mercredi 18 novembre » ; commande le mercredi 11 → expédiée lundi 16 → «
 commande** (`livraison_estimee_debut` / `fin`) : elle ne change plus ensuite, même si la configuration change. Les CGV, la FAQ de
 l'accueil et le bandeau de la page d'accueil reprennent la même configuration. En retrait sur place, c'est le message de retrait qui
 s'affiche (« Commande prête sous 24 h… »).
+
+## 10. Expédition, suivi et colis retournés (décidé le 12 novembre 2026, chapitre 1.3)
+
+- **Saisie admin** : transporteur (Colissimo par défaut) et numéro de suivi (6 à 30 lettres/chiffres, espaces retirés, majuscules).
+- **Dates automatiques** : `date_expedition` au passage à « Expédiée », `date_livraison` au passage à « Livrée » ; jamais écrasées si déjà renseignées.
+- **Lien de suivi** : modèle configurable `livraison.suivi_url` (`{numero}` remplacé) ; pas de lien pour un autre transporteur que celui configuré. Affiché dans le compte client et l'e-mail.
+- **E-mail d'expédition** : envoyé une seule fois (`email_expedition_envoye_le`), uniquement en livraison à domicile, au passage à « Expédiée » depuis l'administration.
+- **Retournée** : depuis « Expédiée » ; motif obligatoire (note inscrite dans l'historique). Ensuite : réexpédition (« En préparation »), remboursement ou annulation. Le remboursement reste fait dans Stripe ; le stock n'est jamais remis automatiquement.
