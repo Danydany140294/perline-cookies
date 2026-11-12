@@ -12,6 +12,7 @@ parameters:
 
     # Réglages par défaut des deux modes (surchargeables par variable d'environnement, sans toucher au code) :
     # LIVRAISON_DOMICILE_ACTIF=0 masque la livraison, LIVRAISON_RETRAIT_ACTIF=0 masque le retrait sur place.
+    env(LOGIN_LIMITE): '5'
     env(LIVRAISON_DOMICILE_ACTIF): '1'
     env(LIVRAISON_RETRAIT_ACTIF): '1'
     # Produits frais : jours d'expédition (1 = lundi ... 7 = dimanche, séparés par des virgules) et jours de fermeture

@@ -26,8 +26,15 @@ test.describe('administration', () => {
   // Une seule connexion pour tout le fichier : la page de connexion limite le nombre d'essais par minute
   let etatAdmin;
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(180_000);
     const contexte = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
-    await connecterAdmin(await contexte.newPage());
+    const p = await contexte.newPage();
+    try {
+      await connecterAdmin(p);
+    } catch {
+      await p.waitForTimeout(65_000); // limite d'essais de connexion atteinte par les fichiers précédents : on attend la fin de la minute
+      await connecterAdmin(p);
+    }
     etatAdmin = await contexte.storageState();
     await contexte.close();
   });

@@ -52,7 +52,7 @@ if (!cleStripe.startsWith('sk_test_')) {
 const DATABASE_URL = `mysql://root:${CONF.mysql.motDePasse}@127.0.0.1:${CONF.mysql.port}/${CONF.mysql.base}?serverVersion=8.0.32&charset=utf8mb4`;
 const envApp = {
   ...process.env,
-  APP_ENV: 'e2e',
+  APP_ENV: 'e2e', LOGIN_LIMITE: '1000',
   APP_DEBUG: '0',
   DATABASE_URL,
   MAILER_DSN: `smtp://127.0.0.1:${CONF.mailpit.smtp}`,
