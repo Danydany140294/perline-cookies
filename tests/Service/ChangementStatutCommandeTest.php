@@ -37,6 +37,10 @@ class ChangementStatutCommandeTest extends KernelTestCase
         yield 'remboursement d\'une livrée' => [CommandeStatut::LIVREE, CommandeStatut::REMBOURSEE];
         yield 'remboursement d\'une annulée' => [CommandeStatut::ANNULEE, CommandeStatut::REMBOURSEE];
         yield 'remboursement d\'une à vérifier' => [CommandeStatut::A_VERIFIER, CommandeStatut::REMBOURSEE];
+        yield 'colis retourné' => [CommandeStatut::EXPEDIEE, CommandeStatut::RETOURNEE];
+        yield 'réexpédition après retour' => [CommandeStatut::RETOURNEE, CommandeStatut::EN_PREPARATION];
+        yield 'remboursement après retour' => [CommandeStatut::RETOURNEE, CommandeStatut::REMBOURSEE];
+        yield 'annulation après retour' => [CommandeStatut::RETOURNEE, CommandeStatut::ANNULEE];
     }
 
     /** @return iterable<string, array{CommandeStatut, CommandeStatut}> */
@@ -54,6 +58,9 @@ class ChangementStatutCommandeTest extends KernelTestCase
         yield 'sortir de remboursée (vers payée)' => [CommandeStatut::REMBOURSEE, CommandeStatut::PAYEE];
         yield 'sortir de remboursée (vers annulée)' => [CommandeStatut::REMBOURSEE, CommandeStatut::ANNULEE];
         yield 'sortir de remboursée (vers en attente)' => [CommandeStatut::REMBOURSEE, CommandeStatut::EN_ATTENTE];
+        yield 'retourner une commande non expédiée' => [CommandeStatut::EN_PREPARATION, CommandeStatut::RETOURNEE];
+        yield 'retourner une livrée' => [CommandeStatut::LIVREE, CommandeStatut::RETOURNEE];
+        yield 'livrer une retournée' => [CommandeStatut::RETOURNEE, CommandeStatut::LIVREE];
     }
 
     /** @dataProvider transitionsAutorisees */

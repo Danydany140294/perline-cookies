@@ -224,6 +224,19 @@
                                         {% if commande.enCours %}
                                             <p class="text-info">{{ commande.messageLivraison }}</p>
                                         {% endif %}
+                                        {% if commande.statut.value == 'retournee' %}
+                                            <p class="text-warning">Votre colis nous a été retourné. Nous vous contactons pour convenir d'un remboursement ou d'une réexpédition.</p>
+                                        {% endif %}
+                                        {% if commande.dateExpedition or commande.numeroSuivi %}
+                                            <div class="order-suivi">
+                                                {% if commande.dateExpedition %}<p>Expédiée le {{ commande.dateExpedition|date('d/m/Y') }}{% if commande.transporteur %} avec {{ commande.transporteur }}{% endif %}</p>{% endif %}
+                                                {% if commande.numeroSuivi %}
+                                                    <p>Numéro de suivi : <strong>{{ commande.numeroSuivi }}</strong>
+                                                    {% set lien = lien_suivi(commande) %}{% if lien %} — <a href="{{ lien }}" target="_blank" rel="noopener noreferrer">Suivre mon colis</a>{% endif %}</p>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                        {% if commande.dateLivraison %}<p>Livrée le {{ commande.dateLivraison|date('d/m/Y') }}</p>{% endif %}
                                     </div>
                                 {% endfor %}
                             {% else %}

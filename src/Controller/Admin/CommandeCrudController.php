@@ -5,6 +5,7 @@ namespace App\Controller\Admin;
 use App\Entity\Commande;
 use App\Entity\CommandeHistorique;
 use App\Service\ChangementStatutCommande;
+use App\Service\EmailExpeditionService;
 use App\Service\ContexteChangementStatut;
 use App\Service\RestitutionStockService;
 use App\Enum\CommandeStatut;
@@ -17,6 +18,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -28,7 +30,8 @@ class CommandeCrudController extends AbstractCrudController
     public function __construct(
         private ChangementStatutCommande $statuts,
         private ContexteChangementStatut $contexte,
-        private RestitutionStockService $restitutionStock
+        private RestitutionStockService $restitutionStock,
+        private EmailExpeditionService $emailExpedition
     ) {
     }
 
@@ -61,6 +64,7 @@ class CommandeCrudController extends AbstractCrudController
                     'Annulée' => CommandeStatut::ANNULEE->value,
                     'À vérifier' => CommandeStatut::A_VERIFIER->value,
                     'Remboursée' => CommandeStatut::REMBOURSEE->value,
+                    'Retournée' => CommandeStatut::RETOURNEE->value,
                 ])
                 ->renderAsBadges([
                     CommandeStatut::EN_ATTENTE->value => 'warning',
@@ -72,6 +76,7 @@ class CommandeCrudController extends AbstractCrudController
                     CommandeStatut::ANNULEE->value => 'danger',
                     CommandeStatut::A_VERIFIER->value => 'danger',
                     CommandeStatut::REMBOURSEE->value => 'secondary',
+                    CommandeStatut::RETOURNEE->value => 'warning',
                 ]);
         }
 
@@ -99,7 +104,17 @@ class CommandeCrudController extends AbstractCrudController
                 ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
                 ->renderAsHtml(),
 
-            DateTimeField::new('dateCommande', 'Date de commande'),
+            TextField::new('transporteur', 'Transporteur')->setRequired(false)->hideOnIndex()
+                ->setHelp('Rempli tout seul (Colissimo) au passage à « Expédiée » ; modifiable.'),
+            TextField::new('numeroSuivi', 'Numéro de suivi')->setRequired(false)->hideOnIndex()
+                ->setHelp('6 à 30 lettres/chiffres. Le lien de suivi apparaît dans le compte du client et l\'e-mail d\'expédition.'),
+            DateTimeField::new('dateExpedition', 'Date d\'expédition')->hideOnIndex()->setFormTypeOption('disabled', true)
+                ->setHelp('Automatique au passage à « Expédiée ».'),
+            DateTimeField::new('dateLivraison', 'Date de livraison')->hideOnIndex()->setFormTypeOption('disabled', true)
+                ->setHelp('Automatique au passage à « Livrée ».'),
+            TextareaField::new('noteChangementStatut', 'Note du changement de statut')->onlyOnForms()->setRequired(false)
+                ->setHelp('Obligatoire pour « Retournée » (motif du retour). Inscrite dans l\'historique.'),
+
             
             MoneyField::new('montantRembourse', 'Remboursé (Stripe)')->setCurrency('EUR')->setStoredAsCents(false)
                 ->setFormTypeOption('disabled', true)
@@ -169,6 +184,15 @@ class CommandeCrudController extends AbstractCrudController
                 return;
             }
 
+            // « Retournée » : le motif du retour est obligatoire (il sert à décider remboursement ou réexpédition)
+            $note = trim((string) $entityInstance->getNoteChangementStatut());
+            if ($original instanceof CommandeStatut && $nouveau === CommandeStatut::RETOURNEE && $original !== $nouveau && $note === '') {
+                $entityInstance->setStatut($original);
+                $this->addFlash('danger', 'Changement refusé : indiquez le motif du retour dans « Note du changement de statut ».');
+
+                return;
+            }
+
             // Annuler une commande payée n'annule pas le paiement : avertissement + trace dans l'historique
             $avertissement = ($original instanceof CommandeStatut && $nouveau !== null)
                 ? $this->statuts->avertissementAnnulation($original, $nouveau)
@@ -177,7 +201,7 @@ class CommandeCrudController extends AbstractCrudController
                 $this->addFlash('warning', $avertissement);
             }
 
-            $this->contexte->definir(CommandeHistorique::SOURCE_ADMIN, $this->getUser()?->getUserIdentifier(), $avertissement);
+            $this->contexte->definir(CommandeHistorique::SOURCE_ADMIN, $this->getUser()?->getUserIdentifier(), trim($avertissement . ' ' . $note) ?: null);
 
             // Remise en stock : décision de l'administrateur (case à cocher), une seule fois, jamais défaite
             $dejaRestitue = (bool) ($entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance)['stockRestitue'] ?? false);
@@ -196,6 +220,11 @@ class CommandeCrudController extends AbstractCrudController
             }        }
 
         parent::updateEntity($entityManager, $entityInstance);
+
+        // Passage à « Expédiée » : e-mail avec le lien de suivi (une seule fois, livraison à domicile)
+        if ($entityInstance instanceof Commande && $entityInstance->getStatut() === CommandeStatut::EXPEDIEE && $this->emailExpedition->envoyer($entityInstance)) {
+            $this->addFlash('success', 'E-mail d\'expédition envoyé au client.');
+        }
     }
 
     /** @return list<CommandeStatut> les statuts atteignables depuis $depuis (le statut en mémoire a pu changer) */

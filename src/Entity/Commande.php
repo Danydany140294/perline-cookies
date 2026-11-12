@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
 #[ORM\Index(name: 'idx_commande_payment_intent', columns: ['stripe_payment_intent_id'])]
@@ -86,6 +87,21 @@ class Commande
 
     #[ORM\Column(type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $livraisonEstimeeFin = null;
+
+    // ── Expédition et suivi du colis (renseignés par l'administrateur ; les dates se remplissent toutes seules)
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $transporteur = null;
+
+    #[ORM\Column(length: 30, nullable: true)]
+    #[Assert\Regex(pattern: '/^[A-Z0-9]{6,30}$/', message: 'Numéro de suivi invalide : 6 à 30 lettres ou chiffres, sans espace.')]
+    private ?string $numeroSuivi = null;
+
+    /** Date d'envoi de l'e-mail d'expédition (une seule fois par commande). */
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $emailExpeditionEnvoyeLe = null;
+
+    /** Note saisie dans le formulaire d'administration pour un changement de statut (non enregistrée ici : elle va dans l'historique). */
+    private ?string $noteChangementStatut = null;
 
     /** Frais de livraison facturés (en euros) : total TTC = articles + frais. */
     #[ORM\Column(options: ['default' => 0])]
@@ -377,6 +393,45 @@ class Commande
         return 'Livraison estimée ' . \App\Service\FormatDateFr::periode($this->livraisonEstimeeDebut, $this->livraisonEstimeeFin);
     }
 
+    public function getTransporteur(): ?string { return $this->transporteur; }
+
+    public function setTransporteur(?string $transporteur): static
+    {
+        $transporteur = $transporteur !== null ? trim($transporteur) : null;
+        $this->transporteur = $transporteur === '' ? null : $transporteur;
+
+        return $this;
+    }
+
+    public function getNumeroSuivi(): ?string { return $this->numeroSuivi; }
+
+    /** Normalisé : espaces retirés, majuscules (« 6a 123 456 » → « 6A123456 »). */
+    public function setNumeroSuivi(?string $numeroSuivi): static
+    {
+        $numeroSuivi = $numeroSuivi !== null ? strtoupper(preg_replace('/\s+/', '', $numeroSuivi)) : null;
+        $this->numeroSuivi = $numeroSuivi === '' ? null : $numeroSuivi;
+
+        return $this;
+    }
+
+    public function getEmailExpeditionEnvoyeLe(): ?\DateTimeImmutable { return $this->emailExpeditionEnvoyeLe; }
+
+    public function setEmailExpeditionEnvoyeLe(?\DateTimeImmutable $date): static
+    {
+        $this->emailExpeditionEnvoyeLe = $date;
+
+        return $this;
+    }
+
+    public function getNoteChangementStatut(): ?string { return $this->noteChangementStatut; }
+
+    public function setNoteChangementStatut(?string $note): static
+    {
+        $this->noteChangementStatut = $note;
+
+        return $this;
+    }
+
     public function getFraisLivraison(): float
     {
         return $this->fraisLivraison;
@@ -583,6 +638,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::ANNULEE => 'Annulée',
             CommandeStatut::A_VERIFIER => 'À vérifier',
             CommandeStatut::REMBOURSEE => 'Remboursée',
+            CommandeStatut::RETOURNEE => 'Retournée',
             default => 'Inconnu',
         };
     }
@@ -600,6 +656,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::ANNULEE => 'badge-danger',
             CommandeStatut::A_VERIFIER => 'badge-danger',
             CommandeStatut::REMBOURSEE => 'badge-secondary',
+            CommandeStatut::RETOURNEE => 'badge-warning',
             default => 'badge-secondary',
         };
     }

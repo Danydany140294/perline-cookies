@@ -23,6 +23,7 @@ parameters:
     # Ces valeurs alimentent le calcul serveur, les pages (panier, paiement) ET les CGV.
     livraison:
         transporteur: 'Colissimo'
+        suivi_url: 'https://www.laposte.fr/outils/suivre-vos-envois?code={numero}'   # lien de suivi du colis
         modes:
             livraison: '%env(bool:LIVRAISON_DOMICILE_ACTIF)%'
             retrait: '%env(bool:LIVRAISON_RETRAIT_ACTIF)%'

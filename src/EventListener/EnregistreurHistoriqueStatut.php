@@ -4,6 +4,8 @@ namespace App\EventListener;
 
 use App\Entity\Commande;
 use App\Entity\CommandeHistorique;
+use App\Enum\CommandeStatut;
+use App\Service\FraisLivraisonService;
 use App\Service\ContexteChangementStatut;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,7 +21,7 @@ use Doctrine\ORM\UnitOfWork;
 #[AsDoctrineListener(event: Events::onFlush)]
 class EnregistreurHistoriqueStatut
 {
-    public function __construct(private ContexteChangementStatut $contexte)
+    public function __construct(private ContexteChangementStatut $contexte, private FraisLivraisonService $frais)
     {
     }
 
@@ -51,6 +53,25 @@ class EnregistreurHistoriqueStatut
             [$ancien, $nouveau] = array_map(static fn ($v) => $v instanceof \BackedEnum ? $v->value : $v, $changements['statut']);
             if ($ancien === $nouveau || $nouveau === null) {
                 continue;
+            }
+
+            // Dates d'expédition et de livraison renseignées toutes seules au changement de statut (jamais écrasées)
+            $modifie = false;
+            if ($nouveau === CommandeStatut::EXPEDIEE->value) {
+                if ($entite->getDateExpedition() === null) {
+                    $entite->setDateExpedition(new \DateTime());
+                    $modifie = true;
+                }
+                if ($entite->getTransporteur() === null) {
+                    $entite->setTransporteur($this->frais->transporteur());
+                    $modifie = true;
+                }
+            } elseif ($nouveau === CommandeStatut::LIVREE->value && $entite->getDateLivraison() === null) {
+                $entite->setDateLivraison(new \DateTime());
+                $modifie = true;
+            }
+            if ($modifie) {
+                $uow->recomputeSingleEntityChangeSet($em->getClassMetadata(Commande::class), $entite);
             }
 
             $this->ecrire($em, $uow, $meta, new CommandeHistorique(
