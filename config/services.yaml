@@ -12,6 +12,10 @@ parameters:
 
     # Réglages par défaut des deux modes (surchargeables par variable d'environnement, sans toucher au code) :
     # LIVRAISON_DOMICILE_ACTIF=0 masque la livraison, LIVRAISON_RETRAIT_ACTIF=0 masque le retrait sur place.
+    # Dossier des PDF de factures et d'avoirs : HORS du dossier public (jamais servi directement), à sauvegarder avec la base.
+    env(FACTURES_DIR): '%kernel.project_dir%/var/factures'
+    factures_dir: '%env(resolve:FACTURES_DIR)%'
+
     env(LOGIN_LIMITE): '5'
     env(LIVRAISON_DOMICILE_ACTIF): '1'
     env(LIVRAISON_RETRAIT_ACTIF): '1'
@@ -74,3 +78,7 @@ services:
     App\Security\LoginFormAuthenticator:
         arguments:
             $loginLimiter: '@limiter.login'
+
+    App\Service\PdfFacture:
+        arguments:
+            $dossierTemporaire: '%kernel.cache_dir%/dompdf'

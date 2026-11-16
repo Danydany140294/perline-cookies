@@ -1,3 +1,4 @@
+import { rmSync } from 'node:fs';
 // Remet la base de test dans un état CONNU avant chaque scénario.
 import { executerSql } from './db.js';
 
@@ -5,8 +6,11 @@ export const COOKIE = { pistache: 1, peche: 2, noisette: 3, macadamia: 4, fruits
 export const BOX = { gourmande: 1, decouverte: 2, surprise: 3, personnalisable: 4, prestige: 5 };
 
 export function reinitialiser() {
+  // Les PDF de factures des tests précédents sont supprimés avec les lignes de la table facture (même numérotation depuis 1)
+  if (process.env.E2E_FACTURES_DIR) rmSync(process.env.E2E_FACTURES_DIR, { recursive: true, force: true });
   executerSql(`
     SET FOREIGN_KEY_CHECKS=0;
+    DELETE FROM facture; DELETE FROM facture_compteur;
     DELETE FROM composition_box_personnalisable; DELETE FROM ligne_commande; DELETE FROM commande;
     DELETE FROM composition_panier_personnalisable; DELETE FROM ligne_panier; DELETE FROM panier;
     SET FOREIGN_KEY_CHECKS=1;

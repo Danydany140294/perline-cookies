@@ -50,8 +50,12 @@ if (!cleStripe.startsWith('sk_test_')) {
 }
 
 const DATABASE_URL = `mysql://root:${CONF.mysql.motDePasse}@127.0.0.1:${CONF.mysql.port}/${CONF.mysql.base}?serverVersion=8.0.32&charset=utf8mb4`;
+// Les PDF de factures des tests vont dans un dossier jetable (jamais dans var/factures de la vraie application)
+const DOSSIER_FACTURES = path.join(RACINE, 'e2e', '.factures-test');
+rmSync(DOSSIER_FACTURES, { recursive: true, force: true });
 const envApp = {
   ...process.env,
+  FACTURES_DIR: DOSSIER_FACTURES,
   APP_ENV: 'e2e', LOGIN_LIMITE: '1000',
   APP_DEBUG: '0',
   DATABASE_URL,
@@ -158,6 +162,7 @@ try {
       E2E_MYSQL_MDP: CONF.mysql.motDePasse,
       E2E_MAILPIT_API: `http://127.0.0.1:${CONF.mailpit.api}`,
       E2E_USER_EMAIL: CONF.utilisateur.email,
+      E2E_FACTURES_DIR: DOSSIER_FACTURES,
       E2E_USER_MDP: CONF.utilisateur.motDePasse,
       E2E_DATABASE_URL: DATABASE_URL,
       E2E_RACINE: RACINE,

@@ -100,6 +100,11 @@ class Commande
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $emailExpeditionEnvoyeLe = null;
 
+    /** @var Collection<int, Facture> factures et avoirs de la commande (lecture seule : ils ne sont jamais modifiés) */
+    #[ORM\OneToMany(targetEntity: Facture::class, mappedBy: 'commande')]
+    #[ORM\OrderBy(['id' => 'ASC'])]
+    private Collection $factures;
+
     // ── TVA : montants FIGÉS au moment de la commande (null pour les commandes antérieures au chapitre 1.4)
     #[ORM\Column(type: 'decimal', precision: 10, scale: 2, nullable: true)]
     private ?string $totalHt = null;
@@ -154,6 +159,7 @@ class Commande
     {
         $this->historique = new ArrayCollection();
         $this->lignesCommande = new ArrayCollection();
+        $this->factures = new ArrayCollection();
         $this->dateCommande = new \DateTime();
         $this->statut = CommandeStatut::EN_ATTENTE;
     }
@@ -403,6 +409,9 @@ class Commande
 
         return 'Livraison estimée ' . \App\Service\FormatDateFr::periode($this->livraisonEstimeeDebut, $this->livraisonEstimeeFin);
     }
+
+    /** @return Collection<int, Facture> */
+    public function getFactures(): Collection { return $this->factures; }
 
     public function getTotalHt(): ?float { return $this->totalHt === null ? null : (float) $this->totalHt; }
 

@@ -233,6 +233,9 @@
                                             </div>
                                         {% endif %}
                                         {% if commande.dateLivraison %}<p>Livrée le {{ commande.dateLivraison|date('d/m/Y') }}</p>{% endif %}
+                                        {% for document in commande.factures %}
+                                            <p class="order-facture"><a href="{{ path('app_facture_telecharger', {id: document.id}) }}">{{ document.avoir ? 'Télécharger l\'avoir' : 'Télécharger la facture' }} {{ document.numero }} (PDF)</a></p>
+                                        {% endfor %}
                                     </div>
                                 {% endfor %}
                             {% else %}

@@ -191,3 +191,14 @@ s'affiche (« Commande prête sous 24 h… »).
 - HT et TVA sont calculés **sur le total de chaque taux** (pas ligne par ligne). HT + TVA = TTC, toujours, au centime.
 - **Figé sur la commande** à sa création (au moment où le client va payer, comme les lignes et le montant Stripe) : `total_ht`, `total_tva`, `tva_detail` (par taux) et `ligne_commande.taux_tva`. Modifier un taux plus tard ne change jamais une commande existante. Les commandes antérieures au chapitre 1.4 n'ont pas ces champs (pas de facture pour elles).
 - À faire valider par le comptable avant la mise en ligne : taux par produit et taux appliqué aux frais de livraison.
+
+## 12. Factures et avoirs (décidé le 16 novembre 2026, chapitre 1.4)
+
+- **Facture** `F-AAAA-000001` émise **automatiquement au paiement** (webhook Stripe), une seule par commande ; **avoir** `A-AAAA-000001` pour chaque remboursement Stripe (partiel ou total) : il référence la facture d'origine et couvre uniquement la part remboursée pas encore couverte (remboursements partiels successifs = plusieurs avoirs ; événement rejoué = aucun doublon).
+- **Numérotation** strictement séquentielle, **sans trou**, **par type et par année** : table `facture_compteur` verrouillée (`SELECT ... FOR UPDATE`) dans la **même transaction** que l'insertion. Deux paiements simultanés obtiennent deux numéros consécutifs ; en cas d'échec tout est annulé, numéro compris. Index uniques sur le numéro et sur (type, année, séquence).
+- **Immuable** : aucun setter, écouteur Doctrine `FactureImmuable` (refus de toute modification/suppression), clé étrangère `RESTRICT` (une commande facturée ne peut pas être supprimée). Pour corriger : un avoir, puis une nouvelle facture.
+- **PDF généré une seule fois** à l'émission (dompdf), stocké **hors du dossier public** (`var/factures/AAAA/`, réglable par `FACTURES_DIR`, **à sauvegarder avec la base**), jamais régénéré ; empreinte SHA-256 enregistrée. L'identité de l'entreprise (`config/boutique.yaml`) est **copiée** dans la facture à l'émission.
+- **Distribution** : PDF joint à l'e-mail de confirmation (avoir : e-mail dédié) et téléchargeable dans « Mes commandes » (`/compte/factures/{id}/telecharger`, réservé au propriétaire, 404 sinon).
+- **Mode démo** (`mode_demo`) : filigrane « Document de démonstration, sans valeur fiscale » sur chaque PDF émis (mémorisé sur la facture).
+- **Rattrapage** : `php bin/console app:factures:emettre` émet les factures/avoirs manquants (sans doublon). Les commandes payées avant le chapitre 1.4 n'ont pas de facture (TVA non figée).
+- **À sauvegarder** : base de données **et** dossier des factures. Conservation légale : 10 ans.
