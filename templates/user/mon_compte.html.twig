@@ -233,6 +233,16 @@
                                             </div>
                                         {% endif %}
                                         {% if commande.dateLivraison %}<p>Livrée le {{ commande.dateLivraison|date('d/m/Y') }}</p>{% endif %}
+                                        {% if commande.factures|length > 0 %}
+                                            <div class="order-documents">
+                                                {% for document in commande.factures %}
+                                                    <a href="{{ path('app_facture_telecharger', {id: document.id}) }}" class="btn btn-sm {{ document.avoir ? 'btn-outline' : 'btn-primary' }}">
+                                                        <span class="material-symbols-outlined">download</span>
+                                                        {{ document.avoir ? 'Télécharger l\'avoir' : 'Télécharger la facture' }} {{ document.numero }}
+                                                    </a>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
                                 {% endfor %}
                             {% else %}

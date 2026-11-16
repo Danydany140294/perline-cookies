@@ -20,6 +20,7 @@ class EmailExpeditionService
         private EntityManagerInterface $em,
         private SuiviColis $suivi,
         private LoggerInterface $logger,
+        private IdentiteBoutique $boutique,
     ) {
     }
 
@@ -40,7 +41,7 @@ class EmailExpeditionService
             ]);
             $this->mailer->send(
                 (new Email())
-                    ->from('noreply@creaself.fr')
+                    ->from($this->boutique->expediteur())
                     ->to($commande->getUser()->getEmail())
                     ->subject('Votre commande ' . $commande->getNumeroCommande() . ' est expédiée')
                     ->html($html)

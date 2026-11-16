@@ -10,12 +10,12 @@
 
 <div class="legal-section">
     <h2 class="legal-section-title">1. Objet</h2>
-    <p>Les présentes Conditions Générales de Vente (CGV) régissent les ventes de produits effectuées par Perline Cookies SAS (ci-après "le Vendeur") via le site <strong>perlinecookies.com</strong>. Tout achat implique l'acceptation sans réserve des présentes CGV par l'acheteur (ci-après "le Client").</p>
+    <p>Les présentes Conditions Générales de Vente (CGV) régissent les ventes de produits effectuées par {{ boutique.raison_sociale }} (ci-après "le Vendeur") via le site <strong>{{ boutique.site_web }}</strong>. Tout achat implique l'acceptation sans réserve des présentes CGV par l'acheteur (ci-après "le Client").</p>
 </div>
 
 <div class="legal-section">
     <h2 class="legal-section-title">2. Produits</h2>
-    <p>Les produits proposés à la vente sont des cookies artisanaux fabriqués à la main dans notre atelier de Montpellier. Les photographies présentées sur le site sont aussi fidèles que possible aux produits, cependant de légères variations peuvent exister en raison du caractère artisanal de notre fabrication.</p>
+    <p>Les produits proposés à la vente sont des cookies artisanaux fabriqués à la main dans notre atelier de {{ boutique.adresse_ville }}. Les photographies présentées sur le site sont aussi fidèles que possible aux produits, cependant de légères variations peuvent exister en raison du caractère artisanal de notre fabrication.</p>
     <p>Nos produits sont fabriqués dans un atelier pouvant contenir des traces de :</p>
     <ul class="legal-list">
         <li>Gluten (blé)</li>
@@ -29,7 +29,7 @@
 
 <div class="legal-section">
     <h2 class="legal-section-title">3. Prix</h2>
-    <p>Les prix sont indiqués en euros (€) toutes taxes comprises (TTC). La TVA applicable est de 5,5 % pour les produits alimentaires. Perline Cookies SAS se réserve le droit de modifier ses prix à tout moment. Les produits seront facturés sur la base des tarifs en vigueur au moment de la validation de la commande.</p>
+    <p>Les prix sont indiqués en euros (€) toutes taxes comprises (TTC). La TVA est incluse dans ces prix ; son taux (5,5 % pour les produits alimentaires, ou le taux en vigueur pour chaque article) et son montant sont détaillés sur la facture et dans l'e-mail de confirmation. {{ boutique.raison_sociale }} se réserve le droit de modifier ses prix à tout moment. Les produits seront facturés sur la base des tarifs en vigueur au moment de la validation de la commande.</p>
 </div>
 
 <div class="legal-section">
@@ -41,7 +41,7 @@
         <li>Choix du mode de paiement et validation du paiement</li>
         <li>Réception d'un email de confirmation de commande</li>
     </ul>
-    <p>Perline Cookies SAS se réserve le droit d'annuler toute commande en cas de problème d'approvisionnement, de litige avec le Client ou de suspicion de fraude.</p>
+    <p>{{ boutique.raison_sociale }} se réserve le droit d'annuler toute commande en cas de problème d'approvisionnement, de litige avec le Client ou de suspicion de fraude.</p>
 </div>
 
 <div class="legal-section">
@@ -58,7 +58,7 @@
         <li><strong>Livraison {{ livraison.transporteur }} :</strong> {{ livraison.delais.transit_min_jours_ouvres }} à {{ livraison.delais.transit_max_jours_ouvres }} jours ouvrés après l'expédition</li>
     </ul>
     <p>Ces délais sont indicatifs et calculés en jours ouvrés (hors jours de fermeture de l'atelier) ; une période de livraison estimée est affichée avant la validation de la commande, puis rappelée dans l'e-mail de confirmation.</p>
-    <p>Les frais de livraison sont un <strong>forfait de {{ (livraison.frais_forfait_centimes / 100)|number_format(2, ',', ' ') }} €</strong> par commande, affiché avant la validation. La livraison est <strong>offerte à partir de {{ (livraison.seuil_gratuite_centimes / 100)|number_format(0, ',', ' ') }} € d'achat</strong> (hors frais de livraison). Le retrait à l'atelier est gratuit.</p>    <p>Perline Cookies SAS ne pourra être tenu responsable des retards de livraison dus au transporteur ou à des circonstances exceptionnelles.</p>
+    <p>Les frais de livraison sont un <strong>forfait de {{ (livraison.frais_forfait_centimes / 100)|number_format(2, ',', ' ') }} €</strong> par commande, affiché avant la validation. La livraison est <strong>offerte à partir de {{ (livraison.seuil_gratuite_centimes / 100)|number_format(0, ',', ' ') }} € d'achat</strong> (hors frais de livraison). Le retrait à l'atelier est gratuit.</p>    <p>{{ boutique.raison_sociale }} ne pourra être tenu responsable des retards de livraison dus au transporteur ou à des circonstances exceptionnelles.</p>
 </div>
 
 <div class="legal-section">
@@ -68,14 +68,14 @@
         <p>Conformément à l'article L.221-18 du Code de la Consommation, le Client dispose d'un délai de <strong>14 jours calendaires</strong> à compter de la réception de sa commande pour exercer son droit de rétractation, sans avoir à justifier de motifs ni à payer de pénalités.</p>
     </div>
     <p>Toutefois, conformément à l'article L.221-28 du Code de la Consommation, <strong>le droit de rétractation ne peut être exercé pour les denrées alimentaires périssables</strong>. En raison de la nature artisanale et périssable de nos cookies, les commandes ne peuvent pas faire l'objet d'un retour ou d'un remboursement sauf en cas de défaut avéré du produit.</p>
-    <p>En cas de produit défectueux ou non-conforme, merci de nous contacter dans les 48h suivant la réception à <a href="mailto:Perlecook@perline-cookies.com">Perlecook@perline-cookies.com</a> avec photos à l'appui.</p>
+    <p>En cas de produit défectueux ou non-conforme, merci de nous contacter dans les 48h suivant la réception à <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a> avec photos à l'appui.</p>
 </div>
 
 <div class="legal-section">
     <h2 class="legal-section-title">8. Service client</h2>
     <p>Pour toute question relative à votre commande, notre service client est disponible :</p>
     <ul class="legal-list">
-        <li><strong>Email :</strong> <a href="mailto:Perlecook@perline-cookies.com">Perlecook@perline-cookies.com</a></li>
+        <li><strong>Email :</strong> <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a></li>
         <li><strong>Horaires :</strong> du lundi au vendredi, de 9h à 18h</li>
     </ul>
 </div>
@@ -83,7 +83,7 @@
 <div class="legal-section">
     <h2 class="legal-section-title">9. Litiges</h2>
     <p>En cas de litige, le Client peut recourir à une médiation conventionnelle ou à tout autre mode alternatif de règlement des différends. Le Client peut également saisir la plateforme de résolution des litiges en ligne mise en place par la Commission européenne à l'adresse : <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr</a></p>
-    <p>Les présentes CGV sont soumises au droit français. En cas de litige persistant, les tribunaux de Montpellier seront seuls compétents.</p>
+    <p>Les présentes CGV sont soumises au droit français. En cas de litige persistant, les tribunaux de {{ boutique.adresse_ville }} seront seuls compétents.</p>
 </div>
 
 {% endblock %}

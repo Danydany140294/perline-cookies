@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+    @page { margin: 28mm 16mm 22mm 16mm; }
+    body { font-family: 'DejaVu Sans', sans-serif; font-size: 10px; color: #222; }
+    h1 { font-size: 20px; margin: 0 0 4px 0; }
+    .entete { width: 100%; margin-bottom: 18px; }
+    .entete td { vertical-align: top; width: 50%; }
+    .emetteur { font-size: 9px; line-height: 1.5; }
+    .client { border: 1px solid #ccc; padding: 8px; line-height: 1.5; }
+    table.lignes { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    table.lignes th { background: #f0e8e0; text-align: left; padding: 6px 4px; border-bottom: 1px solid #999; font-size: 9px; }
+    table.lignes td { padding: 6px 4px; border-bottom: 1px solid #e4e4e4; vertical-align: top; }
+    .d { text-align: right; white-space: nowrap; }
+    .detail { color: #777; font-size: 8px; }
+    table.totaux { width: 55%; margin: 14px 0 0 45%; border-collapse: collapse; }
+    table.totaux td { padding: 3px 4px; }
+    table.totaux tr.ttc td { border-top: 2px solid #333; font-weight: bold; font-size: 12px; padding-top: 6px; }
+    .mentions { margin-top: 26px; font-size: 8.5px; color: #555; line-height: 1.5; }
+    /* Filigrane : gris très pâle, en transparence, placé en premier dans le document pour rester DERRIÈRE le contenu */
+    .filigrane { position: fixed; top: 42%; left: 0; width: 100%; text-align: center; font-size: 30px; font-weight: bold;
+                 color: #000000; opacity: 0.06; transform: rotate(-28deg); z-index: -100; }
+    .demo-pied { color: #777; font-weight: bold; margin-top: 10px; }
+</style>
+</head>
+<body>
+{% set e = facture.emetteur %}
+{% set c = facture.client %}
+{% if facture.demo %}<div class="filigrane">Document de démonstration, sans valeur fiscale</div>{% endif %}
+
+<table class="entete"><tr>
+    <td>
+        <h1>{{ facture.estAvoir ? 'AVOIR' : 'FACTURE' }} {{ facture.numero }}</h1>
+        <div>Date d'émission : {{ facture.dateEmission|date('d/m/Y') }}</div>
+        <div>Commande : {{ facture.commande.numeroCommande }} du {{ facture.commande.dateCommande|date('d/m/Y') }}</div>
+        {% if facture.estAvoir and origine %}<div>Se rapporte à la facture <strong>{{ origine.numero }}</strong> du {{ origine.dateEmission|date('d/m/Y') }}</div>{% endif %}
+        {% if not facture.estAvoir %}<div>Facture acquittée : paiement par carte bancaire (Stripe) le {{ facture.dateEmission|date('d/m/Y') }}</div>{% endif %}
+    </td>
+    <td class="emetteur">
+        <strong>{{ e.raison_sociale }}</strong><br>
+        {{ e.forme_juridique }} au capital de {{ e.capital }}<br>
+        {{ e.adresse_rue }}, {{ e.adresse_code_postal }} {{ e.adresse_ville }}{% if e.adresse_pays %}, {{ e.adresse_pays }}{% endif %}<br>
+        SIRET : {{ e.siret }} — {{ e.rcs }}<br>
+        N° TVA intracommunautaire : {{ e.tva_intracommunautaire }}<br>
+        {{ e.email_contact }}{% if e.telephone %} — {{ e.telephone }}{% endif %}
+    </td>
+</tr></table>
+
+<div class="client">
+    <strong>Client</strong><br>
+    {{ c.nom }}<br>
+    {% if c.rue %}{{ c.rue }}<br>{% if c.complement %}{{ c.complement }}<br>{% endif %}{{ c.code_postal }} {{ c.ville }}<br>{{ c.pays }}<br>{% endif %}
+    {{ c.email }}
+</div>
+
+<table class="lignes">
+    <thead><tr><th>Désignation</th><th class="d">Qté</th><th class="d">Prix unitaire TTC</th><th class="d">TVA</th><th class="d">Total TTC</th></tr></thead>
+    <tbody>
+    {% for l in facture.lignes %}
+        <tr>
+            <td>{{ l.designation }}{% if l.detail %}<div class="detail">{{ l.detail }}</div>{% endif %}</td>
+            <td class="d">{{ l.quantite }}</td>
+            <td class="d">{{ l.prix_unitaire_ttc|number_format(2, ',', ' ') }} €</td>
+            <td class="d">{{ l.taux is not null ? (l.taux|number_format(2, ',', ' ') ~ ' %') : '—' }}</td>
+            <td class="d">{{ l.total_ttc|number_format(2, ',', ' ') }} €</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<table class="totaux">
+    <tr><td>Total HT</td><td class="d">{{ facture.totalHt|number_format(2, ',', ' ') }} €</td></tr>
+    {% for d in facture.tvaDetail %}
+        <tr><td>TVA {{ d.taux|number_format(2, ',', ' ') }} % (base HT {{ d.ht|number_format(2, ',', ' ') }} €)</td><td class="d">{{ d.tva|number_format(2, ',', ' ') }} €</td></tr>
+    {% endfor %}
+    <tr><td>Total TVA</td><td class="d">{{ facture.totalTva|number_format(2, ',', ' ') }} €</td></tr>
+    <tr class="ttc"><td>Total TTC</td><td class="d">{{ facture.totalTtc|number_format(2, ',', ' ') }} €</td></tr>
+</table>
+
+<div class="mentions">
+    Montants en euros. {{ facture.estAvoir ? 'Avoir correspondant à un remboursement effectué sur le moyen de paiement utilisé lors de la commande.' : 'Les prix s\'entendent toutes taxes comprises ; la TVA est détaillée ci-dessus.' }}<br>
+    {{ e.raison_sociale }} — {{ e.forme_juridique }} — SIRET {{ e.siret }} — TVA {{ e.tva_intracommunautaire }}.
+    {% if facture.demo %}<div class="demo-pied">Document de démonstration, sans valeur fiscale.</div>{% endif %}
+</div>
+</body>
+</html>

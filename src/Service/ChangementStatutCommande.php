@@ -66,6 +66,46 @@ class ChangementStatutCommande
         return 'Cette commande est payée : pense à la rembourser dans Stripe.';
     }
     /** Ce changement est-il autorisé par le workflow ? (même statut = rien à faire = autorisé) */
+    /**
+     * Statuts que SEUL le système peut poser (webhook Stripe, commande de rattrapage `app:stripe-rejouer-evenement`) :
+     * - « Payée » depuis « En attente » : tous les paiements passent par Stripe ;
+     * - « Remboursée » : le remboursement se fait dans Stripe (webhook `charge.refunded`) ;
+     * - « À vérifier » : posé uniquement par le traitement d'un paiement avec écart.
+     * Le workflow les autorise (c'est ce que font le webhook et le rattrapage) ; c'est le formulaire d'administration qui les refuse.
+     * Reste ouvert à l'administrateur : « À vérifier » -> « Payée » (avec une note obligatoire).
+     */
+    public function reserveAuSysteme(?CommandeStatut $de, CommandeStatut $vers): bool
+    {
+        return match ($vers) {
+            CommandeStatut::REMBOURSEE, CommandeStatut::A_VERIFIER => true,
+            CommandeStatut::PAYEE => $de === CommandeStatut::EN_ATTENTE,
+            default => false,
+        };
+    }
+
+    /** Message à afficher si la transition demandée par l'administrateur exige une note, sinon null. */
+    public function noteObligatoire(?CommandeStatut $de, CommandeStatut $vers): ?string
+    {
+        if ($vers === CommandeStatut::RETOURNEE && $de !== $vers) {
+            return 'indiquez le motif du retour dans « Note du changement de statut ».';
+        }
+        if ($de === CommandeStatut::A_VERIFIER && $vers === CommandeStatut::PAYEE) {
+            return 'indiquez dans « Note du changement de statut » comment le paiement a été vérifié (Stripe, montant, écart).';
+        }
+
+        return null;
+    }
+    /** Statuts que l'administrateur peut choisir depuis $de` : atteignables par le workflow ET non réservés au système. */
+    public function statutsChoisissablesParAdmin(Commande $commande): array
+    {
+        $de = $commande->getStatut();
+
+        return array_values(array_filter(
+            $this->statutsPossibles($commande),
+            fn (CommandeStatut $vers): bool => !$this->reserveAuSysteme($de, $vers)
+        ));
+    }
+
     public function peutAller(Commande $commande, ?CommandeStatut $de, CommandeStatut $vers): bool
     {
         return $de === $vers || ($de !== null && $this->transition($commande, $de, $vers) !== null);

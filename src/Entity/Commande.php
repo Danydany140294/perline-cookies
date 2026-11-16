@@ -100,6 +100,22 @@ class Commande
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $emailExpeditionEnvoyeLe = null;
 
+    /** @var Collection<int, Facture> factures et avoirs de la commande (lecture seule : ils ne sont jamais modifiés) */
+    #[ORM\OneToMany(targetEntity: Facture::class, mappedBy: 'commande')]
+    #[ORM\OrderBy(['id' => 'ASC'])]
+    private Collection $factures;
+
+    // ── TVA : montants FIGÉS au moment de la commande (null pour les commandes antérieures au chapitre 1.4)
+    #[ORM\Column(type: 'decimal', precision: 10, scale: 2, nullable: true)]
+    private ?string $totalHt = null;
+
+    #[ORM\Column(type: 'decimal', precision: 10, scale: 2, nullable: true)]
+    private ?string $totalTva = null;
+
+    /** @var list<array{taux: float, ht: float, tva: float, ttc: float}>|null détail par taux de TVA */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $tvaDetail = null;
+
     /** Note saisie dans le formulaire d'administration pour un changement de statut (non enregistrée ici : elle va dans l'historique). */
     private ?string $noteChangementStatut = null;
 
@@ -143,6 +159,7 @@ class Commande
     {
         $this->historique = new ArrayCollection();
         $this->lignesCommande = new ArrayCollection();
+        $this->factures = new ArrayCollection();
         $this->dateCommande = new \DateTime();
         $this->statut = CommandeStatut::EN_ATTENTE;
     }
@@ -393,6 +410,26 @@ class Commande
         return 'Livraison estimée ' . \App\Service\FormatDateFr::periode($this->livraisonEstimeeDebut, $this->livraisonEstimeeFin);
     }
 
+    /** @return Collection<int, Facture> */
+    public function getFactures(): Collection { return $this->factures; }
+
+    public function getTotalHt(): ?float { return $this->totalHt === null ? null : (float) $this->totalHt; }
+
+    public function getTotalTva(): ?float { return $this->totalTva === null ? null : (float) $this->totalTva; }
+
+    /** @return list<array{taux: float, ht: float, tva: float, ttc: float}> */
+    public function getTvaDetail(): array { return $this->tvaDetail ?? []; }
+
+    /** Fige la ventilation de la TVA (calculée par CalculTva) : une facture ne doit jamais dépendre d'un taux modifié plus tard. */
+    public function figerTva(float $totalHt, float $totalTva, array $detail): static
+    {
+        $this->totalHt = number_format($totalHt, 2, '.', '');
+        $this->totalTva = number_format($totalTva, 2, '.', '');
+        $this->tvaDetail = $detail;
+
+        return $this;
+    }
+
     public function getTransporteur(): ?string { return $this->transporteur; }
 
     public function setTransporteur(?string $transporteur): static
@@ -628,39 +665,19 @@ public function setStripeSessionId(?string $stripeSessionId): static
     /**
      * Retourne un libellé lisible du statut
      */
+    /** Libellé du statut : source unique = l'énumération CommandeStatut (tous les statuts sont couverts). */
     public function getStatutLabel(): string
     {
-        return match($this->statut) {
-            CommandeStatut::EN_ATTENTE => 'En attente',
-            CommandeStatut::EN_PREPARATION => 'En préparation',
-            CommandeStatut::EXPEDIEE => 'Expédiée',
-            CommandeStatut::LIVREE => 'Livrée',
-            CommandeStatut::ANNULEE => 'Annulée',
-            CommandeStatut::A_VERIFIER => 'À vérifier',
-            CommandeStatut::REMBOURSEE => 'Remboursée',
-            CommandeStatut::RETOURNEE => 'Retournée',
-            default => 'Inconnu',
-        };
+        return $this->statut?->getLibelle() ?? 'Inconnu';
     }
 
     /**
-     * Retourne la classe CSS du badge selon le statut
+     * Retourne la classe CSS du badge selon le statut (source unique = l'énumération CommandeStatut)
      */
     public function getStatutBadgeClass(): string
     {
-        return match($this->statut) {
-            CommandeStatut::EN_ATTENTE => 'badge-warning',
-            CommandeStatut::EN_PREPARATION => 'badge-info',
-            CommandeStatut::EXPEDIEE => 'badge-primary',
-            CommandeStatut::LIVREE => 'badge-success',
-            CommandeStatut::ANNULEE => 'badge-danger',
-            CommandeStatut::A_VERIFIER => 'badge-danger',
-            CommandeStatut::REMBOURSEE => 'badge-secondary',
-            CommandeStatut::RETOURNEE => 'badge-warning',
-            default => 'badge-secondary',
-        };
+        return $this->statut?->getBadgeClass() ?? 'badge-secondary';
     }
-
     /**
      * Retourne un nom descriptif pour la commande
      */

@@ -31,6 +31,10 @@ class LigneCommande
     #[ORM\Column]
     private ?float $prixUnitaire = null;
 
+    /** Taux de TVA (%) figé au moment de la commande (null pour les anciennes commandes). */
+    #[ORM\Column(type: 'decimal', precision: 4, scale: 2, nullable: true)]
+    private ?string $tauxTva = null;
+
     /**
      * @var Collection<int, CompositionBoxPersonnalisable>
      */
@@ -149,5 +153,17 @@ class LigneCommande
         return $this->box !== null && 
                $this->box->getType() === 'personnalisable' && 
                !$this->compositionsBox->isEmpty();
+    }
+
+    public function getTauxTva(): ?float
+    {
+        return $this->tauxTva === null ? null : (float) $this->tauxTva;
+    }
+
+    public function setTauxTva(?float $taux): static
+    {
+        $this->tauxTva = $taux === null ? null : number_format($taux, 2, '.', '');
+
+        return $this;
     }
 }

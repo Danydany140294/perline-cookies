@@ -113,11 +113,13 @@ test.describe('administration', () => {
     expect(lireCommande(c.id).statut).toBe('confirmee');
     expect(historique(c.id).at(-1)).toMatchObject({ ancien: 'payee', nouveau: 'confirmee', source: 'admin', auteur: 'admin@creaself.com' });
 
-    // confirmee -> expediee : interdit (il faut passer par « En préparation »)
+    // confirmee -> expediee : interdit (il faut passer par « En préparation »). Le formulaire ne propose plus que les statuts
+    // atteignables : on vérifie qu'« Expédiée » n'est pas proposé, puis on force la valeur par une requête forgée.
     await ouvrirEdition(page, c.id);
-    await page.selectOption('select[name="Commande[statut]"]', { label: 'Expédiée' }, { force: true });
+    const proposes = (await page.locator('select[name="Commande[statut]"] option').allTextContents()).map((o) => o.trim());
+    expect(proposes).not.toContain('Expédiée');
+    await page.locator('select[name="Commande[statut]"]').evaluate((s) => { const o = document.createElement('option'); o.value = 'expediee'; o.textContent = 'Expédiée'; s.appendChild(o); s.value = 'expediee'; });
     await enregistrer(page);
-    await expect(page.locator('body')).toContainText('Changement de statut refusé');
     expect(lireCommande(c.id).statut).toBe('confirmee');
     expect(historique(c.id)).toHaveLength(3); // création, paiement, confirmation : rien de plus
 

@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Commande;
+use App\Entity\Facture;
 use App\Entity\CommandeHistorique;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -27,7 +28,9 @@ class TraitementEvenementStripe
         private MailerInterface $mailer,
         private Environment $twig,
         private LoggerInterface $logger,
-        #[Autowire(param: 'retrait')] private array $retrait
+        #[Autowire(param: 'retrait')] private array $retrait,
+        private IdentiteBoutique $boutique,
+        private Facturation $facturation
     ) {
     }
 
@@ -61,7 +64,19 @@ class TraitementEvenementStripe
             $rembourse = (int) ($session->amount_refunded ?? 0);
             $total = ($session->refunded ?? false) === true || ($rembourse > 0 && $rembourse >= (int) ($session->amount ?? PHP_INT_MAX));
 
-            [$resultat] = $this->remboursementService->enregistrer($paiement, $rembourse, $total, $source);
+            [$resultat, $commandeRemboursee] = $this->remboursementService->enregistrer($paiement, $rembourse, $total, $source);
+
+            // Avoir (référence la facture) pour la part remboursée ; un échec ne doit jamais faire échouer le webhook
+            if ($commandeRemboursee !== null && in_array($resultat, [RemboursementCommandeService::REMBOURSEE, RemboursementCommandeService::REMBOURSEMENT_PARTIEL], true)) {
+                try {
+                    $avoir = $this->facturation->emettreAvoir($commandeRemboursee);
+                    if ($avoir !== null) {
+                        $this->envoyerDocument($commandeRemboursee, $avoir, 'Avoir ' . $avoir->getNumero() . ' pour votre commande ' . $commandeRemboursee->getNumeroCommande(), 'Un remboursement a été effectué sur votre commande. Vous trouverez l\'avoir en pièce jointe.');
+                    }
+                } catch (\Throwable $e) {
+                    $this->logger->critical('Émission de l\'avoir impossible, à traiter à la main.', ['commande_id' => $commandeRemboursee->getId(), 'erreur' => $e->getMessage()]);
+                }
+            }
 
             return $resultat;
         }
@@ -82,8 +97,17 @@ class TraitementEvenementStripe
                 isset($session->payment_intent) ? (string) $session->payment_intent : null
             );
 
-            if ($resultat === PaiementCommandeService::PAYEE && $commande?->getUser()) {
-                $this->envoyerConfirmation($commande);
+            if ($resultat === PaiementCommandeService::PAYEE && $commande !== null) {
+                // Facture émise au paiement (une seule fois) ; un échec est journalisé (commande "app:factures:emettre" pour rattraper)
+                $facture = null;
+                try {
+                    $facture = $this->facturation->emettreFacture($commande);
+                } catch (\Throwable $e) {
+                    $this->logger->critical('Émission de la facture impossible, à rattraper avec app:factures:emettre.', ['commande_id' => $commande->getId(), 'erreur' => $e->getMessage()]);
+                }
+                if ($commande->getUser()) {
+                    $this->envoyerConfirmation($commande, $facture);
+                }
             }
 
             return $resultat;
@@ -104,7 +128,7 @@ class TraitementEvenementStripe
      * E-mail de confirmation (client connecté). Un échec d'envoi n'annule pas la commande
      * mais il est écrit dans les logs au lieu d'être avalé en silence.
      */
-    private function envoyerConfirmation(Commande $commande): void
+    private function envoyerConfirmation(Commande $commande, ?Facture $facture = null): void
     {
         try {
             $html = $this->twig->render('emails/confirmation_commande.html.twig', [
@@ -112,18 +136,40 @@ class TraitementEvenementStripe
                 'retrait' => $this->retrait,
             ]);
 
-            $this->mailer->send(
-                (new Email())
-                    ->from('noreply@creaself.fr')
-                    ->to($commande->getUser()->getEmail())
-                    ->subject('Confirmation de votre commande ' . $commande->getNumeroCommande())
-                    ->html($html)
-            );
+            $email = (new Email())
+                ->from($this->boutique->expediteur())
+                ->to($commande->getUser()->getEmail())
+                ->subject('Confirmation de votre commande ' . $commande->getNumeroCommande())
+                ->html($html);
+            if ($facture !== null && ($chemin = $this->facturation->cheminPdf($facture)) !== null) {
+                $email->attachFromPath($chemin, $facture->getNumero() . '.pdf', 'application/pdf');
+            }
+            $this->mailer->send($email);
         } catch (\Throwable $e) {
             $this->logger->error('Échec de l\'envoi de l\'e-mail de confirmation de commande.', [
                 'numero' => $commande->getNumeroCommande(),
                 'erreur' => $e->getMessage(),
             ]);
+        }
+    }
+
+    /** E-mail simple avec un document PDF (avoir) en pièce jointe. */
+    private function envoyerDocument(Commande $commande, Facture $document, string $sujet, string $texte): void
+    {
+        if (!$commande->getUser()?->getEmail() || ($chemin = $this->facturation->cheminPdf($document)) === null) {
+            return;
+        }
+        try {
+            $this->mailer->send(
+                (new Email())
+                    ->from($this->boutique->expediteur())
+                    ->to($commande->getUser()->getEmail())
+                    ->subject($sujet)
+                    ->text($texte)
+                    ->attachFromPath($chemin, $document->getNumero() . '.pdf', 'application/pdf')
+            );
+        } catch (\Throwable $e) {
+            $this->logger->error('Échec de l\'envoi du document.', ['numero' => $document->getNumero(), 'erreur' => $e->getMessage()]);
         }
     }
 }

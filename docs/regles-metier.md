@@ -182,3 +182,28 @@ s'affiche (« Commande prête sous 24 h… »).
 - **Lien de suivi** : modèle configurable `livraison.suivi_url` (`{numero}` remplacé) ; pas de lien pour un autre transporteur que celui configuré. Affiché dans le compte client et l'e-mail.
 - **E-mail d'expédition** : envoyé une seule fois (`email_expedition_envoye_le`), uniquement en livraison à domicile, au passage à « Expédiée » depuis l'administration.
 - **Retournée** : depuis « Expédiée » ; motif obligatoire (note inscrite dans l'historique). Ensuite : réexpédition (« En préparation »), remboursement ou annulation. Le remboursement reste fait dans Stripe ; le stock n'est jamais remis automatiquement.
+
+## 11. TVA (décidé le 16 novembre 2026, chapitre 1.4)
+
+- Société assujettie à la TVA. Un **taux par produit et par box** (`taux_tva`, 5,5 % par défaut, modifiable dans l'administration).
+- **Les prix affichés sont TTC** et ne changent pas : le HT et la TVA sont **déduits** du TTC (`CalculTva`, calcul en centimes entiers).
+- **Frais de livraison** : même taux que les produits ; si les taux sont mélangés, répartition **au prorata de la valeur HT** des articles de chaque taux (le dernier groupe reçoit le reliquat des centimes).
+- HT et TVA sont calculés **sur le total de chaque taux** (pas ligne par ligne). HT + TVA = TTC, toujours, au centime.
+- **Figé sur la commande** à sa création (au moment où le client va payer, comme les lignes et le montant Stripe) : `total_ht`, `total_tva`, `tva_detail` (par taux) et `ligne_commande.taux_tva`. Modifier un taux plus tard ne change jamais une commande existante. Les commandes antérieures au chapitre 1.4 n'ont pas ces champs (pas de facture pour elles).
+- À faire valider par le comptable avant la mise en ligne : taux par produit et taux appliqué aux frais de livraison.
+
+## 12. Factures et avoirs (décidé le 16 novembre 2026, chapitre 1.4)
+
+- **Facture** `F-AAAA-000001` émise **automatiquement au paiement** (webhook Stripe), une seule par commande ; **avoir** `A-AAAA-000001` pour chaque remboursement Stripe (partiel ou total) : il référence la facture d'origine et couvre uniquement la part remboursée pas encore couverte (remboursements partiels successifs = plusieurs avoirs ; événement rejoué = aucun doublon).
+- **Numérotation** strictement séquentielle, **sans trou**, **par type et par année** : table `facture_compteur` verrouillée (`SELECT ... FOR UPDATE`) dans la **même transaction** que l'insertion. Deux paiements simultanés obtiennent deux numéros consécutifs ; en cas d'échec tout est annulé, numéro compris. Index uniques sur le numéro et sur (type, année, séquence).
+- **Immuable** : aucun setter, écouteur Doctrine `FactureImmuable` (refus de toute modification/suppression), clé étrangère `RESTRICT` (une commande facturée ne peut pas être supprimée). Pour corriger : un avoir, puis une nouvelle facture.
+- **PDF généré une seule fois** à l'émission (dompdf), stocké **hors du dossier public** (`var/factures/AAAA/`, réglable par `FACTURES_DIR`, **à sauvegarder avec la base**), jamais régénéré ; empreinte SHA-256 enregistrée. L'identité de l'entreprise (`config/boutique.yaml`) est **copiée** dans la facture à l'émission.
+- **Distribution** : PDF joint à l'e-mail de confirmation (avoir : e-mail dédié) et téléchargeable dans « Mes commandes » (`/compte/factures/{id}/telecharger`, réservé au propriétaire, 404 sinon).
+- **Mode démo** (`mode_demo`) : filigrane « Document de démonstration, sans valeur fiscale » sur chaque PDF émis (mémorisé sur la facture).
+- **Rattrapage** : `php bin/console app:factures:emettre` émet les factures/avoirs manquants (sans doublon). Les commandes payées avant le chapitre 1.4 n'ont pas de facture (TVA non figée).
+- **À sauvegarder** : base de données **et** dossier des factures. Conservation légale : 10 ans.
+
+- **Développement local** : le secret du webhook (STRIPE_WEBHOOK_SECRET) doit être celui affiché par stripe listen --print-secret, à mettre dans .env.local (jamais dans un fichier suivi par git). Un secret qui ne correspond pas fait refuser tous les webhooks (HTTP 400, journalisé) : les commandes restent « En attente » et aucune facture ni e-mail n'est émis. Lancer stripe listen avec les trois événements : checkout.session.completed,checkout.session.expired,charge.refunded.
+- **Source unique du secret en local** : `scripts/stripe-listen.ps1` lit la clé de test, **écrit** le secret annoncé par le CLI dans `.env.local` (jamais dans `.env`, jamais commité) puis lance l'écoute. Lancer toujours l'écoute par ce script : le secret ne peut plus diverger de celui que Stripe utilise.
+- **Statuts réservés au système** (16 novembre 2026) : « Payée » (depuis « En attente »), « Remboursée » et « À vérifier » ne peuvent être posés que par le **webhook Stripe** ou le **rattrapage** (`php bin/console app:stripe-rejouer-evenement`). Le formulaire d'administration ne les propose pas et refuse une requête forgée ; le workflow, lui, les autorise (c'est ce que font le webhook et le rattrapage). Tous les paiements et remboursements passent par Stripe.
+- **Reste ouvert à l'administrateur** : « À vérifier » → « Payée » (validation d'un paiement déjà reçu de Stripe avec un écart), avec une **note obligatoire** (comment le paiement a été vérifié) inscrite dans l'historique. « Retournée » exige aussi une note (motif du retour).

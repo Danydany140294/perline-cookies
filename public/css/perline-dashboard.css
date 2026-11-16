@@ -1800,3 +1800,6 @@ body {
         font-size: 0.75rem !important;
     }
 }
+/* Boutons de téléchargement des factures et avoirs (Mes commandes) */
+.order-documents { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.order-documents .btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }

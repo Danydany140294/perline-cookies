@@ -46,7 +46,7 @@ class ContactControllerTest extends WebTestCase
 
         $this->assertEmailCount(1);
         $email = $this->getMailerMessage();
-        $this->assertEmailHeaderSame($email, 'to', 'Perlecook@perline-cookies.com');
+        $this->assertEmailHeaderSame($email, 'to', self::getContainer()->get(\App\Service\IdentiteBoutique::class)->emailContact());
         $this->assertEmailHeaderSame($email, 'reply-to', 'Camille Martin <camille@example.com>');
         $this->assertEmailTextBodyContains($email, 'avez-vous une box sans noisette');
         $this->assertEmailHeaderSame($email, 'subject', '[Contact] Question sur une Box — Camille Martin');

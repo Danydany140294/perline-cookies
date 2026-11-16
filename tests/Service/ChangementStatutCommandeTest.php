@@ -154,4 +154,81 @@ class ChangementStatutCommandeTest extends KernelTestCase
         $this->assertNull($service->avertissementAnnulation(CommandeStatut::PAYEE, CommandeStatut::REMBOURSEE));
         $this->assertNull($service->avertissementAnnulation(null, CommandeStatut::ANNULEE));
     }
+
+    public function testPayeeDepuisEnAttenteEstReserveAuSysteme(): void
+    {
+        $service = $this->changementStatut();
+
+        $this->assertTrue($service->reserveAuSysteme(CommandeStatut::EN_ATTENTE, CommandeStatut::PAYEE));
+        // Le workflow, lui, l'autorise (c'est ce que fait le webhook)
+        $this->assertTrue($service->peutAller($this->commande(CommandeStatut::EN_ATTENTE), CommandeStatut::EN_ATTENTE, CommandeStatut::PAYEE));
+    }
+
+    public function testAutresPassagesNeSontPasReservesAuSysteme(): void
+    {
+        $service = $this->changementStatut();
+
+        $this->assertFalse($service->reserveAuSysteme(CommandeStatut::PAYEE, CommandeStatut::CONFIRMEE));
+        $this->assertFalse($service->reserveAuSysteme(CommandeStatut::A_VERIFIER, CommandeStatut::PAYEE), 'La validation d\'un paiement à vérifier reste une décision de l\'administrateur');
+        $this->assertFalse($service->reserveAuSysteme(CommandeStatut::EN_ATTENTE, CommandeStatut::ANNULEE));
+    }
+
+    public function testLAdministrateurNeSeVoitJamaisProposerPayeeDepuisEnAttente(): void
+    {
+        $choix = $this->changementStatut()->statutsChoisissablesParAdmin($this->commande(CommandeStatut::EN_ATTENTE));
+
+        $this->assertNotContains(CommandeStatut::PAYEE, $choix);
+        $this->assertContains(CommandeStatut::ANNULEE, $choix);
+        $this->assertContains(CommandeStatut::PAYEE, $this->changementStatut()->statutsChoisissablesParAdmin($this->commande(CommandeStatut::A_VERIFIER)));
+    }
+
+    /** @return iterable<string, array{CommandeStatut}> */
+    public static function origines(): iterable
+    {
+        foreach (CommandeStatut::cases() as $statut) {
+            yield $statut->value => [$statut];
+        }
+    }
+
+    /** @dataProvider origines */
+    public function testRembourseeEtAVerifierSontReservesAuSystemeDepuisNImporteQuelStatut(CommandeStatut $depuis): void
+    {
+        $service = $this->changementStatut();
+
+        $this->assertTrue($service->reserveAuSysteme($depuis, CommandeStatut::REMBOURSEE));
+        $this->assertTrue($service->reserveAuSysteme($depuis, CommandeStatut::A_VERIFIER));
+    }
+
+    public function testLAdministrateurNeSeVoitProposerNiRembourseeNiAVerifier(): void
+    {
+        $service = $this->changementStatut();
+
+        foreach ([CommandeStatut::PAYEE, CommandeStatut::EXPEDIEE, CommandeStatut::LIVREE, CommandeStatut::ANNULEE, CommandeStatut::EN_ATTENTE] as $statut) {
+            $choix = $service->statutsChoisissablesParAdmin($this->commande($statut));
+            $this->assertNotContains(CommandeStatut::REMBOURSEE, $choix, $statut->value);
+            $this->assertNotContains(CommandeStatut::A_VERIFIER, $choix, $statut->value);
+        }
+        // Mais le webhook / le rattrapage, eux, le peuvent toujours (workflow)
+        $this->assertTrue($service->peutAller($this->commande(CommandeStatut::LIVREE), CommandeStatut::LIVREE, CommandeStatut::REMBOURSEE));
+    }
+
+    public function testDepuisAVerifierLAdminPeutValiderOuAnnulerMaisPasRembourser(): void
+    {
+        $choix = $this->changementStatut()->statutsChoisissablesParAdmin($this->commande(CommandeStatut::A_VERIFIER));
+
+        $this->assertContains(CommandeStatut::PAYEE, $choix);
+        $this->assertContains(CommandeStatut::ANNULEE, $choix);
+        $this->assertNotContains(CommandeStatut::REMBOURSEE, $choix);
+    }
+
+    public function testNoteObligatoirePourRetourneeEtPourValiderUnPaiementAVerifier(): void
+    {
+        $service = $this->changementStatut();
+
+        $this->assertStringContainsString('motif du retour', (string) $service->noteObligatoire(CommandeStatut::EXPEDIEE, CommandeStatut::RETOURNEE));
+        $this->assertStringContainsString('vérifié', (string) $service->noteObligatoire(CommandeStatut::A_VERIFIER, CommandeStatut::PAYEE));
+        $this->assertNull($service->noteObligatoire(CommandeStatut::PAYEE, CommandeStatut::CONFIRMEE));
+        $this->assertNull($service->noteObligatoire(CommandeStatut::EN_ATTENTE, CommandeStatut::PAYEE), 'Réservé au système : pas de note à demander');
+        $this->assertNull($service->noteObligatoire(CommandeStatut::A_VERIFIER, CommandeStatut::ANNULEE));
+    }
 }

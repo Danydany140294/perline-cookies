@@ -46,12 +46,18 @@ class CommandeCrudController extends AbstractCrudController
         // chaînes, la page d'édition plantait « Object of class CommandeStatut could not be converted to string »).
         // Liste et détail : valeurs texte et badges de couleur.
         if (in_array($pageName, [Crud::PAGE_EDIT, Crud::PAGE_NEW], true)) {
+            // Seuls les statuts atteignables depuis le statut actuel sont proposés, et jamais « Payée » depuis « En attente » :
+            // tous les paiements passent par Stripe (webhook ou commande de rattrapage), jamais à la main.
+            $commande = $this->getContext()?->getEntity()->getInstance();
+            $proposes = $commande instanceof Commande && $commande->getStatut() !== null
+                ? [$commande->getStatut(), ...$this->statuts->statutsChoisissablesParAdmin($commande)]
+                : CommandeStatut::cases();
             $statut = ChoiceField::new('statut', 'Statut')
                 ->setChoices(array_combine(
-                    array_map(static fn (CommandeStatut $s): string => $s->getLibelle(), CommandeStatut::cases()),
-                    CommandeStatut::cases()
+                    array_map(static fn (CommandeStatut $s): string => $s->getLibelle(), $proposes),
+                    $proposes
                 ))
-                ->setHelp('Seules les transitions prévues sont acceptées (voir docs/regles-metier.md). Chaque changement est inscrit dans l\'historique.');
+                ->setHelp('Seules les transitions prévues sont acceptées (voir docs/regles-metier.md). « Payée » (depuis « En attente »), « Remboursée » et « À vérifier » ne viennent que de Stripe (webhook ou rattrapage). Chaque changement est inscrit dans l\'historique.');
         } else {
             $statut = ChoiceField::new('statut', 'Statut')
                 ->setChoices([
@@ -113,7 +119,7 @@ class CommandeCrudController extends AbstractCrudController
             DateTimeField::new('dateLivraison', 'Date de livraison')->hideOnIndex()->setFormTypeOption('disabled', true)
                 ->setHelp('Automatique au passage à « Livrée ».'),
             TextareaField::new('noteChangementStatut', 'Note du changement de statut')->onlyOnForms()->setRequired(false)
-                ->setHelp('Obligatoire pour « Retournée » (motif du retour). Inscrite dans l\'historique.'),
+                ->setHelp('Obligatoire pour « Retournée » (motif du retour) et pour « À vérifier » → « Payée » (comment le paiement a été vérifié). Inscrite dans l\'historique.'),
 
             
             MoneyField::new('montantRembourse', 'Remboursé (Stripe)')->setCurrency('EUR')->setStoredAsCents(false)
@@ -169,6 +175,18 @@ class CommandeCrudController extends AbstractCrudController
             }
             $nouveau = $entityInstance->getStatut();
 
+            // Jamais « Payée » à la main (requête forgée comprise) : seuls le webhook Stripe et la commande de rattrapage le font
+            if ($original instanceof CommandeStatut && $nouveau !== null && $nouveau !== $original
+                && $this->statuts->reserveAuSysteme($original, $nouveau)) {
+                $entityInstance->setStatut($original);
+                $this->addFlash('danger', sprintf(
+                    'Changement refusé : le statut « %s » ne peut pas être posé à la main : paiements et remboursements passent par Stripe. Si un webhook a été manqué, utilisez la commande de rattrapage (php bin/console app:stripe-rejouer-evenement).',
+                    $nouveau->getLibelle()
+                ));
+
+                return;
+            }
+
             if ($original instanceof CommandeStatut && $nouveau !== null && $nouveau !== $original
                 && !$this->statuts->peutAller($entityInstance, $original, $nouveau)) {
                 $possibles = array_map(static fn (CommandeStatut $s) => $s->getLibelle(), $this->statutsDepuis($entityInstance, $original));
@@ -184,11 +202,12 @@ class CommandeCrudController extends AbstractCrudController
                 return;
             }
 
-            // « Retournée » : le motif du retour est obligatoire (il sert à décider remboursement ou réexpédition)
+            // Note obligatoire pour certains changements (« Retournée » : motif du retour ; « À vérifier » -> « Payée » : vérification du paiement)
             $note = trim((string) $entityInstance->getNoteChangementStatut());
-            if ($original instanceof CommandeStatut && $nouveau === CommandeStatut::RETOURNEE && $original !== $nouveau && $note === '') {
+            $messageNote = ($original instanceof CommandeStatut && $nouveau !== null) ? $this->statuts->noteObligatoire($original, $nouveau) : null;
+            if ($messageNote !== null && $note === '') {
                 $entityInstance->setStatut($original);
-                $this->addFlash('danger', 'Changement refusé : indiquez le motif du retour dans « Note du changement de statut ».');
+                $this->addFlash('danger', 'Changement refusé : ' . $messageNote);
 
                 return;
             }

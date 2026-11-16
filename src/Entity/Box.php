@@ -51,6 +51,10 @@ private ?float $prix12 = null;
 #[ORM\Column(nullable: true)]
 private ?float $prix24 = null;
 
+    /** Taux de TVA en % applicable à ce prix TTC (5,5 % par défaut ; modifiable dans l'administration). */
+    #[ORM\Column(type: 'decimal', precision: 4, scale: 2, options: ['default' => '5.50'])]
+    #[Assert\Range(min: 0, max: 30, notInRangeMessage: 'Le taux de TVA doit être compris entre {{ min }} et {{ max }} %.')]
+    private string $tauxTva = '5.50';
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $isActive = true;
 
@@ -315,5 +319,17 @@ public function setPrix24(?float $prix24): static { $this->prix24 = $prix24; ret
     public function __toString(): string
     {
         return $this->nom ?? 'Box #' . $this->id;
+    }
+
+    public function getTauxTva(): float
+    {
+        return (float) $this->tauxTva;
+    }
+
+    public function setTauxTva(float|string|null $tauxTva): static
+    {
+        $this->tauxTva = number_format((float) ($tauxTva ?? 5.5), 2, '.', '');
+
+        return $this;
     }
 }

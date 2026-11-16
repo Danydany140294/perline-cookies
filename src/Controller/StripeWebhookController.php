@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\TraitementEvenementStripe;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -10,7 +11,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class StripeWebhookController extends AbstractController
 {
-    public function __construct(private TraitementEvenementStripe $traitement)
+    public function __construct(private TraitementEvenementStripe $traitement, private LoggerInterface $logger)
     {
     }
 
@@ -26,6 +27,13 @@ final class StripeWebhookController extends AbstractController
             \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY'] ?? '');
             $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $webhookSecret);
         } catch (\Exception $e) {
+            // Visible dans les logs : sans cela, un secret de webhook mal configuré laisse les commandes « En attente » sans aucune trace.
+            $this->logger->error('Webhook Stripe REFUSÉ (signature invalide) : STRIPE_WEBHOOK_SECRET ne correspond pas à l\'émetteur. En local, utiliser le secret affiché par « stripe listen --print-secret » (dans .env.local).', [
+                'erreur' => $e->getMessage(),
+                'en_tete_present' => $sigHeader !== '',
+                'secret_configure' => $webhookSecret !== '',
+            ]);
+
             return new JsonResponse(['error' => 'Signature invalide'], 400);
         }
 

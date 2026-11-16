@@ -11,6 +11,7 @@ use App\Repository\CommandeRepository;
 use App\Repository\PanierRepository;
 use App\Repository\LignePanierRepository;
 use App\Service\CommandeService;
+use App\Service\CalculTva;
 use App\Service\DelaisLivraison;
 use App\Service\FraisLivraisonService;
 use App\Service\StockCookiesService;
@@ -36,6 +37,7 @@ final class PaiementController extends AbstractController
         private FraisLivraisonService $fraisLivraisonService,
         private ZoneLivraison $zoneLivraison,
         private DelaisLivraison $delaisLivraison,
+        private CalculTva $calculTva,
         #[Autowire(param: 'retrait')] private array $retrait
     )
     {
@@ -262,6 +264,8 @@ final class PaiementController extends AbstractController
                 $ligneCommande->setBox($ligne->getBox());
                 $ligneCommande->setQuantite($ligne->getQuantite());
                 $ligneCommande->setPrixUnitaire($ligne->getPrixUnitaire());
+                // Taux de TVA figé sur la ligne (celui du produit ou de la box à cet instant)
+                $ligneCommande->setTauxTva($ligne->getProduit()?->getTauxTva() ?? $ligne->getBox()?->getTauxTva() ?? 5.5);
 
                 // Composition FIGÉE sur la ligne (cookies et quantités PAR BOX) : box perso = choix du
                 // client, box classique = recette au moment de la commande. Modifier la recette plus tard
@@ -317,6 +321,17 @@ final class PaiementController extends AbstractController
             if ($commande !== null) {
                 $commande->setTotalTTC(($sousTotalCentimes + $fraisCentimes) / 100);
                 $commande->setFraisLivraison($fraisCentimes / 100);
+
+                // Ventilation HT / TVA par taux, FIGÉE sur la commande (les prix affichés sont TTC et ne changent pas)
+                $tva = $this->calculTva->calculer(array_map(
+                    static fn (LigneCommande $l): array => ['ttc' => (int) round($l->getPrixUnitaire() * 100) * $l->getQuantite(), 'taux' => $l->getTauxTva() ?? 5.5],
+                    $commande->getLignesCommande()->toArray()
+                ), $fraisCentimes);
+                $commande->figerTva(
+                    $tva['ht'] / 100,
+                    $tva['tva'] / 100,
+                    array_map(static fn (array $d): array => ['taux' => $d['taux'], 'ht' => $d['ht'] / 100, 'tva' => $d['tva'] / 100, 'ttc' => $d['ttc'] / 100], $tva['detail'])
+                );
                 $em->persist($commande);
                 $em->flush();
             }
