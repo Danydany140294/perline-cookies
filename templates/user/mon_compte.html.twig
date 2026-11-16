@@ -127,6 +127,7 @@
                             <span class="card-icon-bg material-symbols-outlined">package</span>
                         </div>
 
+{% if boutique.fonctions.points_fidelite %}
                         {# Carte Points de fidélité #}
                         <div class="card card-loyalty">
                             <div class="card-body">
@@ -159,9 +160,11 @@
                                 </div>
                             </div>
                         </div>
+{% endif %}
 
                     </div>
 
+{% if boutique.fonctions.favoris %}
                     {# Section Favoris #}
                     <section class="favorites-section">
                         <div class="section-header">
@@ -197,6 +200,7 @@
                             {% endif %}
                         </div>
                     </section>
+{% endif %}
                 </div>
 
                 {# ==================== ONGLET 2 : Mes Commandes ==================== #}
@@ -363,6 +367,7 @@
                             </div>
                         </div>
 
+{% if boutique.fonctions.points_fidelite %}
                         {# Carte de fidélité #}
                         <div class="info-loyalty-card">
                             <div class="info-loyalty-content">
@@ -379,6 +384,7 @@
                                 <span class="points-label">points</span>
                             </div>
                         </div>
+{% endif %}
 
                         {# Section sécurité #}
                         <div class="info-security-section">

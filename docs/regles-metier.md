@@ -207,3 +207,9 @@ s'affiche (« Commande prête sous 24 h… »).
 - **Source unique du secret en local** : `scripts/stripe-listen.ps1` lit la clé de test, **écrit** le secret annoncé par le CLI dans `.env.local` (jamais dans `.env`, jamais commité) puis lance l'écoute. Lancer toujours l'écoute par ce script : le secret ne peut plus diverger de celui que Stripe utilise.
 - **Statuts réservés au système** (16 novembre 2026) : « Payée » (depuis « En attente »), « Remboursée » et « À vérifier » ne peuvent être posés que par le **webhook Stripe** ou le **rattrapage** (`php bin/console app:stripe-rejouer-evenement`). Le formulaire d'administration ne les propose pas et refuse une requête forgée ; le workflow, lui, les autorise (c'est ce que font le webhook et le rattrapage). Tous les paiements et remboursements passent par Stripe.
 - **Reste ouvert à l'administrateur** : « À vérifier » → « Payée » (validation d'un paiement déjà reçu de Stripe avec un écart), avec une **note obligatoire** (comment le paiement a été vérifié) inscrite dans l'historique. « Retournée » exige aussi une note (motif du retour).
+
+## 13. Compte client, chapitre 1.5 (décidé le 17 novembre 2026)
+
+- **Aucune fausse preuve sociale** : toute mention chiffrée (avis, notes, étoiles, témoignages) doit reposer sur des données réelles. Retirés : « 4,9/5 + de 2000 avis clients » et le faux témoignage de l'accueil. Un test unitaire interdit ce type de mention dans les templates.
+- **Fonctions optionnelles** désactivées par défaut dans `config/boutique.yaml` (`fonctions` : `favoris`, `avis`, `points_fidelite`, variables `BOUTIQUE_FONCTION_*`) : seules l'affichage est masqué, tables et données sont conservées. Elles seront reconstruites avec un vrai circuit (avis vérifiés, fidélité réelle), et chaque client pourra les activer.
+- **Achat invité** : non, compte obligatoire (pas de lien sécurisé pour retrouver une commande sans compte).

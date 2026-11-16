@@ -136,7 +136,7 @@ try {
   serveur = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort}`, '-t', 'public'], { cwd: RACINE, env: envApp, stdio: 'ignore' });
   // Le second serveur propose AUSSI de tester le réglage « retrait désactivé » (LIVRAISON_RETRAIT_ACTIF=0) : mêmes fichiers,
   // même base, même session (cookies partagés sur 127.0.0.1), seule la configuration diffère.
-  serveur2 = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort2}`, '-t', 'public'], { cwd: RACINE, env: { ...envApp, BOUTIQUE_MODE_DEMO: '0', LIVRAISON_RETRAIT_ACTIF: '0', LIVRAISON_JOURS_EXPEDITION: '1,2,3,4,5', LIVRAISON_FERMETURES: plageDeFermeture() }, stdio: 'ignore' });
+  serveur2 = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort2}`, '-t', 'public'], { cwd: RACINE, env: { ...envApp, BOUTIQUE_MODE_DEMO: '0', BOUTIQUE_FONCTION_FAVORIS: '1', BOUTIQUE_FONCTION_POINTS_FIDELITE: '1', BOUTIQUE_FONCTION_AVIS: '1', LIVRAISON_RETRAIT_ACTIF: '0', LIVRAISON_JOURS_EXPEDITION: '1,2,3,4,5', LIVRAISON_FERMETURES: plageDeFermeture() }, stdio: 'ignore' });
   for (const port of [CONF.appPort, CONF.appPort2]) {
     let pret = false;
     for (let i = 0; i < 40 && !pret; i++) {
