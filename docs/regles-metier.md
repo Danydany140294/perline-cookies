@@ -182,3 +182,12 @@ s'affiche (« Commande prête sous 24 h… »).
 - **Lien de suivi** : modèle configurable `livraison.suivi_url` (`{numero}` remplacé) ; pas de lien pour un autre transporteur que celui configuré. Affiché dans le compte client et l'e-mail.
 - **E-mail d'expédition** : envoyé une seule fois (`email_expedition_envoye_le`), uniquement en livraison à domicile, au passage à « Expédiée » depuis l'administration.
 - **Retournée** : depuis « Expédiée » ; motif obligatoire (note inscrite dans l'historique). Ensuite : réexpédition (« En préparation »), remboursement ou annulation. Le remboursement reste fait dans Stripe ; le stock n'est jamais remis automatiquement.
+
+## 11. TVA (décidé le 16 novembre 2026, chapitre 1.4)
+
+- Société assujettie à la TVA. Un **taux par produit et par box** (`taux_tva`, 5,5 % par défaut, modifiable dans l'administration).
+- **Les prix affichés sont TTC** et ne changent pas : le HT et la TVA sont **déduits** du TTC (`CalculTva`, calcul en centimes entiers).
+- **Frais de livraison** : même taux que les produits ; si les taux sont mélangés, répartition **au prorata de la valeur HT** des articles de chaque taux (le dernier groupe reçoit le reliquat des centimes).
+- HT et TVA sont calculés **sur le total de chaque taux** (pas ligne par ligne). HT + TVA = TTC, toujours, au centime.
+- **Figé sur la commande** à sa création (au moment où le client va payer, comme les lignes et le montant Stripe) : `total_ht`, `total_tva`, `tva_detail` (par taux) et `ligne_commande.taux_tva`. Modifier un taux plus tard ne change jamais une commande existante. Les commandes antérieures au chapitre 1.4 n'ont pas ces champs (pas de facture pour elles).
+- À faire valider par le comptable avant la mise en ligne : taux par produit et taux appliqué aux frais de livraison.

@@ -65,7 +65,7 @@ class PaiementCheckoutRefusTest extends TestCase
         $conteneur = new Container();
         $conteneur->set('security.token_storage', $tokens);
 
-        $controleur = new PaiementController($frais ?? new FraisLivraisonService(), new ZoneLivraison(), new DelaisLivraison(), []);
+        $controleur = new PaiementController($frais ?? new FraisLivraisonService(), new ZoneLivraison(), new DelaisLivraison(), new \App\Service\CalculTva(), []);
         $controleur->setContainer($conteneur);
 
         $request = Request::create('/paiement/create-checkout-session', 'POST', [], [], [], [], $corps);

@@ -61,7 +61,13 @@
             </tbody>
         </table>
 
-        <p class="total">Total : {{ commande.totalTTC|number_format(2, ',', ' ') }} €</p>
+        <p class="total">Total TTC : {{ commande.totalTTC|number_format(2, ',', ' ') }} €</p>
+        {% if commande.tvaDetail|length > 0 %}
+            <p style="text-align:right; font-size:13px; color:#666;">
+                Total HT : {{ commande.totalHt|number_format(2, ',', ' ') }} €<br>
+                {% for ligne in commande.tvaDetail %}TVA {{ ligne.taux|number_format(2, ',', ' ') }} % : {{ ligne.tva|number_format(2, ',', ' ') }} €{{ not loop.last ? '<br>' : '' }}{% endfor %}
+            </p>
+        {% endif %}
 
         <div class="commande-info">
             {% if commande.retrait %}

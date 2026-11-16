@@ -12,6 +12,7 @@ export function reinitialiser() {
     SET FOREIGN_KEY_CHECKS=1;
     UPDATE produit SET stock = 50, disponible = 1;
     UPDATE box SET is_active = 1;
+  UPDATE box SET taux_tva = 5.50; UPDATE produit SET taux_tva = 5.50;
     UPDATE box SET prix6 = 12.99, prix12 = 19.99, prix24 = 29.99 WHERE id = ${BOX.personnalisable};
     UPDATE box_composition SET quantite = 1;
     UPDATE box_composition SET quantite = 2 WHERE box_id = ${BOX.gourmande} AND produit_id = ${COOKIE.macadamia};

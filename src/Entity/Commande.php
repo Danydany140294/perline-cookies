@@ -100,6 +100,17 @@ class Commande
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $emailExpeditionEnvoyeLe = null;
 
+    // ── TVA : montants FIGÉS au moment de la commande (null pour les commandes antérieures au chapitre 1.4)
+    #[ORM\Column(type: 'decimal', precision: 10, scale: 2, nullable: true)]
+    private ?string $totalHt = null;
+
+    #[ORM\Column(type: 'decimal', precision: 10, scale: 2, nullable: true)]
+    private ?string $totalTva = null;
+
+    /** @var list<array{taux: float, ht: float, tva: float, ttc: float}>|null détail par taux de TVA */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $tvaDetail = null;
+
     /** Note saisie dans le formulaire d'administration pour un changement de statut (non enregistrée ici : elle va dans l'historique). */
     private ?string $noteChangementStatut = null;
 
@@ -391,6 +402,23 @@ class Commande
         }
 
         return 'Livraison estimée ' . \App\Service\FormatDateFr::periode($this->livraisonEstimeeDebut, $this->livraisonEstimeeFin);
+    }
+
+    public function getTotalHt(): ?float { return $this->totalHt === null ? null : (float) $this->totalHt; }
+
+    public function getTotalTva(): ?float { return $this->totalTva === null ? null : (float) $this->totalTva; }
+
+    /** @return list<array{taux: float, ht: float, tva: float, ttc: float}> */
+    public function getTvaDetail(): array { return $this->tvaDetail ?? []; }
+
+    /** Fige la ventilation de la TVA (calculée par CalculTva) : une facture ne doit jamais dépendre d'un taux modifié plus tard. */
+    public function figerTva(float $totalHt, float $totalTva, array $detail): static
+    {
+        $this->totalHt = number_format($totalHt, 2, '.', '');
+        $this->totalTva = number_format($totalTva, 2, '.', '');
+        $this->tvaDetail = $detail;
+
+        return $this;
     }
 
     public function getTransporteur(): ?string { return $this->transporteur; }

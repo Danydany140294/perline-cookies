@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ProduitRepository::class)]
 class Produit
@@ -25,6 +26,10 @@ class Produit
     #[ORM\Column(type: Types::TEXT)]
     private ?string $description = null;
 
+    /** Taux de TVA en % applicable à ce prix TTC (5,5 % par défaut ; modifiable dans l'administration). */
+    #[ORM\Column(type: 'decimal', precision: 4, scale: 2, options: ['default' => '5.50'])]
+    #[Assert\Range(min: 0, max: 30, notInRangeMessage: 'Le taux de TVA doit être compris entre {{ min }} et {{ max }} %.')]
+    private string $tauxTva = '5.50';
     #[ORM\Column]
     private ?int $stock = null;
 
@@ -495,5 +500,17 @@ class Produit
     public function __toString(): string
     {
         return $this->name ?? 'Produit #' . $this->id;
+    }
+
+    public function getTauxTva(): float
+    {
+        return (float) $this->tauxTva;
+    }
+
+    public function setTauxTva(float|string|null $tauxTva): static
+    {
+        $this->tauxTva = number_format((float) ($tauxTva ?? 5.5), 2, '.', '');
+
+        return $this;
     }
 }
