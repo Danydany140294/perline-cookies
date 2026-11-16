@@ -90,7 +90,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Produit>
      */
-    #[ORM\ManyToMany(targetEntity: Produit::class)]
+    #[ORM\ManyToMany(targetEntity: Produit::class, inversedBy: 'utilisateursFavoris')]
     #[ORM\JoinTable(name: 'user_favoris')]
     private Collection $favoris;
 
