@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialiser tous les modules
     initTabSystem();
     initFavoritesSlider();
-    initPaymentActions();
     initProductActions();
     initRewardActions();
     initSmoothScroll();
@@ -149,90 +148,6 @@ function initFavoritesSlider() {
             favNextBtn.style.opacity = '1';
             favNextBtn.style.cursor = 'pointer';
         }
-    });
-}
-
-// ========================================
-// GESTION DES MOYENS DE PAIEMENT
-// ========================================
-
-/**
- * Initialise les actions pour les moyens de paiement
- */
-function initPaymentActions() {
-    const btnAddCard = document.getElementById('btn-add-card');
-    const btnAddApplePay = document.getElementById('btn-add-apple-pay');
-    
-    if (btnAddCard) {
-        btnAddCard.addEventListener('click', function() {
-            showNotification('Fonctionnalité à venir : Ajouter une carte Stripe', 'info');
-        });
-    }
-    
-    if (btnAddApplePay) {
-        btnAddApplePay.addEventListener('click', function() {
-            showNotification('Fonctionnalité à venir : Configurer Apple Pay', 'info');
-        });
-    }
-}
-
-/**
- * Définir un moyen de paiement comme défaut
- * @param {number} id - ID du moyen de paiement
- */
-function setDefaultPayment(id) {
-    if (!confirm('Définir ce moyen de paiement comme défaut ?')) {
-        return;
-    }
-    
-    fetch(`/mon-compte/moyens-paiement/definir-defaut/${id}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Moyen de paiement défini par défaut', 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showNotification(data.error || 'Erreur lors de la mise à jour', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Erreur:', error);
-        showNotification('Une erreur est survenue', 'error');
-    });
-}
-
-/**
- * Supprimer un moyen de paiement
- * @param {number} id - ID du moyen de paiement
- */
-function deletePayment(id) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce moyen de paiement ?')) {
-        return;
-    }
-    
-    fetch(`/mon-compte/moyens-paiement/supprimer/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Moyen de paiement supprimé', 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showNotification(data.error || 'Erreur lors de la suppression', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Erreur:', error);
-        showNotification('Une erreur est survenue', 'error');
     });
 }
 
@@ -507,8 +422,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Rendre les fonctions disponibles globalement
 window.showNotification = showNotification;
-window.setDefaultPayment = setDefaultPayment;
-window.deletePayment = deletePayment;
 window.formatPrice = formatPrice;
 window.formatDate = formatDate;
 window.copyToClipboard = copyToClipboard;
