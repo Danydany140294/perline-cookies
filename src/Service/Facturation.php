@@ -75,8 +75,12 @@ class Facturation
                 ];
             }
             if ($commande->getFraisLivraison() > 0) {
-                $lignes[] = ['designation' => 'Frais de livraison', 'detail' => 'TVA au taux des articles, répartie au prorata', 'quantite' => 1,
-                    'prix_unitaire_ttc' => $commande->getFraisLivraison(), 'taux' => null, 'total_ttc' => $commande->getFraisLivraison()];
+                // Un seul taux parmi les articles : les frais suivent ce taux (affiché). Taux mélangés : « — » et mention du prorata.
+                $tauxArticles = array_values(array_unique(array_map(static fn (array $l): string => (string) $l['taux'], $lignes)));
+                $tauxFrais = count($tauxArticles) === 1 && $tauxArticles[0] !== '' ? (float) $tauxArticles[0] : null;
+                $lignes[] = ['designation' => 'Frais de livraison',
+                    'detail' => $tauxFrais === null ? 'TVA au taux des articles, répartie au prorata de leur valeur HT' : '',
+                    'quantite' => 1, 'prix_unitaire_ttc' => $commande->getFraisLivraison(), 'taux' => $tauxFrais, 'total_ttc' => $commande->getFraisLivraison()];
             }
 
             $facture = new Facture(

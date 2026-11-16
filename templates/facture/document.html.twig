@@ -19,9 +19,10 @@
     table.totaux td { padding: 3px 4px; }
     table.totaux tr.ttc td { border-top: 2px solid #333; font-weight: bold; font-size: 12px; padding-top: 6px; }
     .mentions { margin-top: 26px; font-size: 8.5px; color: #555; line-height: 1.5; }
-    .filigrane { position: fixed; top: 38%; left: -4%; width: 110%; text-align: center; font-size: 34px; font-weight: bold;
-                 color: rgba(200, 0, 0, 0.16); transform: rotate(-28deg); z-index: -1; }
-    .demo-pied { color: #b00; font-weight: bold; margin-top: 10px; }
+    /* Filigrane : gris très pâle, en transparence, placé en premier dans le document pour rester DERRIÈRE le contenu */
+    .filigrane { position: fixed; top: 42%; left: 0; width: 100%; text-align: center; font-size: 30px; font-weight: bold;
+                 color: #000000; opacity: 0.06; transform: rotate(-28deg); z-index: -100; }
+    .demo-pied { color: #777; font-weight: bold; margin-top: 10px; }
 </style>
 </head>
 <body>

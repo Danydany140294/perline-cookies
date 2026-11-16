@@ -2,9 +2,9 @@
 
 {% block title %}
     {% if show_success_modal is defined and show_success_modal %}
-        Paiement réussi - CreaSelf
+        Paiement réussi - {{ boutique.nom_marque }}
     {% else %}
-        Paiement - CreaSelf
+        Paiement - {{ boutique.nom_marque }}
     {% endif %}
 {% endblock %}
 

@@ -13,6 +13,7 @@ test.beforeEach(async () => { reinitialiser(); await viderEmails(); });
 
 const annee = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', year: 'numeric' });
 const cheminPdf = (numero) => path.join(process.env.E2E_FACTURES_DIR, numero.split('-')[1], `${numero}.pdf`);
+const texteMiseEnPage = (numero) => execFileSync('pdftotext', ['-layout', '-enc', 'UTF-8', cheminPdf(numero), '-'], { encoding: 'utf8' });
 const texte = (numero) => execFileSync('pdftotext', ['-enc', 'UTF-8', cheminPdf(numero), '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ');
 const factures = () => lignes('SELECT numero, type, total_ttc, demo FROM facture ORDER BY id').map(([numero, type, ttc, demo]) => ({ numero, type, ttc: Number(ttc), demo: demo === '1' }));
 
@@ -42,6 +43,10 @@ test('paiement : facture F-AAAA-000001 émise une seule fois, PDF stocké hors p
   expect(t).toContain('Total HT');
   expect(t).toContain('TVA 5,50 %');
   expect(t).toContain('Total TTC');
+  // Tous les articles ont le même taux : la ligne des frais affiche ce taux (pas de « — » ni de prorata)
+  const ligneFrais = texteMiseEnPage(numero).split('\n').find((l) => l.includes('Frais de livraison'));
+  expect(ligneFrais).toContain('5,50 %');
+  expect(t).not.toContain('prorata');
   expect(t).toContain('Document de démonstration, sans valeur fiscale');
 
   // Rejeu du webhook : aucune seconde facture
@@ -102,7 +107,10 @@ test('téléchargement : le propriétaire reçoit le PDF, un autre compte ou un 
 
   // Le compte du client propose le lien
   await page.goto('/user/mon-compte');
-  expect(await page.locator(`a[href="/compte/factures/${idFacture}/telecharger"]`).count()).toBe(1);
+  const bouton = page.locator(`a.btn[href="/compte/factures/${idFacture}/telecharger"]`);
+  await expect(bouton).toHaveCount(1);
+  await expect(bouton).toContainText('Télécharger la facture');
+  await expect(page.locator('#tab-commandes .order-item .badge').first()).toHaveText(/Payée/);
 });
 
 test('remboursement : avoir A-AAAA-000001 qui référence la facture ; partiel puis total = deux avoirs ; rejeu sans effet', async ({ page }) => {
@@ -128,6 +136,28 @@ test('remboursement : avoir A-AAAA-000001 qui référence la facture ; partiel p
   expect(lireCommande(c.id).statut).toBe('remboursee');
 
   await expect.poll(async () => (await emails()).length).toBe(2); // un e-mail par avoir
+
+  // Le compte propose la facture ET les deux avoirs (boutons), avec le statut « Remboursée »
+  await page.goto('/user/mon-compte');
+  await expect(page.locator('#tab-commandes .order-item .badge').first()).toHaveText(/Remboursée/);
+  await expect(page.locator('#tab-commandes a.btn', { hasText: 'Télécharger la facture' })).toHaveCount(1);
+  await expect(page.locator('#tab-commandes a.btn', { hasText: `Télécharger l'avoir A-${annee}-000001` })).toHaveCount(1);
+  await expect(page.locator('#tab-commandes a.btn', { hasText: `Télécharger l'avoir A-${annee}-000002` })).toHaveCount(1);
+});
+
+test('taux mélangés : la ligne des frais affiche « — » et la mention du prorata', async ({ page }) => {
+  const { executerSql } = await import('../lib/db.js');
+  executerSql(`UPDATE produit SET taux_tva = 20.00 WHERE id = ${COOKIE.peche}`);
+  await ajouterCookie(page.request, COOKIE.pistache, 1);
+  await ajouterCookie(page.request, COOKIE.peche, 1);
+  const c = await cliquerSurPayer(page, 'livraison');
+  await poster(page.request, paiement(c));
+
+  const numero = `F-${annee}-000001`;
+  // (le filigrane de démonstration s'intercale dans le texte : on cherche la ligne qui porte le montant des frais)
+  expect(texteMiseEnPage(numero).split('\n').some((l) => l.includes('4,50') && l.includes('—'))).toBe(true);
+  expect(texte(numero)).toContain('prorata');
+  expect(texte(numero)).toContain('TVA 20,00 %');
 });
 
 test('mode démo inactif : facture réelle, sans filigrane', async ({ page }) => {

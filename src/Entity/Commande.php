@@ -665,39 +665,19 @@ public function setStripeSessionId(?string $stripeSessionId): static
     /**
      * Retourne un libellé lisible du statut
      */
+    /** Libellé du statut : source unique = l'énumération CommandeStatut (tous les statuts sont couverts). */
     public function getStatutLabel(): string
     {
-        return match($this->statut) {
-            CommandeStatut::EN_ATTENTE => 'En attente',
-            CommandeStatut::EN_PREPARATION => 'En préparation',
-            CommandeStatut::EXPEDIEE => 'Expédiée',
-            CommandeStatut::LIVREE => 'Livrée',
-            CommandeStatut::ANNULEE => 'Annulée',
-            CommandeStatut::A_VERIFIER => 'À vérifier',
-            CommandeStatut::REMBOURSEE => 'Remboursée',
-            CommandeStatut::RETOURNEE => 'Retournée',
-            default => 'Inconnu',
-        };
+        return $this->statut?->getLibelle() ?? 'Inconnu';
     }
 
     /**
-     * Retourne la classe CSS du badge selon le statut
+     * Retourne la classe CSS du badge selon le statut (source unique = l'énumération CommandeStatut)
      */
     public function getStatutBadgeClass(): string
     {
-        return match($this->statut) {
-            CommandeStatut::EN_ATTENTE => 'badge-warning',
-            CommandeStatut::EN_PREPARATION => 'badge-info',
-            CommandeStatut::EXPEDIEE => 'badge-primary',
-            CommandeStatut::LIVREE => 'badge-success',
-            CommandeStatut::ANNULEE => 'badge-danger',
-            CommandeStatut::A_VERIFIER => 'badge-danger',
-            CommandeStatut::REMBOURSEE => 'badge-secondary',
-            CommandeStatut::RETOURNEE => 'badge-warning',
-            default => 'badge-secondary',
-        };
+        return $this->statut?->getBadgeClass() ?? 'badge-secondary';
     }
-
     /**
      * Retourne un nom descriptif pour la commande
      */
