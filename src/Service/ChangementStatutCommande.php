@@ -67,25 +67,34 @@ class ChangementStatutCommande
     }
     /** Ce changement est-il autorisé par le workflow ? (même statut = rien à faire = autorisé) */
     /**
-     * Passages que SEUL le système peut effectuer (webhook Stripe, commande de rattrapage `app:stripe:rejouer-evenement`) :
-     * tous les paiements passent par Stripe, l'administrateur ne peut jamais passer une commande « Payée » à la main.
-     * (Le workflow l'autorise, car c'est ce que fait le webhook ; c'est le formulaire d'administration qui le refuse.)
+     * Statuts que SEUL le système peut poser (webhook Stripe, commande de rattrapage `app:stripe-rejouer-evenement`) :
+     * - « Payée » depuis « En attente » : tous les paiements passent par Stripe ;
+     * - « Remboursée » : le remboursement se fait dans Stripe (webhook `charge.refunded`) ;
+     * - « À vérifier » : posé uniquement par le traitement d'un paiement avec écart.
+     * Le workflow les autorise (c'est ce que font le webhook et le rattrapage) ; c'est le formulaire d'administration qui les refuse.
+     * Reste ouvert à l'administrateur : « À vérifier » -> « Payée » (avec une note obligatoire).
      */
-    private const RESERVES_AU_SYSTEME = [
-        [CommandeStatut::EN_ATTENTE, CommandeStatut::PAYEE],
-    ];
-
     public function reserveAuSysteme(?CommandeStatut $de, CommandeStatut $vers): bool
     {
-        foreach (self::RESERVES_AU_SYSTEME as [$origine, $cible]) {
-            if ($de === $origine && $vers === $cible) {
-                return true;
-            }
-        }
-
-        return false;
+        return match ($vers) {
+            CommandeStatut::REMBOURSEE, CommandeStatut::A_VERIFIER => true,
+            CommandeStatut::PAYEE => $de === CommandeStatut::EN_ATTENTE,
+            default => false,
+        };
     }
 
+    /** Message à afficher si la transition demandée par l'administrateur exige une note, sinon null. */
+    public function noteObligatoire(?CommandeStatut $de, CommandeStatut $vers): ?string
+    {
+        if ($vers === CommandeStatut::RETOURNEE && $de !== $vers) {
+            return 'indiquez le motif du retour dans « Note du changement de statut ».';
+        }
+        if ($de === CommandeStatut::A_VERIFIER && $vers === CommandeStatut::PAYEE) {
+            return 'indiquez dans « Note du changement de statut » comment le paiement a été vérifié (Stripe, montant, écart).';
+        }
+
+        return null;
+    }
     /** Statuts que l'administrateur peut choisir depuis $de` : atteignables par le workflow ET non réservés au système. */
     public function statutsChoisissablesParAdmin(Commande $commande): array
     {
