@@ -202,3 +202,5 @@ s'affiche (« Commande prête sous 24 h… »).
 - **Mode démo** (`mode_demo`) : filigrane « Document de démonstration, sans valeur fiscale » sur chaque PDF émis (mémorisé sur la facture).
 - **Rattrapage** : `php bin/console app:factures:emettre` émet les factures/avoirs manquants (sans doublon). Les commandes payées avant le chapitre 1.4 n'ont pas de facture (TVA non figée).
 - **À sauvegarder** : base de données **et** dossier des factures. Conservation légale : 10 ans.
+
+- **Développement local** : le secret du webhook (STRIPE_WEBHOOK_SECRET) doit être celui affiché par stripe listen --print-secret, à mettre dans .env.local (jamais dans un fichier suivi par git). Un secret qui ne correspond pas fait refuser tous les webhooks (HTTP 400, journalisé) : les commandes restent « En attente » et aucune facture ni e-mail n'est émis. Lancer stripe listen avec les trois événements : checkout.session.completed,checkout.session.expired,charge.refunded.
