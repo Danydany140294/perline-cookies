@@ -66,6 +66,37 @@ class ChangementStatutCommande
         return 'Cette commande est payée : pense à la rembourser dans Stripe.';
     }
     /** Ce changement est-il autorisé par le workflow ? (même statut = rien à faire = autorisé) */
+    /**
+     * Passages que SEUL le système peut effectuer (webhook Stripe, commande de rattrapage `app:stripe:rejouer-evenement`) :
+     * tous les paiements passent par Stripe, l'administrateur ne peut jamais passer une commande « Payée » à la main.
+     * (Le workflow l'autorise, car c'est ce que fait le webhook ; c'est le formulaire d'administration qui le refuse.)
+     */
+    private const RESERVES_AU_SYSTEME = [
+        [CommandeStatut::EN_ATTENTE, CommandeStatut::PAYEE],
+    ];
+
+    public function reserveAuSysteme(?CommandeStatut $de, CommandeStatut $vers): bool
+    {
+        foreach (self::RESERVES_AU_SYSTEME as [$origine, $cible]) {
+            if ($de === $origine && $vers === $cible) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Statuts que l'administrateur peut choisir depuis $de` : atteignables par le workflow ET non réservés au système. */
+    public function statutsChoisissablesParAdmin(Commande $commande): array
+    {
+        $de = $commande->getStatut();
+
+        return array_values(array_filter(
+            $this->statutsPossibles($commande),
+            fn (CommandeStatut $vers): bool => !$this->reserveAuSysteme($de, $vers)
+        ));
+    }
+
     public function peutAller(Commande $commande, ?CommandeStatut $de, CommandeStatut $vers): bool
     {
         return $de === $vers || ($de !== null && $this->transition($commande, $de, $vers) !== null);

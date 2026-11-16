@@ -46,12 +46,18 @@ class CommandeCrudController extends AbstractCrudController
         // chaînes, la page d'édition plantait « Object of class CommandeStatut could not be converted to string »).
         // Liste et détail : valeurs texte et badges de couleur.
         if (in_array($pageName, [Crud::PAGE_EDIT, Crud::PAGE_NEW], true)) {
+            // Seuls les statuts atteignables depuis le statut actuel sont proposés, et jamais « Payée » depuis « En attente » :
+            // tous les paiements passent par Stripe (webhook ou commande de rattrapage), jamais à la main.
+            $commande = $this->getContext()?->getEntity()->getInstance();
+            $proposes = $commande instanceof Commande && $commande->getStatut() !== null
+                ? [$commande->getStatut(), ...$this->statuts->statutsChoisissablesParAdmin($commande)]
+                : CommandeStatut::cases();
             $statut = ChoiceField::new('statut', 'Statut')
                 ->setChoices(array_combine(
-                    array_map(static fn (CommandeStatut $s): string => $s->getLibelle(), CommandeStatut::cases()),
-                    CommandeStatut::cases()
+                    array_map(static fn (CommandeStatut $s): string => $s->getLibelle(), $proposes),
+                    $proposes
                 ))
-                ->setHelp('Seules les transitions prévues sont acceptées (voir docs/regles-metier.md). Chaque changement est inscrit dans l\'historique.');
+                ->setHelp('Seules les transitions prévues sont acceptées (voir docs/regles-metier.md). « Payée » ne peut venir que de Stripe. Chaque changement est inscrit dans l\'historique.');
         } else {
             $statut = ChoiceField::new('statut', 'Statut')
                 ->setChoices([
@@ -168,6 +174,18 @@ class CommandeCrudController extends AbstractCrudController
                 $original = CommandeStatut::tryFrom($original); // texte brut selon le chemin de chargement
             }
             $nouveau = $entityInstance->getStatut();
+
+            // Jamais « Payée » à la main (requête forgée comprise) : seuls le webhook Stripe et la commande de rattrapage le font
+            if ($original instanceof CommandeStatut && $nouveau !== null && $nouveau !== $original
+                && $this->statuts->reserveAuSysteme($original, $nouveau)) {
+                $entityInstance->setStatut($original);
+                $this->addFlash('danger', sprintf(
+                    'Changement refusé : une commande ne peut pas être passée « %s » à la main, tous les paiements passent par Stripe. Si un webhook a été manqué, utilisez la commande de rattrapage (php bin/console app:stripe-rejouer-evenement).',
+                    $nouveau->getLibelle()
+                ));
+
+                return;
+            }
 
             if ($original instanceof CommandeStatut && $nouveau !== null && $nouveau !== $original
                 && !$this->statuts->peutAller($entityInstance, $original, $nouveau)) {

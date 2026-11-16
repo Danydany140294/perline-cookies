@@ -154,4 +154,31 @@ class ChangementStatutCommandeTest extends KernelTestCase
         $this->assertNull($service->avertissementAnnulation(CommandeStatut::PAYEE, CommandeStatut::REMBOURSEE));
         $this->assertNull($service->avertissementAnnulation(null, CommandeStatut::ANNULEE));
     }
+
+    public function testPayeeDepuisEnAttenteEstReserveAuSysteme(): void
+    {
+        $service = $this->changementStatut();
+
+        $this->assertTrue($service->reserveAuSysteme(CommandeStatut::EN_ATTENTE, CommandeStatut::PAYEE));
+        // Le workflow, lui, l'autorise (c'est ce que fait le webhook)
+        $this->assertTrue($service->peutAller($this->commande(CommandeStatut::EN_ATTENTE), CommandeStatut::EN_ATTENTE, CommandeStatut::PAYEE));
+    }
+
+    public function testAutresPassagesNeSontPasReservesAuSysteme(): void
+    {
+        $service = $this->changementStatut();
+
+        $this->assertFalse($service->reserveAuSysteme(CommandeStatut::PAYEE, CommandeStatut::CONFIRMEE));
+        $this->assertFalse($service->reserveAuSysteme(CommandeStatut::A_VERIFIER, CommandeStatut::PAYEE), 'La validation d\'un paiement à vérifier reste une décision de l\'administrateur');
+        $this->assertFalse($service->reserveAuSysteme(CommandeStatut::EN_ATTENTE, CommandeStatut::ANNULEE));
+    }
+
+    public function testLAdministrateurNeSeVoitJamaisProposerPayeeDepuisEnAttente(): void
+    {
+        $choix = $this->changementStatut()->statutsChoisissablesParAdmin($this->commande(CommandeStatut::EN_ATTENTE));
+
+        $this->assertNotContains(CommandeStatut::PAYEE, $choix);
+        $this->assertContains(CommandeStatut::ANNULEE, $choix);
+        $this->assertContains(CommandeStatut::PAYEE, $this->changementStatut()->statutsChoisissablesParAdmin($this->commande(CommandeStatut::A_VERIFIER)));
+    }
 }
