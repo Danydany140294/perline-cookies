@@ -4,6 +4,8 @@ twig:
     globals:
         # Réglages de livraison (frais, seuil, transporteur, modes, zone) disponibles dans tous les templates
         livraison: '%livraison%'
+        # Identité de l'entreprise et mode démo (config/boutique.yaml)
+        boutique: '%boutique%'
 
 when@test:
     twig:

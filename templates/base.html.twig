@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>{% block title %}CreaSelf{% endblock %}</title>
+    <title>{% block title %}{{ boutique.nom_marque }}{% endblock %}</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -33,6 +33,7 @@
 </head>
 {% include 'component/_cookie_banner.html.twig' %}
 <body class="intro-active">
+{% if boutique.mode_demo %}<div class="bandeau-demo" role="note">Version de démonstration : aucune commande réelle n'est traitée.</div>{% endif %}
     {% include 'component/_modal_panier.html.twig' %}
     {% include 'component/navbar.html.twig' %}
     

@@ -3,12 +3,12 @@
 
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+imports:
+    - { resource: boutique.yaml }
+
 parameters:
     stripe_public_key: '%env(STRIPE_PUBLIC_KEY)%'
     stripe_secret_key: '%env(STRIPE_SECRET_KEY)%'
-
-    # Adresse qui reçoit les messages du formulaire de contact (valeur à ajuster)
-    contact_email: 'Perlecook@perline-cookies.com'
 
     # Réglages par défaut des deux modes (surchargeables par variable d'environnement, sans toucher au code) :
     # LIVRAISON_DOMICILE_ACTIF=0 masque la livraison, LIVRAISON_RETRAIT_ACTIF=0 masque le retrait sur place.

@@ -10,15 +10,17 @@
 
 <div class="legal-section">
     <h2 class="legal-section-title">1. Éditeur du site</h2>
-    <p>Le site <strong>perlinecookies.com</strong> est édité par :</p>
+    <p>Le site <strong>{{ boutique.site_web }}</strong> est édité par :</p>
     <ul class="legal-list">
-        <li><strong>Raison sociale :</strong> Perline Cookies SAS</li>
-        <li><strong>Capital social :</strong> 10 000 €</li>
-        <li><strong>SIRET :</strong> 123 456 789 00012</li>
-        <li><strong>RCS :</strong> Montpellier B 123 456 789</li>
-        <li><strong>Siège social :</strong> 12 Rue du Sucre Holographique, 34000 Montpellier</li>
-        <li><strong>Email :</strong> <a href="mailto:Perlecook@perline-cookies.com">Perlecook@perline-cookies.com</a></li>
-        <li><strong>Directeur de la publication :</strong> [Nom du responsable]</li>
+        <li><strong>Raison sociale :</strong> {{ boutique.raison_sociale }}</li>
+        <li><strong>Forme juridique :</strong> {{ boutique.forme_juridique }}</li>
+        <li><strong>Capital social :</strong> {{ boutique.capital }}</li>
+        <li><strong>SIRET :</strong> {{ boutique.siret }}</li>
+        <li><strong>RCS :</strong> {{ boutique.rcs }}</li>
+        <li><strong>N° de TVA intracommunautaire :</strong> {{ boutique.tva_intracommunautaire }}</li>
+        <li><strong>Siège social :</strong> {{ boutique.adresse_rue }}, {{ boutique.adresse_code_postal }} {{ boutique.adresse_ville }}</li>
+        <li><strong>Email :</strong> <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a></li>
+        <li><strong>Directeur de la publication :</strong> {{ boutique.directeur_publication }}</li>
     </ul>
 </div>
 
@@ -34,25 +36,25 @@
 
 <div class="legal-section">
     <h2 class="legal-section-title">3. Propriété intellectuelle</h2>
-    <p>L'ensemble des éléments constituant ce site (textes, graphismes, logiciels, photographies, images, sons, plans, logos, marques, etc.) est la propriété exclusive de Perline Cookies SAS ou de ses partenaires. Toute reproduction, représentation, modification, publication ou adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite sans l'autorisation écrite préalable de Perline Cookies SAS.</p>
+    <p>L'ensemble des éléments constituant ce site (textes, graphismes, logiciels, photographies, images, sons, plans, logos, marques, etc.) est la propriété exclusive de {{ boutique.raison_sociale }} ou de ses partenaires. Toute reproduction, représentation, modification, publication ou adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite sans l'autorisation écrite préalable de {{ boutique.raison_sociale }}.</p>
     <p>Toute exploitation non autorisée du site ou de son contenu sera considérée comme constitutive d'une contrefaçon et poursuivie conformément aux dispositions des articles L.335-2 et suivants du Code de Propriété Intellectuelle.</p>
 </div>
 
 <div class="legal-section">
     <h2 class="legal-section-title">4. Responsabilité</h2>
-    <p>Perline Cookies SAS s'efforce d'assurer l'exactitude et la mise à jour des informations diffusées sur ce site. Toutefois, Perline Cookies SAS ne peut garantir l'exactitude, la précision ou l'exhaustivité des informations mises à disposition sur ce site.</p>
-    <p>En conséquence, Perline Cookies SAS décline toute responsabilité pour toute imprécision, inexactitude ou omission portant sur des informations disponibles sur ce site, ainsi que pour tous dommages résultant d'une intrusion frauduleuse d'un tiers ayant entraîné une modification des informations.</p>
+    <p>{{ boutique.raison_sociale }} s'efforce d'assurer l'exactitude et la mise à jour des informations diffusées sur ce site. Toutefois, {{ boutique.raison_sociale }} ne peut garantir l'exactitude, la précision ou l'exhaustivité des informations mises à disposition sur ce site.</p>
+    <p>En conséquence, {{ boutique.raison_sociale }} décline toute responsabilité pour toute imprécision, inexactitude ou omission portant sur des informations disponibles sur ce site, ainsi que pour tous dommages résultant d'une intrusion frauduleuse d'un tiers ayant entraîné une modification des informations.</p>
 </div>
 
 <div class="legal-section">
     <h2 class="legal-section-title">5. Liens hypertextes</h2>
-    <p>Le site perlinecookies.com peut contenir des liens hypertextes vers d'autres sites internet. Perline Cookies SAS n'exerce aucun contrôle sur ces sites et décline toute responsabilité quant à leur contenu ou leur politique de confidentialité.</p>
+    <p>Le site {{ boutique.site_web }} peut contenir des liens hypertextes vers d'autres sites internet. {{ boutique.raison_sociale }} n'exerce aucun contrôle sur ces sites et décline toute responsabilité quant à leur contenu ou leur politique de confidentialité.</p>
 </div>
 
 <div class="legal-section">
     <h2 class="legal-section-title">6. Droit applicable</h2>
     <p>Les présentes mentions légales sont soumises au droit français. En cas de litige, les tribunaux français seront seuls compétents.</p>
-    <p>Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à l'adresse suivante : <a href="mailto:Perlecook@perline-cookies.com">Perlecook@perline-cookies.com</a></p>
+    <p>Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à l'adresse suivante : <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a></p>
 </div>
 
 {% endblock %}

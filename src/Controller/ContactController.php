@@ -5,7 +5,7 @@ namespace App\Controller;
 use App\Form\ContactType;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use App\Service\IdentiteBoutique;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Mailer\MailerInterface;
@@ -20,7 +20,7 @@ final class ContactController extends AbstractController
         private MailerInterface $mailer,
         private LoggerInterface $logger,
         private RateLimiterFactory $contactLimiter,
-        #[Autowire(param: 'contact_email')] private string $adresseContact
+        private IdentiteBoutique $boutique
     ) {
     }
 
@@ -102,8 +102,8 @@ final class ContactController extends AbstractController
         $sujet = array_search($donnees['sujet'], ContactType::SUJETS, true) ?: 'Contact';
 
         return (new Email())
-            ->from(new Address('noreply@creaself.fr', 'Site CreaSelf'))
-            ->to($this->adresseContact)
+            ->from($this->boutique->expediteur())
+            ->to($this->boutique->emailContact())
             ->replyTo(new Address($donnees['email'], $nom))
             ->subject(sprintf('[Contact] %s — %s', $sujet, $nom))
             ->text(sprintf(

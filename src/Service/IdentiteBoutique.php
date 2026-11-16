@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Service;
+
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Mime\Address;
+
+/** Identité de l'entreprise (config/boutique.yaml) : un seul point d'accès pour le code PHP. */
+class IdentiteBoutique
+{
+    public function __construct(#[Autowire(param: 'boutique')] private array $boutique)
+    {
+    }
+
+    public function get(string $cle): string
+    {
+        return (string) ($this->boutique[$cle] ?? '');
+    }
+
+    public function modeDemo(): bool
+    {
+        return (bool) ($this->boutique['mode_demo'] ?? true);
+    }
+
+    public function expediteur(): Address
+    {
+        return new Address($this->get('email_expediteur'), $this->get('nom_expediteur'));
+    }
+
+    public function emailContact(): string
+    {
+        return $this->get('email_contact');
+    }
+
+    /** « 1 rue de l'Exemple, 00000 Exemple-Ville » */
+    public function adresseSiege(): string
+    {
+        return sprintf('%s, %s %s', $this->get('adresse_rue'), $this->get('adresse_code_postal'), $this->get('adresse_ville'));
+    }
+
+    /** @return array<string, mixed> */
+    public function toutes(): array
+    {
+        return $this->boutique;
+    }
+}

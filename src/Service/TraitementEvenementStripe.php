@@ -27,7 +27,8 @@ class TraitementEvenementStripe
         private MailerInterface $mailer,
         private Environment $twig,
         private LoggerInterface $logger,
-        #[Autowire(param: 'retrait')] private array $retrait
+        #[Autowire(param: 'retrait')] private array $retrait,
+        private IdentiteBoutique $boutique
     ) {
     }
 
@@ -114,7 +115,7 @@ class TraitementEvenementStripe
 
             $this->mailer->send(
                 (new Email())
-                    ->from('noreply@creaself.fr')
+                    ->from($this->boutique->expediteur())
                     ->to($commande->getUser()->getEmail())
                     ->subject('Confirmation de votre commande ' . $commande->getNumeroCommande())
                     ->html($html)

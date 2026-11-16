@@ -57,11 +57,11 @@
             <ul class="footer-links footer-contact-list">
                 <li>
                     <span class="material-symbols-outlined contact-icon">location_on</span>
-                    <span>12 Rue du Sucre Holographique<br>34000 Montpellier</span>
+                    <span>{{ boutique.adresse_rue }}<br>{{ boutique.adresse_code_postal }} {{ boutique.adresse_ville }}</span>
                 </li>
                 <li>
                     <span class="material-symbols-outlined contact-icon">mail</span>
-                    <a href="mailto:Perlecook@perline-cookies.com">Perlecook@perline-cookies.com</a>
+                    <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a>
                 </li>
             </ul>
         </div>
@@ -85,7 +85,7 @@
     <div class="footer-bottom">
     <div class="footer-bottom-inner">
         <p class="footer-copyright">
-            © {{ "now"|date("Y") }} <span class="footer-brand-name">Perline Cookies</span> — Tous droits réservés.
+            © {{ "now"|date("Y") }} <span class="footer-brand-name">{{ boutique.nom_marque }}</span> — Tous droits réservés.
         </p>
     </div>
 </div>

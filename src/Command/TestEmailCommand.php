@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Service\IdentiteBoutique;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -12,7 +13,7 @@ use Symfony\Component\Mime\Email;
 #[AsCommand(name: 'app:test-email')]
 class TestEmailCommand extends Command
 {
-    public function __construct(private MailerInterface $mailer)
+    public function __construct(private MailerInterface $mailer, private IdentiteBoutique $boutique)
     {
         parent::__construct();
     }
@@ -20,7 +21,7 @@ class TestEmailCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $email = (new Email())
-            ->from('noreply@creaself.fr')
+            ->from($this->boutique->expediteur())
             ->to('test@example.com')
             ->subject('Test email Mailtrap')
             ->html('<h1>Test OK 🍪</h1>');

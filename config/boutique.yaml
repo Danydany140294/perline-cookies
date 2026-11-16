@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# IDENTITÉ DE LA BOUTIQUE : l'unique endroit où se trouvent les informations de l'entreprise.
+# Elles alimentent les factures et avoirs, les e-mails, les mentions légales, les CGV, la politique de
+# confidentialité, le pied de page et la page contact. Pour une autre boutique : on change ce fichier,
+# pas le code. (Plus tard : écran « Paramètres de la boutique » dans l'administration.)
+#
+# ⚠ Les valeurs ci-dessous sont FICTIVES (exemple). À remplacer par les vraies informations avant la mise
+#   en ligne, puis à faire relire par un comptable (TVA) et un juriste (CGV, mentions légales).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+parameters:
+    # BOUTIQUE_MODE_DEMO=0 (variable d'environnement) pour passer en mode réel ; 1 par défaut (sécurité).
+    env(BOUTIQUE_MODE_DEMO): '1'
+
+    boutique:
+        # Quand mode_demo est actif : bandeau « Version de démonstration » sur le site et filigrane
+        # « Document de démonstration, sans valeur fiscale » sur les factures et les avoirs.
+        # Quand il est inactif, tout est réel.
+        mode_demo: '%env(bool:BOUTIQUE_MODE_DEMO)%'
+
+        nom_marque: 'Perline Cookies'
+        raison_sociale: 'Perline Cookies SAS (exemple)'
+        forme_juridique: 'SAS'
+        capital: '10 000 €'
+        siret: '000 000 000 00000'
+        rcs: 'RCS Exemple-Ville B 000 000 000'
+        tva_intracommunautaire: 'FR00 000000000'
+        adresse_rue: '1 rue de l''Exemple'
+        adresse_code_postal: '00000'
+        adresse_ville: 'Exemple-Ville'
+        adresse_pays: 'France'
+        telephone: ''
+        site_web: 'perlinecookies.com'
+        email_contact: 'contact@exemple.invalid'
+        email_expediteur: 'noreply@exemple.invalid'
+        nom_expediteur: 'Perline Cookies'
+        directeur_publication: 'Prénom Nom (exemple)'
+        mediateur: 'À renseigner (médiateur de la consommation)'

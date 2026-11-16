@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Contact - CreaSelf{% endblock %}
+{% block title %}Contact - {{ boutique.nom_marque }}{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
@@ -20,13 +20,13 @@
             <div class="contact-info glass" data-aos="fade-right">
                 <div class="info-item">
                     <span class="neon-icon">✉️</span>
-                    <h3>Perline Cookies</h3>
-                    <p>Perlecook@perline-cookies.com</p>
+                    <h3>{{ boutique.nom_marque }}</h3>
+                    <p>{{ boutique.email_contact }}</p>
                 </div>
                 <div class="info-item">
                     <span class="neon-icon">📍</span>
                     <h3>L'Atelier</h3>
-                    <p>12 Rue du Sucre Holographique<br>34000 Montpellier</p>
+                    <p>{{ boutique.adresse_rue }}<br>{{ boutique.adresse_code_postal }} {{ boutique.adresse_ville }}</p>
                 </div>
                 <div class="social-links">
     <a href="#" class="social-icon">
