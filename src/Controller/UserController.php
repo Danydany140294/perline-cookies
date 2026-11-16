@@ -65,12 +65,12 @@ final class UserController extends AbstractController
     }
 
     /**
-     * Dashboard de l'utilisateur connecté avec gestion des adresses
+     * Tableau de bord de l'utilisateur connecté (les adresses se gèrent sur /compte/adresses)
      * ⚠️ Doit être AVANT /{id} pour éviter les conflits
      */
-    #[Route('/mon-compte', name: 'app_user_dashboard', methods: ['GET', 'POST'])]
+    #[Route('/mon-compte', name: 'app_user_dashboard', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
-    public function dashboard(Request $request, EntityManagerInterface $entityManager): Response
+    public function dashboard(): Response
     {
         $user = $this->getUser();
 
@@ -78,32 +78,8 @@ final class UserController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        $adresse = new Adresse();
-        $adresse->setUser($user);
-
-        $adresseForm = $this->createForm(AdresseType::class, $adresse);
-        $adresseForm->handleRequest($request);
-
-        if ($adresseForm->isSubmitted() && $adresseForm->isValid()) {
-            if ($adresse->isParDefaut()) {
-                $this->adresseService->removeDefaultFromOtherAddresses($user);
-            }
-
-            if ($user->getAdresses()->count() === 0) {
-                $adresse->setParDefaut(true);
-            }
-
-            $entityManager->persist($adresse);
-            $entityManager->flush();
-
-            $this->addFlash('success', 'Adresse ajoutée avec succès.');
-
-            return $this->redirectToRoute('app_user_dashboard');
-        }
-
         return $this->render('user/mon_compte.html.twig', [
             'user' => $user,
-            'adresseForm' => $adresseForm->createView(),
         ]);
     }
 
