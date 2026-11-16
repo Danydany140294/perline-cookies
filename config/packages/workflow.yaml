@@ -23,6 +23,7 @@ framework:
                 - annulee
                 - a_verifier
                 - remboursee
+                - retournee
             transitions:
                 # Paiement
                 payer:
@@ -47,10 +48,17 @@ framework:
                 livrer:               # livrée au client, ou retirée sur place
                     from: [en_preparation, expediee]
                     to: livree
+                # Échec de livraison : le colis revient ; l'administrateur décide (note obligatoire) : réexpédier ou rembourser
+                retourner:
+                    from: expediee
+                    to: retournee
+                reexpedier:
+                    from: retournee
+                    to: en_preparation
                 # Fin de parcours
                 annuler:
-                    from: [en_attente, payee, confirmee, en_preparation, a_verifier]
+                    from: [en_attente, payee, confirmee, en_preparation, a_verifier, retournee]
                     to: annulee
                 rembourser:
-                    from: [payee, confirmee, en_preparation, expediee, livree, a_verifier, annulee]
+                    from: [payee, confirmee, en_preparation, expediee, livree, a_verifier, annulee, retournee]
                     to: remboursee

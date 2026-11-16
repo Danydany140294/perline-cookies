@@ -123,3 +123,62 @@ des statuts possibles.
   Stripe. » et l'inscrit dans l'historique. Le remboursement se fait ensuite dans Stripe (le webhook la passera « Remboursée »).
 - **La remise en stock ne change jamais le champ « disponible »** d'un produit : un produit désactivé à la main le reste. Seul le
   retrait de stock désactive un produit arrivé à 0 ; le réactiver est un geste de l'administrateur.
+
+## 8. Livraison, zones et frais (décidé le 11 novembre 2026, chapitre 1.3)
+
+**Une seule source : le paramètre `livraison` de `config/services.yaml`.** Il alimente le calcul serveur, le panier, la page de
+paiement et les CGV (variable Twig globale `livraison`) : un montant ne peut plus être différent d'une page à l'autre.
+
+| Réglage | Valeur actuelle |
+|---|---|
+| Modes proposés | livraison à domicile (**Colissimo avec suivi**) et retrait à l'atelier |
+| Masquer un mode | variables d'environnement `LIVRAISON_DOMICILE_ACTIF=0` ou `LIVRAISON_RETRAIT_ACTIF=0` (le serveur refuse aussi le mode masqué) |
+| Frais de livraison | **forfait 4,50 €** par commande (`frais_forfait_centimes: 450`) |
+| Livraison offerte | **dès 50 €** d'articles, seuil inclus (`seuil_gratuite_centimes: 5000`) |
+| Retrait sur place | gratuit |
+| Zone desservie | **France métropolitaine hors Corse** : pays figé sur France, codes postaux 01 à 95 sauf 20 ; DOM-TOM (97, 98) exclus ; pas d'étranger, pas de zone locale |
+
+Pour ouvrir la Corse plus tard : retirer `'20'` de `zone.departements_exclus`.
+
+- **Une adresse hors zone** (Corse, outre-mer, étranger, code postal inexistant) est refusée avec un message clair :
+  « Cette adresse n'est pas desservie : nous ne livrons pas encore la Corse. » Elle est refusée dans le formulaire d'adresse,
+  non sélectionnable sur la page de paiement (raison affichée) et refusée par le serveur (`/paiement/choisir-adresse`,
+  `/paiement/create-checkout-session`) même si la requête est forgée. Le retrait sur place reste possible sans adresse.
+- **Détail avant paiement** : sous-total, « Livraison (Colissimo) » (4,50 € ou offerte), total, et « Plus que X € pour la livraison
+  offerte » ; le montant des frais est copié sur la commande (`frais_livraison`).
+- **Adresse de livraison copiée dans la commande** au paiement (destinataire, rue, complément, code postal, ville, pays,
+  téléphone) : modifier ou supprimer une adresse du compte n'affecte jamais une commande passée (le lien devient NULL à la
+  suppression, la copie reste). Le téléphone est facultatif.
+
+## 9. Délais de préparation et de livraison (décidé le 11 novembre 2026, chapitre 1.3)
+
+Tout est **calculé en jours ouvrés** par `DelaisLivraison`, d'après `livraison.delais` (`config/services.yaml`) :
+
+1. **Préparation : 48 h ouvrées** (2 jours ouvrés) à partir du jour de la commande. Une commande passée un samedi ou un
+   dimanche compte comme passée le lundi suivant.
+2. **Expédition : lundi, mardi ou mercredi** (produits frais : un colis ne doit pas passer le week-end en entrepôt). C'est le premier
+   de ces jours, à partir de la fin de la préparation.
+3. **Livraison Colissimo : 2 à 5 jours ouvrés** après l'expédition.
+4. Les **jours de fermeture** (congés, jours fériés) ne comptent pas, ni pour la préparation ni pour l'expédition ni pour la livraison.
+
+Exemple (novembre 2026) : commande le lundi 9 → expédiée mercredi 11 → « Livraison estimée entre le vendredi 13 novembre et le
+mercredi 18 novembre » ; commande le mercredi 11 → expédiée lundi 16 → « entre le mercredi 18 et le lundi 23 novembre ».
+
+**Réglages sans toucher au code** (variables d'environnement, ou `services.yaml`) :
+- `LIVRAISON_JOURS_EXPEDITION` : jours d'expédition, 1 = lundi … 7 = dimanche (défaut `1,2,3`) ;
+- `LIVRAISON_FERMETURES` : dates `AAAA-MM-JJ` ou plages `AAAA-MM-JJ/AAAA-MM-JJ`, séparées par des virgules
+  (ex. `2026-12-24/2027-01-03,2026-12-25`).
+
+**Où la période est affichée** (« Livraison estimée entre le [jour] et le [jour] ») : panier, modale du panier, page de paiement
+(avant validation), e-mail de confirmation et espace client. La période annoncée au moment de la commande est **mémorisée sur la
+commande** (`livraison_estimee_debut` / `fin`) : elle ne change plus ensuite, même si la configuration change. Les CGV, la FAQ de
+l'accueil et le bandeau de la page d'accueil reprennent la même configuration. En retrait sur place, c'est le message de retrait qui
+s'affiche (« Commande prête sous 24 h… »).
+
+## 10. Expédition, suivi et colis retournés (décidé le 12 novembre 2026, chapitre 1.3)
+
+- **Saisie admin** : transporteur (Colissimo par défaut) et numéro de suivi (6 à 30 lettres/chiffres, espaces retirés, majuscules).
+- **Dates automatiques** : `date_expedition` au passage à « Expédiée », `date_livraison` au passage à « Livrée » ; jamais écrasées si déjà renseignées.
+- **Lien de suivi** : modèle configurable `livraison.suivi_url` (`{numero}` remplacé) ; pas de lien pour un autre transporteur que celui configuré. Affiché dans le compte client et l'e-mail.
+- **E-mail d'expédition** : envoyé une seule fois (`email_expedition_envoye_le`), uniquement en livraison à domicile, au passage à « Expédiée » depuis l'administration.
+- **Retournée** : depuis « Expédiée » ; motif obligatoire (note inscrite dans l'historique). Ensuite : réexpédition (« En préparation »), remboursement ou annulation. Le remboursement reste fait dans Stripe ; le stock n'est jamais remis automatiquement.

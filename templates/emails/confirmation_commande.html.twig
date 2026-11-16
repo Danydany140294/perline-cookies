@@ -8,7 +8,12 @@
         .header { text-align: center; margin-bottom: 30px; }
         .header h1 { color: #333; font-size: 24px; }
         .commande-info { background: #f9f9f9; border-radius: 6px; padding: 20px; margin: 20px 0; }
-        .total { font-size: 20px; font-weight: bold; color: #333; margin-top: 20px; }
+        table.articles { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        table.articles th { text-align: left; border-bottom: 2px solid #eee; padding: 8px 4px; font-size: 13px; color: #666; }
+        table.articles td { padding: 8px 4px; border-bottom: 1px solid #f0f0f0; font-size: 14px; vertical-align: top; }
+        table.articles .droite { text-align: right; white-space: nowrap; }
+        table.articles .detail { color: #888; font-size: 12px; }
+        .total { font-size: 20px; font-weight: bold; color: #333; margin-top: 20px; text-align: right; }
         .footer { text-align: center; margin-top: 30px; color: #999; font-size: 12px; }
     </style>
 </head>
@@ -24,20 +29,61 @@
             <p><strong>Date :</strong> {{ commande.dateCommande|date('d/m/Y à H:i') }}</p>
         </div>
 
+        <h3>Récapitulatif</h3>
+        <table class="articles">
+            <thead>
+                <tr><th>Article</th><th class="droite">Qté</th><th class="droite">Prix unitaire</th><th class="droite">Total</th></tr>
+            </thead>
+            <tbody>
+                {% for ligne in commande.lignesCommande %}
+                <tr>
+                    <td>
+                        {{ ligne.produit ? ligne.produit.name : (ligne.box ? ligne.box.nom : 'Article') }}
+                        {% if ligne.compositionsBox|length > 0 %}
+                            <div class="detail">
+                                {% for compo in ligne.compositionsBox %}{{ compo.quantite }} × {{ compo.produit.name }}{{ not loop.last ? ', ' : '' }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td class="droite">{{ ligne.quantite }}</td>
+                    <td class="droite">{{ ligne.prixUnitaire|number_format(2, ',', ' ') }} €</td>
+                    <td class="droite">{{ ligne.sousTotal|number_format(2, ',', ' ') }} €</td>
+                </tr>
+                {% endfor %}
+                <tr>
+                    <td colspan="3" class="droite">Articles</td>
+                    <td class="droite">{{ commande.sousTotalArticles|number_format(2, ',', ' ') }} €</td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="droite">{{ commande.retrait ? 'Retrait sur place' : 'Livraison' }}</td>
+                    <td class="droite">{{ commande.fraisLivraison > 0 ? commande.fraisLivraison|number_format(2, ',', ' ') ~ ' €' : 'Offerte' }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p class="total">Total : {{ commande.totalTTC|number_format(2, ',', ' ') }} €</p>
+
         <div class="commande-info">
             {% if commande.retrait %}
                 <p><strong>Retrait sur place</strong></p>
                 <p>{{ retrait.lieu }}<br>{{ retrait.adresse }}<br>{{ retrait.horaires }}</p>
                 <p><em>{{ retrait.message }}</em></p>
-            {% elseif commande.adresseLivraison %}
-                <p><strong>Livraison à :</strong></p>
-                <p>{{ commande.adresseLivraison.rue }}<br>
-                {% if commande.adresseLivraison.complement %}{{ commande.adresseLivraison.complement }}<br>{% endif %}
-                {{ commande.adresseLivraison.codePostal }} {{ commande.adresseLivraison.ville }}</p>
+            {% else %}
+                {% if commande.livraisonEstimeeTexte %}<p><strong>{{ commande.livraisonEstimeeTexte }}</strong></p>{% endif %}
+                {% set adresse = commande.adresseLivraisonFigee %}
+                {% if adresse %}
+                    <p><strong>Livraison à :</strong></p>
+                    <p>
+                        {% if adresse.destinataire %}{{ adresse.destinataire }}<br>{% endif %}
+                        {{ adresse.rue }}<br>
+                        {% if adresse.complement %}{{ adresse.complement }}<br>{% endif %}
+                        {{ adresse.codePostal }} {{ adresse.ville }}<br>
+                        {{ adresse.pays }}
+                        {% if adresse.telephone %}<br>Tél. {{ adresse.telephone }}{% endif %}
+                    </p>
+                {% endif %}
             {% endif %}
         </div>
-
-        <p class="total">Total : {{ commande.totalTTC|number_format(2, ',', ' ') }} €</p>
 
         <div class="footer">
             <p>CreaSelf Cookies — Merci de votre confiance 🍪</p>

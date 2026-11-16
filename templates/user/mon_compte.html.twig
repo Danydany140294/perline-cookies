@@ -224,6 +224,19 @@
                                         {% if commande.enCours %}
                                             <p class="text-info">{{ commande.messageLivraison }}</p>
                                         {% endif %}
+                                        {% if commande.statut.value == 'retournee' %}
+                                            <p class="text-warning">Votre colis nous a été retourné. Nous vous contactons pour convenir d'un remboursement ou d'une réexpédition.</p>
+                                        {% endif %}
+                                        {% if commande.dateExpedition or commande.numeroSuivi %}
+                                            <div class="order-suivi">
+                                                {% if commande.dateExpedition %}<p>Expédiée le {{ commande.dateExpedition|date('d/m/Y') }}{% if commande.transporteur %} avec {{ commande.transporteur }}{% endif %}</p>{% endif %}
+                                                {% if commande.numeroSuivi %}
+                                                    <p>Numéro de suivi : <strong>{{ commande.numeroSuivi }}</strong>
+                                                    {% set lien = lien_suivi(commande) %}{% if lien %} — <a href="{{ lien }}" target="_blank" rel="noopener noreferrer">Suivre mon colis</a>{% endif %}</p>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                        {% if commande.dateLivraison %}<p>Livrée le {{ commande.dateLivraison|date('d/m/Y') }}</p>{% endif %}
                                     </div>
                                 {% endfor %}
                             {% else %}
@@ -383,120 +396,32 @@
                 </div>
 
                 {# ==================== ONGLET 4 : Mes Adresses ==================== #}
+                {# Une seule gestion des adresses : la page /compte/adresses (aucun formulaire dupliqué ici) #}
                 <div id="tab-adresses" class="tab-content">
                     <div class="tab-inner">
                         <h3 class="tab-title">Mes Adresses</h3>
                         <p class="tab-description">Gérez vos adresses de livraison</p>
 
-                        <div class="mb-4">
-                            <button type="button" class="btn btn-primary" id="btn-add-address">
-                                <span class="material-symbols-outlined">add</span>
-                                Ajouter une nouvelle adresse
-                            </button>
-                        </div>
-
-                        {# Formulaire caché par défaut #}
-                        <div id="address-form-container" class="address-form-container" style="display:none">
-                            <div class="address-form-card">
-                                <h4 class="address-form-title" id="form-title">Nouvelle adresse</h4>
-                                {{ form_start(adresseForm, {'attr': {'class': 'address-form'}}) }}
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">{{ form_row(adresseForm.nom) }}</div>
-                                        <div class="col-md-6 mb-3">{{ form_row(adresseForm.pays) }}</div>
-                                    </div>
-                                    <div class="mb-3">{{ form_row(adresseForm.rue) }}</div>
-                                    <div class="mb-3">{{ form_row(adresseForm.complement) }}</div>
-                                    <div class="row">
-                                        <div class="col-md-4 mb-3">{{ form_row(adresseForm.codePostal) }}</div>
-                                        <div class="col-md-8 mb-3">{{ form_row(adresseForm.ville) }}</div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <div class="form-check">
-                                            {{ form_widget(adresseForm.parDefaut) }}
-                                            {{ form_label(adresseForm.parDefaut) }}
-                                        </div>
-                                    </div>
-                                    <div class="address-form-actions">
-                                        <button type="submit" class="btn btn-primary">
-                                            <span class="material-symbols-outlined">save</span>
-                                            Enregistrer
-                                        </button>
-                                        <button type="button" class="btn btn-outline" id="btn-cancel-address">
-                                            <span class="material-symbols-outlined">close</span>
-                                            Annuler
-                                        </button>
-                                    </div>
-                                {{ form_end(adresseForm) }}
+                        {% if app.user.adresses|length > 0 %}
+                            <ul class="adresses-resume">
+                                {% for adresse in app.user.adresses %}
+                                    <li>
+                                        <strong>{{ adresse.nom }}</strong>{% if adresse.parDefaut %} <span class="badge badge-success">Par défaut</span>{% endif %}<br>
+                                        {{ adresse.rue }}{% if adresse.complement %}, {{ adresse.complement }}{% endif %}, {{ adresse.codePostal }} {{ adresse.ville }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="addresses-empty-state">
+                                <span class="material-symbols-outlined address-empty-icon">location_off</span>
+                                <p>Vous n'avez pas encore enregistré d'adresse.</p>
                             </div>
-                        </div>
+                        {% endif %}
 
-                        {# Liste des adresses #}
-                        <div class="addresses-list">
-                            {% if app.user.adresses|length > 0 %}
-                                <div class="addresses-grid">
-                                    {% for adresse in app.user.adresses %}
-                                        <div class="address-card {% if adresse.parDefaut %}address-card-default{% endif %}">
-                                            <div class="address-card-header">
-                                                <h5 class="address-card-title">{{ adresse.nom }}</h5>
-                                                {% if adresse.parDefaut %}
-                                                    <span class="badge badge-success">
-                                                        <span class="badge-dot"></span>
-                                                        Par défaut
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="address-details">
-                                                <p class="address-detail-item">
-                                                    <span class="material-symbols-outlined">location_on</span>
-                                                    {{ adresse.rue }}
-                                                </p>
-                                                {% if adresse.complement %}
-                                                    <p class="address-detail-item address-detail-muted">
-                                                        <span class="material-symbols-outlined">info</span>
-                                                        {{ adresse.complement }}
-                                                    </p>
-                                                {% endif %}
-                                                <p class="address-detail-item">
-                                                    <span class="material-symbols-outlined">location_city</span>
-                                                    {{ adresse.codePostal }} {{ adresse.ville }}
-                                                </p>
-                                                <p class="address-detail-item address-detail-muted">
-                                                    <span class="material-symbols-outlined">public</span>
-                                                    {{ adresse.pays }}
-                                                </p>
-                                            </div>
-                                            <div class="address-actions">
-                                                <a href="{{ path('app_adresses_edit', {id: adresse.id}) }}" class="btn btn-sm btn-outline">
-                                                    <span class="material-symbols-outlined">edit</span>
-                                                    Modifier
-                                                </a>
-                                                {% if not adresse.parDefaut %}
-                                                    <a href="{{ path('app_adresses_set_default', {id: adresse.id}) }}" class="btn btn-sm btn-outline">
-                                                        <span class="material-symbols-outlined">check_circle</span>
-                                                        Par défaut
-                                                    </a>
-                                                {% endif %}
-                                                <a href="{{ path('app_adresses_delete', {id: adresse.id}) }}"
-                                                   class="btn btn-sm btn-danger btn-delete-address"
-                                                   data-address-name="{{ adresse.nom }}">
-                                                    <span class="material-symbols-outlined">delete</span>
-                                                    Supprimer
-                                                </a>
-                                                <button onclick="choisirAdresse({{ adresse.id }})" class="btn btn-sm btn-primary">
-                                                    <span class="material-symbols-outlined">local_shipping</span>
-                                                    Livrer ici
-                                                </button>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="addresses-empty-state">
-                                    <span class="material-symbols-outlined address-empty-icon">location_off</span>
-                                    <p>Vous n'avez pas encore enregistré d'adresse.</p>
-                                </div>
-                            {% endif %}
-                        </div>
+                        <a href="{{ path('app_adresses_index') }}" class="btn btn-primary" id="lien-gerer-adresses">
+                            <span class="material-symbols-outlined">edit_location</span>
+                            Gérer mes adresses
+                        </a>
                     </div>
                 </div>
 
@@ -591,16 +516,6 @@
     {{ parent() }}
     <script src="{{ asset('js/perline-dashboard.js') }}"></script>
 <script>
-function choisirAdresse(id) {
-    fetch('{{ path('app_paiement_choisir_adresse') }}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adresse_id: id })
-    }).then(() => {
-        window.location.href = '{{ path('app_paiement') }}';
-    });
-}
-
 function initInlineEditProfil() {
     const btnModifier    = document.getElementById('btn-modifier');
     const btnEnregistrer = document.getElementById('btn-enregistrer');

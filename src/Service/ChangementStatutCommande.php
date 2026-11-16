@@ -50,6 +50,7 @@ class ChangementStatutCommande
         CommandeStatut::CONFIRMEE,
         CommandeStatut::EN_PREPARATION,
         CommandeStatut::A_VERIFIER,
+        CommandeStatut::RETOURNEE,
     ];
 
     /**

@@ -10,11 +10,13 @@ use App\Entity\LignePanier;
 use App\Entity\Panier;
 use App\Entity\Produit;
 use App\Service\StockCookiesService;
+use App\Service\ZoneLivraison;
 use App\Entity\User;
 use App\Repository\AdresseRepository;
 use App\Repository\LignePanierRepository;
 use App\Repository\PanierRepository;
 use App\Service\CommandeService;
+use App\Service\DelaisLivraison;
 use App\Service\FraisLivraisonService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -56,14 +58,14 @@ class PaiementCheckoutRefusTest extends TestCase
     }
 
     /** Appelle le contrôleur ; renvoie [statut HTTP, charge utile JSON]. */
-    private function appeler(string $corps, ?int $adresseEnSession, ?Adresse $adresseTrouvee = null, array $lignes = [], ?\Throwable $echecCreation = null): array
+    private function appeler(string $corps, ?int $adresseEnSession, ?Adresse $adresseTrouvee = null, array $lignes = [], ?\Throwable $echecCreation = null, ?FraisLivraisonService $frais = null): array
     {
         $tokens = new TokenStorage();
         $tokens->setToken(new UsernamePasswordToken($this->client, 'main', []));
         $conteneur = new Container();
         $conteneur->set('security.token_storage', $tokens);
 
-        $controleur = new PaiementController(new FraisLivraisonService(), []);
+        $controleur = new PaiementController($frais ?? new FraisLivraisonService(), new ZoneLivraison(), new DelaisLivraison(), []);
         $controleur->setContainer($conteneur);
 
         $request = Request::create('/paiement/create-checkout-session', 'POST', [], [], [], [], $corps);
@@ -214,5 +216,48 @@ class PaiementCheckoutRefusTest extends TestCase
         $this->assertStringNotContainsString('SQLSTATE', $json['error']);
         $this->assertStringNotContainsString('secret-interne', $json['error']);
         $this->assertStringContainsString('Merci de réessayer', $json['error']);
+    }
+
+    /** @dataProvider adressesHorsZone */
+    public function testAdresseHorsZoneEstRefuseeAvecUnMessageClairSansCreerDeCommande(string $codePostal, string $pays, string $messageContient): void
+    {
+        $adresse = $this->adresseDe($this->client, 5)->setCodePostal($codePostal)->setPays($pays);
+
+        [$statut, $json] = $this->appeler('{"mode":"livraison"}', 5, $adresse);
+
+        $this->assertSame(400, $statut);
+        $this->assertStringStartsWith('Cette adresse n\'est pas desservie : ', $json['error']);
+        $this->assertStringContainsString($messageContient, $json['error']);
+        $this->assertTrue($json['adresse_non_desservie']);
+    }
+
+    public static function adressesHorsZone(): iterable
+    {
+        yield 'Corse' => ['20000', 'France', 'Corse'];
+        yield 'Haute-Corse' => ['20200', 'France', 'Corse'];
+        yield 'Guadeloupe' => ['97100', 'France', 'outre-mer'];
+        yield 'Polynésie' => ['98700', 'France', 'outre-mer'];
+        yield 'Belgique' => ['1000', 'Belgique', 'France métropolitaine'];
+        yield 'pays Autre' => ['34000', 'Autre', 'France métropolitaine'];
+    }
+
+    public function testRetraitDesactiveEstRefuseParLeServeur(): void
+    {
+        $sansRetrait = new FraisLivraisonService(['modes' => ['livraison' => true, 'retrait' => false], 'frais_forfait_centimes' => 450, 'seuil_gratuite_centimes' => 5000]);
+
+        [$statut, $json] = $this->appeler('{"mode":"retrait"}', null, null, [], null, $sansRetrait);
+
+        $this->assertSame(400, $statut);
+        $this->assertSame('Ce mode de réception n\'est pas proposé pour le moment.', $json['error']);
+    }
+
+    public function testLivraisonDesactiveeEstRefuseeParLeServeur(): void
+    {
+        $sansLivraison = new FraisLivraisonService(['modes' => ['livraison' => false, 'retrait' => true], 'frais_forfait_centimes' => 450, 'seuil_gratuite_centimes' => 5000]);
+
+        [$statut, $json] = $this->appeler('{"mode":"livraison"}', 5, $this->adresseDe($this->client, 5)->setCodePostal('34000')->setPays('France'), [], null, $sansLivraison);
+
+        $this->assertSame(400, $statut);
+        $this->assertSame('Ce mode de réception n\'est pas proposé pour le moment.', $json['error']);
     }
 }

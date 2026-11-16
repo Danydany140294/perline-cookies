@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
 #[ORM\Index(name: 'idx_commande_payment_intent', columns: ['stripe_payment_intent_id'])]
@@ -49,9 +50,62 @@ class Commande
     #[ORM\OneToMany(targetEntity: LigneCommande::class, mappedBy: 'commande', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $lignesCommande;
 
+    /**
+     * Lien vers l'adresse du compte au moment de la commande (conservé pour mémoire). Si le client supprime cette adresse,
+     * le lien devient NULL (ON DELETE SET NULL) : la commande, elle, garde sa COPIE ci-dessous.
+     */
     #[ORM\ManyToOne(targetEntity: Adresse::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Adresse $adresseLivraison = null;
+
+    // ── COPIE de l'adresse de livraison, figée au moment du paiement (comme les lignes de la commande) :
+    //    modifier ou supprimer une adresse du compte ne change jamais une commande déjà passée.
+    #[ORM\Column(length: 150, nullable: true)]
+    private ?string $livraisonDestinataire = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $livraisonRue = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $livraisonComplement = null;
+
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $livraisonCodePostal = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $livraisonVille = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $livraisonPays = null;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $livraisonTelephone = null;
+
+    /** Période de livraison ANNONCÉE au client au moment de la commande (jours ouvrés, voir DelaisLivraison). */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $livraisonEstimeeDebut = null;
+
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $livraisonEstimeeFin = null;
+
+    // ── Expédition et suivi du colis (renseignés par l'administrateur ; les dates se remplissent toutes seules)
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $transporteur = null;
+
+    #[ORM\Column(length: 30, nullable: true)]
+    #[Assert\Regex(pattern: '/^[A-Z0-9]{6,30}$/', message: 'Numéro de suivi invalide : 6 à 30 lettres ou chiffres, sans espace.')]
+    private ?string $numeroSuivi = null;
+
+    /** Date d'envoi de l'e-mail d'expédition (une seule fois par commande). */
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $emailExpeditionEnvoyeLe = null;
+
+    /** Note saisie dans le formulaire d'administration pour un changement de statut (non enregistrée ici : elle va dans l'historique). */
+    private ?string $noteChangementStatut = null;
+
+    /** Frais de livraison facturés (en euros) : total TTC = articles + frais. */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $fraisLivraison = 0.0;
 
     #[ORM\Column(length: 255, nullable: true, unique: true)]
     private ?string $stripeSessionId = null;
@@ -243,6 +297,158 @@ class Commande
         return $this;
     }
 
+    /** Copie l'adresse du compte dans la commande (destinataire, rue, complément, code postal, ville, pays, téléphone). */
+    public function figerAdresse(Adresse $adresse, ?string $destinataire, ?string $telephone = null): static
+    {
+        $this->adresseLivraison = $adresse;
+        $this->livraisonDestinataire = $destinataire;
+        $this->livraisonRue = $adresse->getRue();
+        $this->livraisonComplement = $adresse->getComplement();
+        $this->livraisonCodePostal = $adresse->getCodePostal();
+        $this->livraisonVille = $adresse->getVille();
+        $this->livraisonPays = $adresse->getPays();
+        $this->livraisonTelephone = $telephone;
+
+        return $this;
+    }
+
+    public function hasAdresseFigee(): bool
+    {
+        return $this->livraisonRue !== null;
+    }
+
+    /**
+     * Adresse de livraison de cette commande : la COPIE figée ; pour les commandes antérieures à la copie,
+     * l'adresse du compte si elle existe encore. Null en retrait sur place.
+     *
+     * @return array{destinataire: ?string, rue: ?string, complement: ?string, codePostal: ?string, ville: ?string, pays: ?string, telephone: ?string}|null
+     */
+    public function getAdresseLivraisonFigee(): ?array
+    {
+        if ($this->hasAdresseFigee()) {
+            return [
+                'destinataire' => $this->livraisonDestinataire,
+                'rue' => $this->livraisonRue,
+                'complement' => $this->livraisonComplement,
+                'codePostal' => $this->livraisonCodePostal,
+                'ville' => $this->livraisonVille,
+                'pays' => $this->livraisonPays,
+                'telephone' => $this->livraisonTelephone,
+            ];
+        }
+
+        $a = $this->adresseLivraison;
+        if ($a === null) {
+            return null;
+        }
+
+        return [
+            'destinataire' => $this->user?->getNomComplet(),
+            'rue' => $a->getRue(),
+            'complement' => $a->getComplement(),
+            'codePostal' => $a->getCodePostal(),
+            'ville' => $a->getVille(),
+            'pays' => $a->getPays(),
+            'telephone' => $a->getTelephone() ?: $this->user?->getTelephone(),
+        ];
+    }
+
+    /** Adresse mise en forme (une ligne par élément), pour l'administration. */
+    public function getAdresseLivraisonTexte(): string
+    {
+        $a = $this->getAdresseLivraisonFigee();
+        if ($a === null) {
+            return $this->isRetrait() ? 'Retrait sur place (pas d\'adresse)' : 'Aucune adresse enregistrée';
+        }
+
+        return implode("\n", array_filter([
+            $a['destinataire'],
+            $a['rue'],
+            $a['complement'],
+            trim(($a['codePostal'] ?? '') . ' ' . ($a['ville'] ?? '')),
+            $a['pays'],
+            $a['telephone'] ? 'Tél. ' . $a['telephone'] : null,
+        ]));
+    }
+
+    public function setLivraisonEstimee(?\DateTimeImmutable $debut, ?\DateTimeImmutable $fin): static
+    {
+        $this->livraisonEstimeeDebut = $debut;
+        $this->livraisonEstimeeFin = $fin;
+
+        return $this;
+    }
+
+    public function getLivraisonEstimeeDebut(): ?\DateTimeImmutable { return $this->livraisonEstimeeDebut; }
+
+    public function getLivraisonEstimeeFin(): ?\DateTimeImmutable { return $this->livraisonEstimeeFin; }
+
+    /** « Livraison estimée entre le vendredi 13 novembre et le mercredi 18 novembre » (null si aucune estimation enregistrée). */
+    public function getLivraisonEstimeeTexte(): ?string
+    {
+        if ($this->livraisonEstimeeDebut === null || $this->livraisonEstimeeFin === null) {
+            return null;
+        }
+
+        return 'Livraison estimée ' . \App\Service\FormatDateFr::periode($this->livraisonEstimeeDebut, $this->livraisonEstimeeFin);
+    }
+
+    public function getTransporteur(): ?string { return $this->transporteur; }
+
+    public function setTransporteur(?string $transporteur): static
+    {
+        $transporteur = $transporteur !== null ? trim($transporteur) : null;
+        $this->transporteur = $transporteur === '' ? null : $transporteur;
+
+        return $this;
+    }
+
+    public function getNumeroSuivi(): ?string { return $this->numeroSuivi; }
+
+    /** Normalisé : espaces retirés, majuscules (« 6a 123 456 » → « 6A123456 »). */
+    public function setNumeroSuivi(?string $numeroSuivi): static
+    {
+        $numeroSuivi = $numeroSuivi !== null ? strtoupper(preg_replace('/\s+/', '', $numeroSuivi)) : null;
+        $this->numeroSuivi = $numeroSuivi === '' ? null : $numeroSuivi;
+
+        return $this;
+    }
+
+    public function getEmailExpeditionEnvoyeLe(): ?\DateTimeImmutable { return $this->emailExpeditionEnvoyeLe; }
+
+    public function setEmailExpeditionEnvoyeLe(?\DateTimeImmutable $date): static
+    {
+        $this->emailExpeditionEnvoyeLe = $date;
+
+        return $this;
+    }
+
+    public function getNoteChangementStatut(): ?string { return $this->noteChangementStatut; }
+
+    public function setNoteChangementStatut(?string $note): static
+    {
+        $this->noteChangementStatut = $note;
+
+        return $this;
+    }
+
+    public function getFraisLivraison(): float
+    {
+        return $this->fraisLivraison;
+    }
+
+    public function setFraisLivraison(float $fraisLivraison): static
+    {
+        $this->fraisLivraison = $fraisLivraison;
+        return $this;
+    }
+
+    /** Total des articles (hors livraison). */
+    public function getSousTotalArticles(): float
+    {
+        return round((float) $this->getTotalTTC() - $this->fraisLivraison, 2);
+    }
+
     public function getStripeSessionId(): ?string
 {
     return $this->stripeSessionId;
@@ -432,6 +638,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::ANNULEE => 'Annulée',
             CommandeStatut::A_VERIFIER => 'À vérifier',
             CommandeStatut::REMBOURSEE => 'Remboursée',
+            CommandeStatut::RETOURNEE => 'Retournée',
             default => 'Inconnu',
         };
     }
@@ -449,6 +656,7 @@ public function setStripeSessionId(?string $stripeSessionId): static
             CommandeStatut::ANNULEE => 'badge-danger',
             CommandeStatut::A_VERIFIER => 'badge-danger',
             CommandeStatut::REMBOURSEE => 'badge-secondary',
+            CommandeStatut::RETOURNEE => 'badge-warning',
             default => 'badge-secondary',
         };
     }
@@ -522,6 +730,11 @@ public function setStripeSessionId(?string $stripeSessionId): static
      */
     public function getMessageLivraison(): string
     {
+        // Date annoncée au moment de la commande (nouvelles commandes) : c'est elle qui fait foi
+        if ($this->getLivraisonEstimeeTexte() !== null && !$this->isRetrait()) {
+            return $this->getLivraisonEstimeeTexte();
+        }
+
         $datePrevue = $this->getDateLivraisonPrevue();
         
         if (!$datePrevue) {

@@ -1,6 +1,9 @@
 twig:
     default_path: '%kernel.project_dir%/templates'
     cache: false
+    globals:
+        # Réglages de livraison (frais, seuil, transporteur, modes, zone) disponibles dans tous les templates
+        livraison: '%livraison%'
 
 when@test:
     twig:

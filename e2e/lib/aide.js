@@ -33,7 +33,7 @@ export function nombreDeCommandes(statut = null) {
   return Number(valeur(`SELECT COUNT(*) FROM commande ${statut ? `WHERE statut = '${statut}'` : ''}`));
 }
 
-/** La commande la plus récente : { id, statut, total, session, numero, mode } */
+/** La commande la plus récente : { id, statut, total, session, numero, mode } (frais : voir fraisDe) */
 export function derniereCommande() {
   const l = lignes('SELECT id, statut, total_ttc, stripe_session_id, numero_commande, mode_livraison FROM commande ORDER BY id DESC LIMIT 1');
   if (!l.length) return null;
@@ -64,12 +64,14 @@ export function bandeau(page) {
  * (appel réel à l'API Stripe en mode test), puis le navigateur est redirigé vers Stripe : on COUPE cette
  * redirection (aucune saisie sur la page Stripe). Renvoie la commande créée, ou null si le paiement est refusé.
  */
-export async function cliquerSurPayer(page, mode = 'retrait') {
+export async function cliquerSurPayer(page, mode = 'retrait', { naviguer = true } = {}) {
   // La page hébergée par Stripe est REMPLACÉE par une page vide : aucune saisie ne se fait chez Stripe
   await page.route(/checkout\.stripe\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>Page Stripe simulée</body></html>' }));
-  await page.goto('/paiement');
+  if (naviguer) await page.goto('/paiement'); // naviguer = false : la page de paiement est déjà ouverte (sélection faite à la main)
   await page.check(`input[name="mode"][value="${mode}"]`);
+  await page.waitForLoadState('networkidle'); // l'adresse par défaut est enregistrée en session par un appel asynchrone
   const avant = nombreDeCommandes();
+  const alertesAvant = await bandeau(page).count(); // un message déjà affiché (flash d'une action précédente) n'est pas un refus
   await page.click('#checkout-btn');
 
   // Attend soit la commande avec sa session Stripe, soit un bandeau de refus
@@ -81,7 +83,7 @@ export async function cliquerSurPayer(page, mode = 'retrait') {
       await page.waitForURL(/checkout\.stripe\.com/, { timeout: 20_000 }).catch(() => {});
       return c;
     }
-    if (await bandeau(page).count()) return null;
+    if ((await bandeau(page).count()) > alertesAvant) return null;
     await page.waitForTimeout(500);
   }
   throw new Error('Ni commande ni message de refus après le clic sur Payer.');
@@ -97,3 +99,9 @@ export async function viderEmails() {
 }
 
 export { expect };
+
+/** Valeur d'une colonne de la commande (texte ; 'NULL' devient null). */
+export function colonneCommande(id, colonne) {
+  const v = valeur(`SELECT ${colonne} FROM commande WHERE id = ${id}`);
+  return v === 'NULL' ? null : v;
+}

@@ -48,6 +48,11 @@ class Adresse
     #[Assert\NotBlank(message: 'Le pays est requis')]
     private ?string $pays = 'France';
 
+    /** Téléphone pour la livraison (facultatif : le transporteur s'en sert pour prévenir le destinataire). */
+    #[ORM\Column(length: 20, nullable: true)]
+    #[Assert\Regex(pattern: '/^(?:(?:\+|00)33[ .-]?|0)[1-9](?:[ .-]?\d{2}){4}$/', message: 'Numéro de téléphone français invalide (ex. 06 12 34 56 78).')]
+    private ?string $telephone = null;
+
     #[ORM\Column]
     private ?bool $parDefaut = false;
 
@@ -146,6 +151,18 @@ class Adresse
     public function setPays(string $pays): static
     {
         $this->pays = $pays;
+        return $this;
+    }
+
+    public function getTelephone(): ?string
+    {
+        return $this->telephone;
+    }
+
+    public function setTelephone(?string $telephone): static
+    {
+        $telephone = $telephone !== null ? trim($telephone) : null;
+        $this->telephone = $telephone === '' ? null : $telephone;
         return $this;
     }
 

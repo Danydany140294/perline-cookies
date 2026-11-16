@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Repository\BoxRepository;
 use App\Repository\PanierRepository;
 use App\Repository\ProduitRepository;
+use App\Service\DelaisLivraison;
 use App\Service\FraisLivraisonService;
 use App\Service\PanierService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,7 +27,8 @@ class PanierController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly PanierRepository $panierRepository,
         private readonly Security $security,
-        private readonly FraisLivraisonService $fraisLivraisonService
+        private readonly FraisLivraisonService $fraisLivraisonService,
+        private readonly DelaisLivraison $delaisLivraison
     ) {}
 
     /**
@@ -39,12 +41,15 @@ class PanierController extends AbstractController
         $sousTotalCentimes = (int) round(($data['total'] ?? 0) * 100);
         $fraisCentimes = $this->fraisLivraisonService->calculer(
             $sousTotalCentimes,
-            FraisLivraisonService::MODE_LIVRAISON
+            $this->fraisLivraisonService->modeParDefaut() ?? FraisLivraisonService::MODE_LIVRAISON
         );
 
         $data['frais_livraison'] = $fraisCentimes / 100;
-        $data['seuil_gratuite']  = FraisLivraisonService::SEUIL_GRATUITE_CENTIMES / 100;
+        $data['seuil_gratuite']  = $this->fraisLivraisonService->seuilGratuiteCentimes() / 100;
         $data['total_ttc']       = ($sousTotalCentimes + $fraisCentimes) / 100;
+        $data['livraison_estimee'] = $this->delaisLivraison->phrase(new \DateTimeImmutable());
+        $data['jours_expedition']  = $this->delaisLivraison->joursExpeditionTexte();
+        $data['transporteur']      = $this->fraisLivraisonService->transporteur();
 
         return $data;
     }

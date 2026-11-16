@@ -2,7 +2,7 @@ framework:
     rate_limiter:
         login:
             policy: sliding_window
-            limit: 5
+            limit: '%env(int:LOGIN_LIMITE)%'   # 5 par defaut (voir services.yaml) ; releve uniquement pour les tests E2E
             interval: '15 minutes'
         contact:
             policy: sliding_window

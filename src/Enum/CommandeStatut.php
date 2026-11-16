@@ -15,6 +15,8 @@ enum CommandeStatut: string
     case A_VERIFIER = 'a_verifier';
     /** Remboursée entièrement (le remboursement se fait dans le tableau de bord Stripe ; le webhook charge.refunded met à jour) */
     case REMBOURSEE = 'remboursee';
+    /** Colis revenu au vendeur (échec de livraison) : l'administrateur décide ensuite du remboursement ou de la réexpédition. */
+    case RETOURNEE = 'retournee';
 
     public function getLibelle(): string
     {
@@ -28,6 +30,7 @@ enum CommandeStatut: string
             self::ANNULEE => 'Annulée',
             self::A_VERIFIER => 'À vérifier',
             self::REMBOURSEE => 'Remboursée',
+            self::RETOURNEE => 'Retournée',
         };
     }
 
@@ -43,6 +46,7 @@ enum CommandeStatut: string
             self::ANNULEE => 'badge-danger',
             self::A_VERIFIER => 'badge-danger',
             self::REMBOURSEE => 'badge-secondary',
+            self::RETOURNEE => 'badge-warning',
         };
     }
 }

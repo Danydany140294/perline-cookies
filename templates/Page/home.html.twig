@@ -60,8 +60,8 @@
             <div class="reassurance__icon">🚚</div>
 
             <div>
-                <strong>Livraison rapide</strong>
-                <span>en 48/72h</span>
+                <strong>Livraison {{ livraison.transporteur }}</strong>
+                <span>{{ livraison.delais.transit_min_jours_ouvres }} à {{ livraison.delais.transit_max_jours_ouvres }} jours ouvrés après expédition</span>
             </div>
         </article>
 
@@ -310,8 +310,9 @@
                     hidden
                 >
                     <p>
-                        La préparation est rapide et la livraison dépend de la zone,
-                        généralement sous 48/72h.
+                        Préparation sous {{ livraison.delais.preparation_jours_ouvres * 24 }} h ouvrées, expédition le {{ jours_expedition() }} (produits frais),
+                        puis {{ livraison.delais.transit_min_jours_ouvres }} à {{ livraison.delais.transit_max_jours_ouvres }} jours ouvrés avec {{ livraison.transporteur }}.
+                        Une date de livraison estimée est affichée avant la validation de votre commande.
                     </p>
                 </div>
 
