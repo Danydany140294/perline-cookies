@@ -41,8 +41,12 @@ test('modifier puis supprimer l\'adresse du compte : la commande garde sa copie,
   expect(colonneCommande(c.id, 'livraison_ville')).toBe('Montpellier');
 
   // Suppression par la vraie page (avant : erreur 500 « contrainte de clé étrangère »)
-  const reponse = await page.request.get(`/compte/adresses/${id}/supprimer`, { maxRedirects: 0 });
-  expect(reponse.status()).toBeLessThan(400);
+  // (suppression en POST avec jeton CSRF : on passe par le bouton de la page ; l'adresse doit d'abord ne plus être « par défaut »)
+  executerSql(`UPDATE adresse SET par_defaut = 0 WHERE id = ${id}`);
+  page.on('dialog', (d) => d.accept());
+  await page.goto('/compte/adresses');
+  await page.locator(`form[action$="/compte/adresses/${id}/supprimer"] button`).click();
+  await page.waitForLoadState('networkidle');
 
   expect(valeur(`SELECT COUNT(*) FROM adresse WHERE id = ${id}`)).toBe('0');
   expect(colonneCommande(c.id, 'adresse_livraison_id')).toBeNull(); // lien mis à NULL

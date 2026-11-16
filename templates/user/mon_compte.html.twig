@@ -119,10 +119,10 @@
                                 {% endif %}
                             </div>
                             {% if derniereCommande %}
-                                <button class="btn btn-primary btn-full">
+                                <a href="{{ path('app_compte_commande', {id: derniereCommande.id}) }}" class="btn btn-primary btn-full">
                                     <span class="material-symbols-outlined">local_shipping</span>
                                     Suivre ma livraison
-                                </button>
+                                </a>
                             {% endif %}
                             <span class="card-icon-bg material-symbols-outlined">package</span>
                         </div>
@@ -219,6 +219,7 @@
                                             </span>
                                         </div>
                                         <p>Date : {{ commande.dateCommande|date('d/m/Y') }}</p>
+                                        <p><a href="{{ path('app_compte_commande', {id: commande.id}) }}" class="btn btn-sm btn-outline">Voir le détail</a></p>
                                         <p>{{ commande.nombreLignes }} article(s) - {{ commande.nombreTotalArticles }} unité(s)</p>
                                         <p><strong>Total : {{ commande.totalTTC|number_format(2, ',', ' ') }}€</strong></p>
                                         {% if commande.enCours %}
