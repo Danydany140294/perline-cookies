@@ -94,19 +94,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\JoinTable(name: 'user_favoris')]
     private Collection $favoris;
 
-    /**
-     * @var Collection<int, MoyenPaiement>
-     */
-    #[ORM\OneToMany(targetEntity: MoyenPaiement::class, mappedBy: 'user', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    private Collection $moyensPaiement;
-
     public function __construct()
     {
         $this->commandes = new ArrayCollection();
         $this->adresses = new ArrayCollection();
         $this->avis = new ArrayCollection();
         $this->favoris = new ArrayCollection();
-        $this->moyensPaiement = new ArrayCollection();
         $this->dateInscription = new \DateTime();
         $this->pointsFidelite = 0;
     }
@@ -473,63 +466,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isFavori(Produit $produit): bool
     {
         return $this->favoris->contains($produit);
-    }
-
-    // ========================================
-    // RELATIONS - MOYENS DE PAIEMENT
-    // ========================================
-
-    /**
-     * @return Collection<int, MoyenPaiement>
-     */
-    public function getMoyensPaiement(): Collection
-    {
-        return $this->moyensPaiement;
-    }
-
-    public function addMoyensPaiement(MoyenPaiement $moyensPaiement): static
-    {
-        if (!$this->moyensPaiement->contains($moyensPaiement)) {
-            $this->moyensPaiement->add($moyensPaiement);
-            $moyensPaiement->setUser($this);
-        }
-        return $this;
-    }
-
-    public function removeMoyensPaiement(MoyenPaiement $moyensPaiement): static
-    {
-        if ($this->moyensPaiement->removeElement($moyensPaiement)) {
-            if ($moyensPaiement->getUser() === $this) {
-                $moyensPaiement->setUser(null);
-            }
-        }
-        return $this;
-    }
-
-    /**
-     * Retourne le moyen de paiement par défaut
-     */
-    public function getMoyenPaiementParDefaut(): ?MoyenPaiement
-    {
-        foreach ($this->moyensPaiement as $moyenPaiement) {
-            if ($moyenPaiement->isParDefaut() && $moyenPaiement->isActif()) {
-                return $moyenPaiement;
-            }
-        }
-        return $this->moyensPaiement->first() ?: null;
-    }
-
-    /**
-     * Vérifie si l'utilisateur a au moins un moyen de paiement actif
-     */
-    public function hasMoyenPaiement(): bool
-    {
-        foreach ($this->moyensPaiement as $moyenPaiement) {
-            if ($moyenPaiement->isActif()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // ========================================
