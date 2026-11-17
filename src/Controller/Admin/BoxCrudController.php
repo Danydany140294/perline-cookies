@@ -11,6 +11,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\MoneyField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class BoxCrudController extends AbstractCrudController
@@ -18,6 +19,12 @@ class BoxCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return Box::class;
+    }
+
+    public function configureActions(\EasyCorp\Bundle\EasyAdminBundle\Config\Actions $actions): \EasyCorp\Bundle\EasyAdminBundle\Config\Actions
+    {
+        // Suppression : réservée à l'administrateur (le gestionnaire gère commandes, stock et catalogue, sans suppressions)
+        return $actions->setPermissions([\EasyCorp\Bundle\EasyAdminBundle\Config\Action::DELETE => 'ROLE_ADMIN', \EasyCorp\Bundle\EasyAdminBundle\Config\Action::BATCH_DELETE => 'ROLE_ADMIN']);
     }
 
     public function configureFields(string $pageName): iterable
@@ -39,6 +46,8 @@ class BoxCrudController extends AbstractCrudController
                 ->setHelp('Box personnalisable : SEULE source du prix facturé et affiché pour cette taille (obligatoire, supérieur à 0).'),
             MoneyField::new('prix12', 'Prix (12 cookies)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
             MoneyField::new('prix24', 'Prix (24 cookies)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
+            NumberField::new('tauxTva', 'Taux de TVA (%)')->setNumDecimals(2)->hideOnIndex()
+                ->setHelp('5,5 % par défaut. À faire valider par votre comptable.'),
             BooleanField::new('isActive', 'Active'),
             IntegerField::new('stockDisponible', 'Stock (calculé)')->onlyOnIndex(),
             CollectionField::new('compositions', 'Recette : cookies et quantités')

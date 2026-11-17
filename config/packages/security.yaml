@@ -33,8 +33,15 @@ security:
 
     session_fixation_strategy: migrate
 
+    # Un administrateur a aussi les droits du gestionnaire. ROLE_ADMIN ne s'attribue que par pp:promote-admin ;
+    # l'administration ne peut donner ou retirer que ROLE_GESTIONNAIRE (commandes, stock, catalogue).
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_GESTIONNAIRE]
+
     access_control:
-    - { path: ^/admin, roles: ROLE_ADMIN }
+    # Rubriques réservées à l'administrateur (refus 403 par la sécurité Symfony : la page d'erreur d'EasyAdmin plante sur un refus de permission d'entité)
+    - { path: '^/admin/(user|journal-admin|panier|ligne-panier|export)(/|$)', roles: ROLE_ADMIN }
+    - { path: ^/admin, roles: ROLE_GESTIONNAIRE }
     - { path: ^/user/mon-compte, roles: ROLE_USER }
     - { path: ^/user, roles: ROLE_ADMIN }
     - { path: ^/profile, roles: ROLE_USER }

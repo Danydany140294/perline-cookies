@@ -26,7 +26,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 
-#[IsGranted('ROLE_ADMIN')]
+#[IsGranted('ROLE_GESTIONNAIRE')]
 class DashboardController extends AbstractDashboardController
 {
     private UserRepository $userRepository;
@@ -135,9 +135,11 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linktoDashboard('Dashboard', 'fa fa-home');
 
         // SECTION UTILISATEURS
-        yield MenuItem::section('Gestion Utilisateurs');
+        yield MenuItem::section('Gestion Utilisateurs')->setPermission('ROLE_ADMIN');
         yield MenuItem::linkToCrud('Utilisateurs', 'fa fa-users', User::class)
-            ->setController(UserCrudController::class);
+            ->setController(UserCrudController::class)->setPermission('ROLE_ADMIN');
+        yield MenuItem::linkToCrud('Journal des actions', 'fa fa-clipboard-list', \App\Entity\JournalAdmin::class)
+            ->setController(JournalAdminCrudController::class)->setPermission('ROLE_ADMIN');
 
         // SECTION PRODUITS
         yield MenuItem::section('Catalogue');
@@ -153,9 +155,9 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linkToCrud('Lignes de Commande', 'fa fa-list', LigneCommande::class);
 
         // SECTION PANIERS
-        yield MenuItem::section('Paniers');
-        yield MenuItem::linkToCrud('Paniers Actifs', 'fa fa-shopping-basket', Panier::class);
-        yield MenuItem::linkToCrud('Lignes de Panier', 'fa fa-align-justify', LignePanier::class);
+        yield MenuItem::section('Paniers')->setPermission('ROLE_ADMIN');
+        yield MenuItem::linkToCrud('Paniers Actifs', 'fa fa-shopping-basket', Panier::class)->setPermission('ROLE_ADMIN');
+        yield MenuItem::linkToCrud('Lignes de Panier', 'fa fa-align-justify', LignePanier::class)->setPermission('ROLE_ADMIN');
 
         // RETOUR AU SITE
         yield MenuItem::section('Navigation');

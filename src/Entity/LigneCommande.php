@@ -166,4 +166,21 @@ class LigneCommande
 
         return $this;
     }
+
+    /** Composition figée au moment de la commande (cookies et quantités PAR BOX), une ligne de texte par cookie. */
+    public function getCompositionTexte(): string
+    {
+        $lignes = [];
+        foreach ($this->compositionsBox as $composition) {
+            $lignes[] = $composition->getQuantite() . ' × ' . $composition->getProduit()?->getName();
+        }
+
+        return implode("\n", $lignes);
+    }
+
+    /** Désignation lisible de l'article (cookie ou box). */
+    public function getDesignation(): string
+    {
+        return $this->produit?->getName() ?? $this->box?->getNom() ?? 'Article';
+    }
 }

@@ -140,9 +140,10 @@ class CommandeCrudController extends AbstractCrudController
                 ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
                 ->renderAsHtml(),
 
-            CollectionField::new('lignesCommande', 'Lignes de commande')
-                ->hideOnIndex()
-                ->onlyOnDetail(),
+            TextField::new('lignesTexte', 'Lignes de commande (prix, TVA et composition figés)')
+                ->onlyOnDetail()
+                ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
+                ->renderAsHtml(),
         ];
     }
 
@@ -158,7 +159,9 @@ class CommandeCrudController extends AbstractCrudController
 
         return $actions
             ->update(Crud::PAGE_INDEX, Action::DELETE, $masquerSiAVerifier)
-            ->update(Crud::PAGE_DETAIL, Action::DELETE, $masquerSiAVerifier);
+            ->update(Crud::PAGE_DETAIL, Action::DELETE, $masquerSiAVerifier)
+            // Suppression : réservée à l'administrateur (le gestionnaire n'a pas ce droit)
+            ->setPermissions([Action::DELETE => 'ROLE_ADMIN', Action::BATCH_DELETE => 'ROLE_ADMIN']);
     }
 
     /**

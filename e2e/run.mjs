@@ -57,7 +57,7 @@ const envApp = {
   ...process.env,
   FACTURES_DIR: DOSSIER_FACTURES,
   APP_ENV: 'e2e', LOGIN_LIMITE: '1000',
-  APP_DEBUG: '0',
+  APP_DEBUG: process.env.E2E_DEBUG ?? '0', // E2E_DEBUG=1 pour voir le détail des erreurs 500
   DATABASE_URL,
   MAILER_DSN: `smtp://127.0.0.1:${CONF.mailpit.smtp}`,
   STRIPE_WEBHOOK_SECRET: CONF.secretWebhook,
