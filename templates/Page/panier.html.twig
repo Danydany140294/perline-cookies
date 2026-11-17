@@ -287,10 +287,5 @@
 
 {% block javascripts %}
       {{ parent() }}
-    <script src="https://js.stripe.com/v3/"></script>
-    <script>
-        // Passer la clé publique Stripe au JavaScript
-        const STRIPE_PUBLIC_KEY = '{{ stripe_public_key }}';
-    </script>
     <script src="{{ asset('js/panier.js') }}"></script>
 {% endblock %}

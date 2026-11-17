@@ -818,142 +818,22 @@ body {
     font-size: 0.75rem;
 }
 
-/* ==========================================
-   MOYENS DE PAIEMENT
-   ========================================== */
-.payment-actions {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
 
-.btn-payment {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 1rem 1.5rem;
-    border-radius: var(--radius-lg);
-    font-weight: 700;
-    font-size: 1rem;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: var(--cookie-base);
-    color: var(--accent-white);
-    box-shadow: 0 4px 12px rgba(210, 105, 30, 0.2);
-}
 
-.btn-payment:hover {
-    background: var(--cookie-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(210, 105, 30, 0.3);
-}
 
-.payment-logo {
-    height: 24px;
-    width: auto;
-    flex-shrink: 0;
-}
 
-.payment-methods {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
 
-.payment-item {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    padding: 1.5rem;
-    background: var(--accent-white);
-    border: 2px solid rgba(92, 58, 46, 0.08);
-    border-radius: var(--radius-xl);
-    transition: all 0.3s ease;
-}
 
-.payment-item:hover {
-    border-color: var(--cookie-base);
-    box-shadow: 0 4px 12px rgba(200, 150, 91, 0.2);
-    transform: translateY(-2px);
-}
 
-.payment-item.default-payment {
-    border-color: var(--cookie-base);
-    background: linear-gradient(135deg, var(--cream-bg) 0%, var(--accent-white) 100%);
-    box-shadow: 0 4px 12px rgba(200, 150, 91, 0.15);
-}
 
-.payment-item.expired {
-    opacity: 0.6;
-    border-color: #dc2626;
-}
 
-.payment-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 60px;
-    height: 60px;
-    min-width: 60px;
-    background: linear-gradient(135deg, var(--cookie-base) 0%, var(--cookie-dark) 100%);
-    border-radius: var(--radius-lg);
-    color: var(--accent-white);
-    box-shadow: 0 4px 12px rgba(200, 150, 91, 0.3);
-}
 
-.payment-icon svg {
-    width: 40px;
-    height: auto;
-}
 
-.payment-info {
-    flex: 1;
-    min-width: 0;
-}
 
-.payment-info h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-brown-dark);
-}
 
-.payment-details {
-    margin: 0.25rem 0;
-    color: var(--chocolate-dark);
-    font-size: 0.9rem;
-}
 
-.payment-date {
-    margin: 0.5rem 0 0 0;
-    color: rgba(92, 58, 46, 0.5);
-    font-size: 0.85rem;
-}
 
-.payment-info .badge {
-    display: inline-block;
-    margin-top: 0.5rem;
-}
 
-.payment-actions-btn {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-/* Empty state pour moyens de paiement */
-.payment-methods .empty-state {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: var(--chocolate-dark);
-    background: var(--cream-bg);
-    border-radius: var(--radius-xl);
-    border: 2px dashed rgba(92, 58, 46, 0.2);
-}
 
 .empty-icon {
     width: 64px;
@@ -963,15 +843,7 @@ body {
     margin-bottom: 1rem;
 }
 
-.payment-methods .empty-state p {
-    margin: 0.5rem 0;
-}
 
-.payment-methods .empty-state .text-muted {
-    font-size: 0.9rem;
-    color: rgba(92, 58, 46, 0.6);
-    font-style: italic;
-}
 
 
 /* Conteneur du formulaire */
@@ -1737,57 +1609,13 @@ body {
         justify-content: center !important;
     }
 
-    /* ========== PAIEMENT ========== */
-    .payment-actions {
-        grid-template-columns: 1fr !important;
-        gap: 0.75rem !important;
-        margin-bottom: 1rem !important;
-    }
 
-    .btn-payment {
-        padding: 0.75rem 1rem !important;
-        font-size: 0.85rem !important;
-    }
 
-    .payment-logo {
-        height: 18px !important;
-    }
 
-    .payment-item {
-        padding: 0.85rem !important;
-        gap: 0.75rem !important;
-        border-radius: var(--radius-lg) !important;
-    }
 
-    .payment-icon {
-        width: 44px !important;
-        height: 44px !important;
-        min-width: 44px !important;
-    }
 
-    .payment-icon svg {
-        width: 28px !important;
-    }
 
-    .payment-info h4 {
-        font-size: 0.9rem !important;
-    }
 
-    .payment-details,
-    .payment-date {
-        font-size: 0.75rem !important;
-    }
-
-    .payment-actions-btn {
-        flex-direction: column !important;
-        width: 100% !important;
-    }
-
-    .payment-actions-btn .btn {
-        width: 100% !important;
-        justify-content: center !important;
-        font-size: 0.75rem !important;
-    }
 
     /* ========== BOUTONS GENERAUX ========== */
     .btn {

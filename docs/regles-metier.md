@@ -106,7 +106,7 @@ des statuts possibles.
 - **Le remboursement se fait dans le tableau de bord Stripe.** Stripe envoie alors `charge.refunded` au webhook
   (à ajouter aux événements du point d'entrée : `checkout.session.completed`, `checkout.session.expired`, `charge.refunded`).
   En local, la commande à lancer est :
-  `./stripe.exe listen --api-key sk_test_XXX --forward-to http://127.0.0.1:8000/webhook/stripe --events checkout.session.completed,checkout.session.expired,charge.refunded`.
+  `stripe listen --api-key sk_test_XXX --forward-to http://127.0.0.1:8000/webhook/stripe --events checkout.session.completed,checkout.session.expired,charge.refunded`.
 - **Remboursement total** → la commande passe **« Remboursée »**.
 - **Remboursement partiel** → le **montant remboursé** (cumulé) est enregistré sur la commande, une **note** est ajoutée à
   l'historique, le statut **ne change pas**. Un remboursement partiel suivi d'un total aboutit à « Remboursée ».
@@ -247,3 +247,8 @@ s'affiche (« Commande prête sous 24 h… »).
 - Au moins un mode de réception (livraison ou retrait) doit rester actif. Un seul nom de marque (`nom_marque`) alimente le site, les titres, les e-mails, les PDF et l'administration ; aucune mention « CreaSelf » n'est visible.
 - Les services lisent les paramètres à la création (une fois par requête). Un worker Messenger ou un processus long doit être redémarré après un changement de paramètres (`php bin/console messenger:stop-workers`).
 - Non renommés (invisibles pour le client) : nom de la base de données, espace de noms PHP `App\`, noms des conteneurs de développement.
+
+## 16. Dépôt et outils locaux
+- `stripe.exe`, `node_modules/` et `migrations_backup/` ne sont plus suivis par Git (`.gitignore`) ; ils restent sur le poste. Le CLI Stripe s'installe à part (https://docs.stripe.com/stripe-cli) ; `scripts/stripe-listen.ps1` le trouve dans le PATH ou, à défaut, dans `stripe.exe` à la racine. L'historique Git garde l'ancien `stripe.exe` (la purge de l'historique est une décision à part).
+- Code mort retiré (chapitre 7.2) : `modal_panier_v2.js`, `paiement.js`, `_modal_box_perso.html.twig`, bloc `checkout-button` de `panier.js` (et le script Stripe de la page panier), méthodes inutilisées de `CommandeService`, de `CommandeRepository`, de `AdresseRepository` et de `DelaisLivraison`, route `/paiement/cancel`, règles CSS `.payment-*` / `.btn-payment`.
+- Colonnes inutilisées `box.stock` et `produit.disponible` : migration PRÉPARÉE, non exécutée (voir `docs/colonnes-inutilisees.md`).

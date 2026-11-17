@@ -72,8 +72,7 @@ class PanierController extends AbstractController
         }
 
         return $this->render('Page/panier.html.twig', [
-            'panier'            => $this->completerAvecFrais($panier),
-            'stripe_public_key' => $this->getParameter('stripe_public_key'),
+            'panier' => $this->completerAvecFrais($panier),
         ]);
     }
 
