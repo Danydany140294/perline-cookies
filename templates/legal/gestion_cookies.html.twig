@@ -4,7 +4,7 @@
 {% block title %}Gestion des Cookies — {{ boutique.nom_marque }}{% endblock %}
 
 {% block legal_title %}Gestion des Cookies{% endblock %}
-{% block legal_date %}1er janvier 2025{% endblock %}
+{% block legal_date %}{{ boutique.date_maj_pages_legales }}{% endblock %}
 
 {% block legal_content %}
 
@@ -19,71 +19,46 @@
 
 <div class="legal-section">
     <h2 class="legal-section-title">2. Les cookies que nous utilisons</h2>
-
+    <p>Ce site n'utilise <strong>que des cookies strictement nécessaires à son fonctionnement</strong>. Ils sont exemptés de consentement : ils ne peuvent pas être désactivés sur le site, et nous n'utilisons <strong>aucun cookie de mesure d'audience, de publicité ou de suivi</strong>.</p>
     <div class="legal-cookie-card essential">
         <div class="cookie-card-header">
             <span class="material-symbols-outlined">lock</span>
             <h3>Cookies strictement nécessaires</h3>
             <span class="cookie-badge always">Toujours actifs</span>
         </div>
-        <p>Ces cookies sont indispensables au fonctionnement du site. Ils ne peuvent pas être désactivés.</p>
         <ul class="legal-list">
-            <li><strong>Session Symfony :</strong> maintient votre session utilisateur (connexion, panier)</li>
-            <li><strong>CSRF Token :</strong> protège les formulaires contre les attaques</li>
-            <li><strong>Préférences de cookies :</strong> mémorise vos choix de consentement</li>
+            <li><strong>Cookie de session (PHPSESSID) :</strong> maintient votre connexion, votre panier de visiteur et les jetons de sécurité (CSRF) des formulaires. Inaccessible au JavaScript (HttpOnly), supprimé à la fermeture du navigateur.</li>
         </ul>
-        <p class="cookie-duration"><span class="material-symbols-outlined">schedule</span> Durée : session ou jusqu'à 1 an</p>
+        <p class="cookie-duration"><span class="material-symbols-outlined">schedule</span> Durée : session du navigateur</p>
     </div>
-
     <div class="legal-cookie-card functional">
         <div class="cookie-card-header">
             <span class="material-symbols-outlined">settings</span>
-            <h3>Cookies fonctionnels</h3>
-            <span class="cookie-badge optional">Optionnels</span>
+            <h3>Mémorisation locale</h3>
+            <span class="cookie-badge always">Technique</span>
         </div>
-        <p>Ces cookies améliorent votre expérience sur le site en mémorisant vos préférences.</p>
         <ul class="legal-list">
-            <li><strong>Langue :</strong> mémorise votre langue préférée</li>
-            <li><strong>Panier persistant :</strong> conserve votre panier entre les visites</li>
-            <li><strong>Produits récents :</strong> mémorise les produits consultés</li>
+            <li><strong>cookies_choice (stockage local du navigateur) :</strong> retient que vous avez pris connaissance du bandeau d'information, pour ne plus l'afficher.</li>
         </ul>
-        <p class="cookie-duration"><span class="material-symbols-outlined">schedule</span> Durée : 30 jours</p>
+        <p class="cookie-duration"><span class="material-symbols-outlined">schedule</span> Durée : jusqu'à effacement des données du site dans votre navigateur</p>
     </div>
-
-    <div class="legal-cookie-card analytics">
-        <div class="cookie-card-header">
-            <span class="material-symbols-outlined">bar_chart</span>
-            <h3>Cookies analytiques</h3>
-            <span class="cookie-badge optional">Optionnels</span>
-        </div>
-        <p>Ces cookies nous aident à comprendre comment les visiteurs utilisent le site, afin de l'améliorer.</p>
-        <ul class="legal-list">
-            <li><strong>Google Analytics :</strong> mesure d'audience anonymisée (pages vues, durée de visite, provenance)</li>
-        </ul>
-        <p class="cookie-duration"><span class="material-symbols-outlined">schedule</span> Durée : 13 mois maximum</p>
-    </div>
-
     <div class="legal-cookie-card payment">
         <div class="cookie-card-header">
             <span class="material-symbols-outlined">credit_card</span>
-            <h3>Cookies de paiement</h3>
-            <span class="cookie-badge always">Nécessaires au paiement</span>
+            <h3>Paiement (Stripe)</h3>
+            <span class="cookie-badge always">Site de Stripe</span>
         </div>
-        <p>Ces cookies sont déposés par notre prestataire de paiement Stripe lors du processus de commande.</p>
-        <ul class="legal-list">
-            <li><strong>Stripe :</strong> sécurisation et traitement des transactions bancaires</li>
-        </ul>
-        <p class="cookie-duration"><span class="material-symbols-outlined">schedule</span> Durée : session</p>
+        <p>Le paiement a lieu sur la page sécurisée de notre prestataire Stripe (domaine stripe.com), qui peut y déposer ses propres cookies de sécurité et de lutte contre la fraude, régis par la politique de Stripe. Aucun cookie de Stripe n'est déposé par notre site.</p>
     </div>
+    <p>Pour son affichage, le site charge des polices et des bibliothèques depuis des serveurs de tiers (Google Fonts, Cloudflare cdnjs, jsDelivr, Tailwind CSS) : votre navigateur leur transmet votre adresse IP, mais ces services ne déposent pas de cookie par notre intermédiaire. Ils seront hébergés sur notre serveur lors d'une prochaine mise à jour. Voir la <a href="{{ path('app_politique_confidentialite') }}">politique de confidentialité</a>.</p>
 </div>
-
 <div class="legal-section">
     <h2 class="legal-section-title">3. Comment gérer vos cookies ?</h2>
     <p>Vous pouvez à tout moment modifier vos préférences en matière de cookies :</p>
 
     <div class="legal-highlight">
         <span class="material-symbols-outlined">manage_history</span>
-        <p>Utilisez notre bandeau de gestion des cookies disponible en bas de chaque page pour accepter ou refuser les cookies optionnels.</p>
+        <p>Aucun cookie optionnel n'étant utilisé, il n'y a rien à accepter ni à refuser : le bandeau affiché à votre première visite vous informe seulement de l'usage des cookies techniques.</p>
     </div>
 
     <p>Vous pouvez également configurer votre navigateur pour bloquer ou supprimer les cookies. Voici les liens vers les paramètres des principaux navigateurs :</p>
@@ -93,7 +68,7 @@
         <li><a href="https://support.apple.com/fr-fr/guide/safari/sfri11471/mac" target="_blank" rel="noopener">Safari</a></li>
         <li><a href="https://support.microsoft.com/fr-fr/windows/supprimer-et-g%C3%A9rer-les-cookies" target="_blank" rel="noopener">Microsoft Edge</a></li>
     </ul>
-    <p>Attention : la désactivation de certains cookies peut affecter le fonctionnement du site (connexion, panier, paiement).</p>
+    <p>Attention : bloquer le cookie de session empêche la connexion, le panier et le paiement.</p>
 </div>
 
 <div class="legal-section">

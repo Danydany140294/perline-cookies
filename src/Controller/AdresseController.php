@@ -24,6 +24,9 @@ class AdresseController extends AbstractController
     public function index(Request $request, EntityManagerInterface $em): Response
     {
         $user = $this->getUser();
+        if (!$user instanceof \App\Entity\User) {
+            throw $this->createAccessDeniedException();
+        }
 
         $adresse = new Adresse();
         $adresse->setUser($user);
@@ -39,8 +42,6 @@ class AdresseController extends AbstractController
             if ($user->getAdresses()->count() === 0) {
                 $adresse->setParDefaut(true);
             }
-
-            $adresse->setDateCreation(new \DateTime());
 
             $em->persist($adresse);
             $em->flush();

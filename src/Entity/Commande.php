@@ -749,12 +749,12 @@ public function setStripeSessionId(?string $stripeSessionId): static
         // Sinon, estimer selon le statut
         if ($this->dateExpedition) {
             // Livraison prévue 3 jours après expédition
-            return (clone $this->dateExpedition)->modify('+3 days');
+            return \DateTime::createFromInterface($this->dateExpedition)->modify('+3 days');
         }
         
-        if ($this->statut === CommandeStatut::EN_PREPARATION) {
+        if ($this->statut === CommandeStatut::EN_PREPARATION && $this->dateCommande !== null) {
             // Livraison prévue 5 jours après la commande
-            return (clone $this->dateCommande)->modify('+5 days');
+            return \DateTime::createFromInterface($this->dateCommande)->modify('+5 days');
         }
         
         return null;

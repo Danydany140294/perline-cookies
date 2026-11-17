@@ -42,6 +42,10 @@ class Produit
     #[ORM\Column(options: ['default' => false])]
     private bool $alerteStockEnvoyee = false;
 
+    /** Allergènes (valeurs de App\Enum\Allergene). null = information NON renseignée ; [] = aucun des 14 allergènes réglementaires. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $allergenes = null;
+
     #[ORM\Column(length: 255)]
     private ?string $image = null;
 
@@ -515,6 +519,24 @@ class Produit
     public function setTauxTva(float|string|null $tauxTva): static
     {
         $this->tauxTva = number_format((float) ($tauxTva ?? 5.5), 2, '.', '');
+
+        return $this;
+    }
+
+    /** @return list<string>|null valeurs de App\Enum\Allergene ; null = non renseigné */
+    public function getAllergenes(): ?array
+    {
+        return $this->allergenes;
+    }
+
+    /** @param array<string>|null $allergenes */
+    public function setAllergenes(?array $allergenes): static
+    {
+        if ($allergenes !== null) {
+            $valides = array_map(static fn (\App\Enum\Allergene $a): string => $a->value, \App\Enum\Allergene::cases());
+            $allergenes = array_values(array_intersect($valides, array_map('strval', $allergenes))); // ordre réglementaire, valeurs inconnues ignorées
+        }
+        $this->allergenes = $allergenes;
 
         return $this;
     }

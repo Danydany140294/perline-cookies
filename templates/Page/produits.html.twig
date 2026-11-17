@@ -121,6 +121,8 @@
                     {# Prix #}
                     <p class="nc-product-price">{{ produit.prix|number_format(2, ',', ' ') }} €</p>
                     
+                    {% include 'component/_allergenes.html.twig' with {info: allergenes_produit(produit)} only %}
+
                     {# Indicateur de stock #}
                     <div class="nc-stock-info">
                         {% if produit.isEnStock() %}

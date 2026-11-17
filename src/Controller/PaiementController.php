@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\CompositionBoxPersonnalisable;
+use App\Entity\User;
 use App\Entity\LigneCommande;
 use App\Enum\CommandeStatut;
 use App\Enum\ModeLivraison;
@@ -60,7 +61,7 @@ final class PaiementController extends AbstractController
     \App\Service\PanierService $panierService
 ): Response
     {
-       if (!$this->getUser()) {
+       if (!$this->getUser() instanceof User) {
     $this->saveTargetPath(
         $request->getSession(),
         'main',
@@ -82,7 +83,7 @@ final class PaiementController extends AbstractController
             'is_empty' => true
         ];
 
-        if ($user) {
+        {
             $panier = $panierRepo->findOneBy(['user' => $user]);
 
             if ($panier) {
@@ -168,7 +169,7 @@ final class PaiementController extends AbstractController
     {
         // Compte obligatoire pour payer (achat invité : prévu plus tard, avec e-mail et lien de suivi).
         $user = $this->getUser();
-        if (!$user) {
+        if (!$user instanceof User) {
             $this->saveTargetPath($request->getSession(), 'main', $this->generateUrl('app_panier_index'));
 
             return new JsonResponse([
@@ -289,10 +290,6 @@ final class PaiementController extends AbstractController
                 $commande->addLigneCommande($ligneCommande);
             }
 
-            if (empty($lineItems)) {
-                return new JsonResponse(['error' => 'Aucun article à commander'], 400);
-            }
-
             // ✅ Frais de livraison : même service que l'affichage, ajoutés au montant Stripe
             $sousTotalCentimes = 0;
             foreach ($lineItems as $lineItem) {
@@ -317,7 +314,7 @@ final class PaiementController extends AbstractController
 
             // ✅ Enregistrer la commande « En attente » (total = articles + livraison, en euros)
             //    pour obtenir son id, transmis à Stripe via client_reference_id.
-            if ($commande !== null) {
+            {
                 $commande->setTotalTTC(($sousTotalCentimes + $fraisCentimes) / 100);
                 $commande->setFraisLivraison($fraisCentimes / 100);
 
@@ -341,10 +338,10 @@ final class PaiementController extends AbstractController
                 'mode' => 'payment',
                 'success_url' => $this->generateUrl('app_paiement_success_stripe', [], UrlGeneratorInterface::ABSOLUTE_URL) . '?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => $this->generateUrl('app_panier_index', [], UrlGeneratorInterface::ABSOLUTE_URL),
-                'customer_email' => $user ? $user->getEmail() : null,
+                'customer_email' => $user->getEmail(),
             ];
 
-            if ($commande !== null) {
+            {
                 $parametresStripe['client_reference_id'] = (string) $commande->getId();
             }
 
@@ -359,10 +356,8 @@ final class PaiementController extends AbstractController
                 throw $e;
             }
 
-            if ($commande !== null) {
-                $commande->setStripeSessionId($checkoutSession->id);
-                $em->flush();
-            }
+            $commande->setStripeSessionId($checkoutSession->id);
+            $em->flush();
 
             return new JsonResponse(['sessionId' => $checkoutSession->id]);
 
@@ -411,7 +406,7 @@ final class PaiementController extends AbstractController
         // Toute commande a désormais un propriétaire (compte obligatoire pour payer) :
         // une commande sans propriétaire est donc refusée aussi.
         $proprietaire = $commande?->getUser();
-        if ($commande !== null && ($proprietaire === null || $proprietaire->getId() !== $this->getUser()?->getId())) {
+        if ($commande !== null && ($proprietaire === null || $proprietaire !== $this->getUser())) {
             $this->addFlash('error', 'Cette commande ne vous appartient pas.');
             return $this->redirectToRoute('app_home');
         }
@@ -460,7 +455,7 @@ final class PaiementController extends AbstractController
 
         // L'adresse doit appartenir au client connecté et se trouver dans la zone desservie
         $adresse = $adresseRepo->find($adresseId);
-        if ($adresse === null || $adresse->getUser()?->getId() !== $this->getUser()?->getId()) {
+        if ($adresse === null || $adresse->getUser() !== $this->getUser()) {
             return new JsonResponse(['error' => 'Adresse invalide'], 400);
         }
         if (($nonDesservie = $this->zoneLivraison->messageNonDesservie($adresse->getCodePostal(), $adresse->getPays())) !== null) {

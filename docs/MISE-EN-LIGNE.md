@@ -103,3 +103,39 @@ Avant d'ouvrir au public :
 3. Inscription d'un compte, e-mail de vérification, réinitialisation de mot de passe.
 4. Administration : tableau de bord, une commande, un changement de statut, un export CSV.
 5. Aucune bannière « Version de démonstration » ; `https` partout ; aucune erreur dans les journaux (`var/log/prod.log`).
+
+## 10. Surveillance des erreurs et de la disponibilité
+
+- **Erreurs applicatives** : brancher un service de suivi d'erreurs (Sentry, ou un équivalent auto-hébergeable comme GlitchTip) : `composer require sentry/sentry-symfony`, puis `SENTRY_DSN` en variable d'environnement (jamais dans Git) ; vérifier qu'une erreur volontaire apparaît dans le tableau de bord ; régler une alerte par e-mail sur les nouvelles erreurs. Ne jamais envoyer de données personnelles dans les rapports (désactiver ou filtrer les données de requête) et déclarer ce sous-traitant dans la politique de confidentialité s'il est activé.
+- **Journaux** : en production, les journaux partent au format JSON sur la sortie d'erreur (`docker compose logs`) ; conserver 12 mois au plus (durée annoncée dans la politique de confidentialité) et limiter leur taille (pilote de journalisation de Docker avec `max-size` et `max-file`, ou `logrotate`).
+- **Disponibilité** : un service de surveillance externe (UptimeRobot, Better Stack, Uptime Kuma...) qui interroge toutes les 1 à 5 minutes la page d'accueil **et** une page qui touche la base (par exemple `/produits`), avec alerte par e-mail ou SMS. Surveiller aussi la **date d'expiration du certificat HTTPS** et du nom de domaine.
+- **Paiements** : dans le tableau de bord Stripe, activer les alertes d'échec de livraison des webhooks ; une commande « À vérifier » au tableau de bord d'administration est un signal à traiter le jour même.
+- **Serveur** : espace disque (base, factures et journaux grossissent), mémoire, mises à jour de sécurité du système (`unattended-upgrades`), sauvegardes réussies (alerte si une sauvegarde n'a pas eu lieu).
+
+## 11. Délivrabilité des e-mails (obligatoire avant l'ouverture)
+
+Les e-mails du site (confirmation de compte, réinitialisation du mot de passe, confirmation de commande avec facture, expédition, alertes) sont **transactionnels** : s'ils finissent en courrier indésirable, le client ne peut pas confirmer son compte ni retrouver sa facture.
+
+1. **Service d'envoi transactionnel** (Brevo, Mailjet, Postmark, Amazon SES, Scaleway TEM, etc.) à la place du **bac à sable** (Mailtrap ou Mailpit, qui n'envoient rien à de vrais clients). Renseigner son `MAILER_DSN` (variable d'environnement). Choisir de préférence un service dont les serveurs sont dans l'Union européenne, et le déclarer dans « Paramètres de la boutique » (champ « Service d'envoi d'e-mails ») : la politique de confidentialité le cite.
+2. **Domaine d'envoi** : l'adresse d'expédition (Paramètres de la boutique : « E-mail d'expédition des messages ») doit être sur **le domaine du client** (ex. `noreply@perlinecookies.com`) et autorisée par le service d'envoi.
+3. **SPF** : enregistrement TXT du domaine autorisant le service d'envoi (`v=spf1 include:<service> ~all`, un seul enregistrement SPF par domaine).
+4. **DKIM** : clés fournies par le service, publiées en DNS (CNAME ou TXT) ; vérifier l'état « authentifié » dans le tableau de bord du service.
+5. **DMARC** : enregistrement TXT `_dmarc.<domaine>` ; commencer par `v=DMARC1; p=none; rua=mailto:<adresse de rapports>`, observer les rapports 2 à 4 semaines, puis passer à `quarantine`, puis `reject`.
+6. **Contrôle** : envoyer un e-mail de test vers Gmail et Outlook ; vérifier « Afficher l'original » (SPF, DKIM, DMARC = PASS), un score satisfaisant sur un testeur de délivrabilité (mail-tester.com par exemple), et que les e-mails n'arrivent pas dans les indésirables.
+7. Surveiller les rebonds et les plaintes dans le tableau de bord du service. L'adresse d'alertes (`email_alertes`) doit être valide : elle reçoit « commande payée » et « stock faible ».
+
+## 12. Test de restauration d'une sauvegarde (à faire AVANT l'ouverture)
+
+Une sauvegarde jamais restaurée n'est pas une sauvegarde. À faire sur une machine de test ou dans un second dossier Docker, **jamais sur la production**.
+
+1. Prendre la dernière sauvegarde de la base (`mysqldump`) **et** du dossier des factures (`var/factures/` ou `FACTURES_DIR`) + des images.
+2. Créer une base vide et y importer la sauvegarde : `mysql -u<utilisateur> -p <base_vide> < sauvegarde.sql`.
+3. Démarrer l'application contre cette base (variables d'environnement de test, `MAILER_DSN` vers un bac à sable) avec le dossier de factures restauré.
+4. Vérifier : le nombre d'utilisateurs, de commandes et de factures correspond ; une facture ancienne s'ouvre (le PDF existe) ; le tableau de bord affiche les bons chiffres ; `doctrine:migrations:list` est cohérent ; `doctrine:schema:validate` répond « in sync ».
+5. Mesurer **le temps** que prend la restauration et le consigner.
+6. Noter la date du test et le nom de la sauvegarde utilisée ; refaire ce test après chaque changement important et au moins une fois par trimestre.
+7. Conserver les sauvegardes **hors du serveur** (autre fournisseur ou stockage distant), avec une rotation (quotidiennes 14 jours, hebdomadaires 3 mois). Les factures et la base se conservent 10 ans (obligation comptable) : prévoir un archivage annuel.
+
+## 13. Mise à jour d'une boutique déjà en ligne
+
+Voir `docs/MISE-A-JOUR-PRODUCTION.md` (procédure pas à pas, retour arrière compris).

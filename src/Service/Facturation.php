@@ -49,7 +49,7 @@ class Facturation
             return null;
         }
 
-        return $this->em->wrapInTransaction(function () use ($commande): ?Facture {
+        return $this->em->wrapInTransaction(function () use ($commande): Facture {
             // Verrou sur la commande : deux paiements simultanés de la même commande n'émettent qu'une facture
             $this->em->find(Commande::class, $commande->getId(), LockMode::PESSIMISTIC_WRITE);
             if (($existante = $this->factures->factureDeLaCommande($commande)) !== null) {

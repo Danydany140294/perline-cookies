@@ -2,15 +2,12 @@
 <div id="cookie-banner" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 px-6 py-4" style="display:none;">
     <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <p class="text-gray-700 text-sm leading-relaxed">
-            🍪 Ce site utilise des cookies techniques nécessaires à son fonctionnement (session, panier). 
-            <a href="{{ path('app_politique_confidentialite') }}" class="text-chocolat underline">En savoir plus</a>
+            🍪 Ce site n'utilise que des cookies techniques nécessaires à son fonctionnement (session, panier) : aucun suivi, aucune publicité.
+            <a href="{{ path('app_gestion_cookies') }}" class="text-chocolat underline">En savoir plus</a>
         </p>
         <div class="flex gap-3 shrink-0">
-            <button onclick="acceptCookies()" class="bg-chocolat text-white px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition">
-                Accepter
-            </button>
-            <button onclick="refuseCookies()" class="border border-gray-400 text-gray-600 px-5 py-2 rounded-full text-sm hover:bg-gray-100 transition">
-                Refuser
+            <button onclick="acceptCookies()" class="bg-chocolat text-white px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition" id="cookie-ok">
+                J'ai compris
             </button>
         </div>
     </div>
@@ -22,13 +19,9 @@ if (!localStorage.getItem('cookies_choice')) {
 }
 
 function acceptCookies() {
-    localStorage.setItem('cookies_choice', 'accepted');
+    localStorage.setItem('cookies_choice', 'compris');
     document.getElementById('cookie-banner').remove();
 }
 
-function refuseCookies() {
-    localStorage.setItem('cookies_choice', 'refused');
-    document.getElementById('cookie-banner').remove();
-}
 </script>
 {% endif %}

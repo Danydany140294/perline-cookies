@@ -50,6 +50,16 @@ class ParametresBoutique implements ResetInterface
         'boutique.mediateur' => ['groupe' => 'Identité légale', 'label' => 'Médiateur de la consommation', 'type' => self::TYPE_LONG],
         'boutique.site_web' => ['groupe' => 'Identité légale', 'label' => 'Site web', 'type' => self::TYPE_TEXTE],
 
+        // Pages légales
+        'boutique.hebergeur_nom' => ['groupe' => 'Pages légales', 'label' => 'Hébergeur : raison sociale', 'type' => self::TYPE_TEXTE, 'requis' => true],
+        'boutique.hebergeur_adresse' => ['groupe' => 'Pages légales', 'label' => 'Hébergeur : adresse', 'type' => self::TYPE_TEXTE, 'requis' => true],
+        'boutique.hebergeur_site' => ['groupe' => 'Pages légales', 'label' => 'Hébergeur : site internet', 'type' => self::TYPE_TEXTE],
+        'boutique.hebergeur_pays_donnees' => ['groupe' => 'Pages légales', 'label' => 'Pays où sont stockées les données', 'type' => self::TYPE_TEXTE, 'requis' => true],
+        'boutique.service_emails' => ['groupe' => 'Pages légales', 'label' => 'Service d\'envoi d\'e-mails (sous-traitant)', 'type' => self::TYPE_TEXTE, 'requis' => true],
+        'boutique.horaires_service_client' => ['groupe' => 'Pages légales', 'label' => 'Horaires du service client', 'type' => self::TYPE_TEXTE, 'requis' => true],
+        'boutique.traces_atelier' => ['groupe' => 'Pages légales', 'label' => 'Traces possibles dans l\'atelier (allergènes)', 'type' => self::TYPE_LONG, 'aide' => 'Texte repris dans les CGV : les allergènes manipulés dans l\'atelier, même s\'ils ne figurent pas dans la recette.'],
+        'boutique.date_maj_pages_legales' => ['groupe' => 'Pages légales', 'label' => 'Date de dernière mise à jour des pages légales', 'type' => self::TYPE_TEXTE, 'requis' => true, 'aide' => 'À modifier à chaque relecture (ex. 17 novembre 2026).'],
+
         // Contact
         'boutique.email_contact' => ['groupe' => 'Contact', 'label' => 'E-mail de contact', 'type' => self::TYPE_EMAIL, 'requis' => true],
         'boutique.email_alertes' => ['groupe' => 'Contact', 'label' => 'E-mail des alertes', 'type' => self::TYPE_EMAIL, 'aide' => 'Reçoit « commande payée » et « stock faible ». Vide = e-mail de contact.'],

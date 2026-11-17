@@ -1731,3 +1731,6 @@ h1, h2, h3, h4, h5, h6 {
         font-size: 0.85rem !important;
     }
 }
+/* Allergènes */
+.allergenes { font-size: 0.85rem; margin: 0.5rem 0; line-height: 1.35; }
+.allergenes--inconnus { color: #8a4b00; }

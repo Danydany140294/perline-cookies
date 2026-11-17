@@ -231,6 +231,17 @@ public function setPrix24(?float $prix24): static { $this->prix24 = $prix24; ret
         return $this->compositions;
     }
 
+    /**
+     * Allergènes de la box : fusion de ceux de ses cookies (calcul automatique). null = au moins un cookie non renseigné.
+     * Box personnalisable : les cookies sont choisis par le client, on renvoie ceux de tous les cookies actifs (voir Allergenes Twig).
+     *
+     * @return list<\App\Enum\Allergene>|null
+     */
+    public function getAllergenes(): ?array
+    {
+        return \App\Enum\Allergene::union(array_map(static fn (BoxProduit $c): ?Produit => $c->getProduit(), $this->compositions->toArray()));
+    }
+
     public function addComposition(BoxProduit $composition): static
     {
         if (!$this->compositions->contains($composition)) {

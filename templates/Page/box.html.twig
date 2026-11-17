@@ -58,6 +58,7 @@
             <p class="featured-description">
                 {{ box_personnalisable.description }}
             </p>
+            {% include 'component/_allergenes.html.twig' with {info: allergenes_box(box_personnalisable)} only %}
 
             {# ========================================
                SWITCH 6 / 12 / 24
@@ -169,6 +170,7 @@
                     <h3 class="box-title">{{ box.nom }}</h3>
 
                     <p class="box-description">{{ box.description }}</p>
+                    {% include 'component/_allergenes.html.twig' with {info: allergenes_box(box)} only %}
 
                     {% if box.compositions|length > 0 %}
                     <div class="box-composition">

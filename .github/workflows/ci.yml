@@ -1,0 +1,79 @@
+# Intégration continue : à chaque push et pull request.
+# Lance : composer audit, validation du conteneur et de Twig, migrations + doctrine:schema:validate (MySQL de test),
+# tests unitaires (PHPUnit) et PHPStan. Les tests de bout en bout (Playwright, ~20 min, Docker + Stripe en mode test)
+# restent à lancer en local avant chaque livraison : `cd e2e && npm run e2e`.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  qualite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: perline_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: dev
+      APP_DEBUG: '1'
+      APP_SECRET: ci-secret-sans-valeur
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/perline_ci?serverVersion=8.0&charset=utf8mb4
+      MAILER_DSN: 'null://null'
+      MESSENGER_TRANSPORT_DSN: 'doctrine://default?auto_setup=0'
+      STRIPE_PUBLIC_KEY: pk_test_ci
+      STRIPE_SECRET_KEY: sk_test_ci
+      STRIPE_WEBHOOK_SECRET: whsec_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl, mbstring, pdo_mysql, gd, zip, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Dépendances
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Fichier .env (modèle sans secret)
+        run: cp .env.example .env
+
+      - name: Avis de sécurité des dépendances
+        run: composer audit
+
+      - name: Conteneur et gabarits Twig
+        run: |
+          php bin/console lint:container
+          php bin/console lint:twig templates
+
+      - name: Migrations et cohérence du schéma
+        run: |
+          php bin/console doctrine:migrations:migrate --no-interaction
+          php bin/console doctrine:schema:validate
+
+      - name: Tests unitaires
+        run: php bin/phpunit
+
+      - name: PHPStan
+        run: |
+          php bin/console cache:warmup
+          vendor/bin/phpstan analyse --no-progress --memory-limit=1G

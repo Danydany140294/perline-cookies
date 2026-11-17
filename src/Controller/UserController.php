@@ -15,16 +15,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use App\Service\AdresseService;
 use App\Service\ValidationProfil;
 
 #[Route('/user')]
 final class UserController extends AbstractController
 {
-    public function __construct(
-        private AdresseService $adresseService
-    ) {}
-
     // ========================================
     // ROUTES FIXES (avant les routes /{id})
     // ========================================
@@ -75,7 +70,7 @@ final class UserController extends AbstractController
     {
         $user = $this->getUser();
 
-        if (!$user) {
+        if (!$user instanceof User) {
             return $this->redirectToRoute('app_login');
         }
 
@@ -93,6 +88,9 @@ final class UserController extends AbstractController
     public function updateProfil(Request $request, EntityManagerInterface $entityManager, ValidationProfil $validation): JsonResponse
     {
         $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(['success' => false, 'error' => 'Connexion requise.'], 401);
+        }
 
         if (!$this->isCsrfTokenValid('profil', (string) $request->headers->get('X-CSRF-TOKEN'))) {
             return new JsonResponse(['success' => false, 'error' => 'Action refusée (jeton de sécurité invalide). Rechargez la page.'], 403);
@@ -124,6 +122,9 @@ final class UserController extends AbstractController
     public function updateAvatar(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(['success' => false, 'error' => 'Connexion requise.'], 401);
+        }
 
         if (!$this->isCsrfTokenValid('profil', (string) $request->headers->get('X-CSRF-TOKEN'))) {
             return new JsonResponse(['success' => false, 'error' => 'Action refusée (jeton de sécurité invalide). Rechargez la page.'], 403);

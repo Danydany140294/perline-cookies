@@ -1,0 +1,11 @@
+{# Allergènes : info = résultat de allergenes_produit() / allergenes_box() / allergenes_ligne() #}
+<p class="allergenes{% if not info.connus %} allergenes--inconnus{% endif %}" data-allergenes>
+    <strong>Allergènes{% if info.selection %} (selon votre sélection){% endif %} :</strong>
+    {% if not info.connus %}
+        information en cours de mise à jour, contactez-nous avant de commander ({{ boutique.email_contact }}).
+    {% elseif info.liste is empty %}
+        aucun des 14 allergènes réglementaires.
+    {% else %}
+        {{ info.liste|join(', ') }}.
+    {% endif %}
+</p>

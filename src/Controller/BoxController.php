@@ -4,17 +4,12 @@ namespace App\Controller;
 
 use App\Repository\BoxRepository;
 use App\Repository\ProduitRepository;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class BoxController extends AbstractController
 {
-    public function __construct(
-        private EntityManagerInterface $entityManager
-    ) {}
-
     /**
      * Affiche la page des boxes avec :
      * - La box personnalisable en vedette
