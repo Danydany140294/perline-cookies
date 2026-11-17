@@ -16,6 +16,7 @@ export function reinitialiser() {
     SET FOREIGN_KEY_CHECKS=1;
     UPDATE produit SET stock = 50, is_active = 1, seuil_alerte = NULL, alerte_stock_envoyee = 0;
     UPDATE box SET is_active = 1;
+    UPDATE produit SET allergenes = '["gluten","fruits_a_coque"]' WHERE id IN (1,3,4); UPDATE produit SET allergenes = '["gluten","lait"]' WHERE id = 2; UPDATE produit SET allergenes = '["gluten","oeufs"]' WHERE id = 5;
   UPDATE box SET taux_tva = 5.50; UPDATE produit SET taux_tva = 5.50;
     UPDATE box SET prix6 = 12.99, prix12 = 19.99, prix24 = 29.99 WHERE id = ${BOX.personnalisable};
     UPDATE box_composition SET quantite = 1;
