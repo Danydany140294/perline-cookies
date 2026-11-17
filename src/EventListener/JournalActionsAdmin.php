@@ -91,8 +91,13 @@ class JournalActionsAdmin
     private function auteur(): ?string
     {
         $requete = $this->requetes->getMainRequest();
+        // Le chemin d'abord : hors administration (webhook Stripe, site), on ne touche JAMAIS à la session ni à l'utilisateur
+        // (sinon une requête portant un cookie de session attend le verrou de cette session pendant une transaction).
+        if ($requete === null || !str_starts_with($requete->getPathInfo(), '/admin')) {
+            return null;
+        }
         $utilisateur = $this->security->getUser();
-        if ($requete === null || !str_starts_with($requete->getPathInfo(), '/admin') || !$utilisateur instanceof User) {
+        if (!$utilisateur instanceof User) {
             return null;
         }
 
