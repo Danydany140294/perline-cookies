@@ -4,71 +4,75 @@
 {% block title %}Conditions Générales de Vente — {{ boutique.nom_marque }}{% endblock %}
 
 {% block legal_title %}Conditions Générales de Vente{% endblock %}
-{% block legal_date %}1er janvier 2025{% endblock %}
+{% block legal_date %}{{ boutique.date_maj_pages_legales }}{% endblock %}
 
 {% block legal_content %}
 
 <div class="legal-section">
     <h2 class="legal-section-title">1. Objet</h2>
-    <p>Les présentes Conditions Générales de Vente (CGV) régissent les ventes de produits effectuées par {{ boutique.raison_sociale }} (ci-après "le Vendeur") via le site <strong>{{ boutique.site_web }}</strong>. Tout achat implique l'acceptation sans réserve des présentes CGV par l'acheteur (ci-après "le Client").</p>
+    <p>Les présentes Conditions Générales de Vente (CGV) régissent les ventes de produits effectuées par {{ boutique.raison_sociale }} (ci-après "le Vendeur"), {{ boutique.forme_juridique }}, SIRET {{ boutique.siret }}, dont le siège est situé {{ boutique.adresse_rue }}, {{ boutique.adresse_code_postal }} {{ boutique.adresse_ville }}, via le site <strong>{{ boutique.site_web }}</strong>. Tout achat implique l'acceptation sans réserve des présentes CGV par l'acheteur (ci-après "le Client"). Les CGV applicables sont celles en vigueur à la date de la commande.</p>
 </div>
 
 <div class="legal-section">
-    <h2 class="legal-section-title">2. Produits</h2>
-    <p>Les produits proposés à la vente sont des cookies artisanaux fabriqués à la main dans notre atelier de {{ boutique.adresse_ville }}. Les photographies présentées sur le site sont aussi fidèles que possible aux produits, cependant de légères variations peuvent exister en raison du caractère artisanal de notre fabrication.</p>
-    <p>Nos produits sont fabriqués dans un atelier pouvant contenir des traces de :</p>
-    <ul class="legal-list">
-        <li>Gluten (blé)</li>
-        <li>Œufs</li>
-        <li>Lait et produits laitiers</li>
-        <li>Fruits à coque (noix, noisettes, amandes, noix de macadamia)</li>
-        <li>Soja</li>
-    </ul>
-    <p>Les personnes souffrant d'allergies sont invitées à nous contacter avant toute commande.</p>
+    <h2 class="legal-section-title">2. Produits et allergènes</h2>
+    <p>Les produits proposés à la vente sont des cookies artisanaux fabriqués à la main dans notre atelier de {{ boutique.adresse_ville }}, seuls ou réunis dans des boxes. Les photographies présentées sur le site sont aussi fidèles que possible aux produits, cependant de légères variations peuvent exister en raison du caractère artisanal de notre fabrication.</p>
+    <div class="legal-highlight">
+        <span class="material-symbols-outlined">info</span>
+        <p><strong>Allergènes.</strong> Les allergènes à déclaration obligatoire (parmi les 14 listés par la réglementation européenne) présents dans chaque cookie sont indiqués <strong>sur la fiche de chaque produit</strong>, sur la page des boxes (une box reprend automatiquement les allergènes de tous les cookies qu'elle contient) et <strong>de nouveau sur la page de paiement, avant la validation de la commande</strong>, pour chaque article de votre panier. Si l'information d'un produit n'est pas disponible, elle est signalée : contactez-nous avant de commander.</p>
+    </div>
+    {% if boutique.traces_atelier %}
+    <p>Nos produits sont fabriqués dans un atelier où sont manipulés : {{ boutique.traces_atelier }}. Des traces involontaires de ces ingrédients peuvent donc être présentes même si elles ne figurent pas dans la recette. Les personnes souffrant d'allergies sont invitées à nous contacter à <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a> avant toute commande.</p>
+    {% endif %}
+    <p>Les produits sont proposés dans la limite des stocks disponibles. Un produit indisponible est signalé comme tel et ne peut pas être commandé.</p>
 </div>
 
 <div class="legal-section">
-    <h2 class="legal-section-title">3. Prix</h2>
-    <p>Les prix sont indiqués en euros (€) toutes taxes comprises (TTC). La TVA est incluse dans ces prix ; son taux (5,5 % pour les produits alimentaires, ou le taux en vigueur pour chaque article) et son montant sont détaillés sur la facture et dans l'e-mail de confirmation. {{ boutique.raison_sociale }} se réserve le droit de modifier ses prix à tout moment. Les produits seront facturés sur la base des tarifs en vigueur au moment de la validation de la commande.</p>
+    <h2 class="legal-section-title">3. Prix, TVA et facturation</h2>
+    <p>Les prix sont indiqués en euros (€) toutes taxes comprises (TTC). La TVA est incluse dans ces prix ; son taux (par exemple 5,5 % pour les produits alimentaires, ou le taux en vigueur pour chaque article) et son montant sont détaillés sur la facture. Les frais de livraison éventuels sont indiqués avant la validation de la commande. {{ boutique.raison_sociale }} se réserve le droit de modifier ses prix à tout moment ; les produits sont facturés sur la base des tarifs en vigueur au moment de la validation de la commande.</p>
+    <p>Une <strong>facture au format PDF</strong> est établie à la confirmation du paiement : elle est jointe à l'e-mail de confirmation de commande et téléchargeable depuis votre espace client (« Mon compte », puis le détail de la commande). En cas de remboursement, un <strong>avoir</strong> est établi et disponible au même endroit. Les factures sont conservées 10 ans.</p>
 </div>
 
 <div class="legal-section">
-    <h2 class="legal-section-title">4. Commandes</h2>
-    <p>Le Client passe commande directement sur le site. La commande est définitivement validée après :</p>
+    <h2 class="legal-section-title">4. Compte client et commandes</h2>
+    <p>La commande nécessite un compte client, dont l'adresse e-mail doit être confirmée. Le Client passe commande directement sur le site. La commande est définitivement validée après :</p>
     <ul class="legal-list">
         <li>Sélection des produits et ajout au panier</li>
-        <li>Renseignement de l'adresse de livraison</li>
-        <li>Choix du mode de paiement et validation du paiement</li>
-        <li>Réception d'un email de confirmation de commande</li>
+        <li>Choix du mode de réception{% if livraison.modes.livraison %} (livraison à l'adresse indiquée{% if livraison.modes.retrait %} ou retrait sur place{% endif %}){% elseif livraison.modes.retrait %} (retrait sur place){% endif %}</li>
+        <li>Vérification du récapitulatif (articles, allergènes, frais, total) puis paiement en ligne</li>
+        <li>Réception d'un e-mail de confirmation de commande</li>
     </ul>
-    <p>{{ boutique.raison_sociale }} se réserve le droit d'annuler toute commande en cas de problème d'approvisionnement, de litige avec le Client ou de suspicion de fraude.</p>
+    <p>{{ boutique.raison_sociale }} se réserve le droit d'annuler et de rembourser toute commande en cas de problème d'approvisionnement, de litige avec le Client ou de suspicion de fraude.</p>
 </div>
 
 <div class="legal-section">
     <h2 class="legal-section-title">5. Paiement</h2>
-    <p>Le paiement s'effectue en ligne par carte bancaire (Visa, Mastercard) via notre prestataire de paiement sécurisé Stripe. Les données bancaires sont cryptées et ne transitent pas sur nos serveurs. Le débit est effectué au moment de la validation de la commande.</p>
+    <p>Le paiement s'effectue en ligne par carte bancaire via notre prestataire de paiement sécurisé Stripe. Les données de carte bancaire sont saisies directement sur la page sécurisée de Stripe : elles ne transitent pas par nos serveurs et ne sont pas conservées par {{ boutique.raison_sociale }}. Le débit est effectué au moment de la validation du paiement ; la commande est confirmée lorsque Stripe nous notifie le paiement.</p>
 </div>
 
 <div class="legal-section">
-    <h2 class="legal-section-title">6. Livraison</h2>
-    <p>Les commandes sont livrées en <strong>France métropolitaine, hors Corse</strong> (la Corse et l'outre-mer ne sont pas desservis pour le moment), par {{ livraison.transporteur }} avec suivi. Un retrait gratuit à l'atelier est également proposé : le lieu et les horaires sont indiqués avant la validation de la commande.</p>
+    <h2 class="legal-section-title">6. Livraison et retrait</h2>
+    {% if livraison.modes.livraison %}
+    <p>Les commandes sont livrées en <strong>France métropolitaine, hors Corse</strong> (la Corse et l'outre-mer ne sont pas desservis pour le moment), par {{ livraison.transporteur }} avec suivi.{% if livraison.modes.retrait %} Un retrait gratuit à l'atelier est également proposé : le lieu et les horaires sont indiqués avant la validation de la commande.{% endif %}</p>
     <ul class="legal-list">
         <li><strong>Préparation :</strong> {{ livraison.delais.preparation_jours_ouvres * 24 }} heures ouvrées</li>
         <li><strong>Expédition :</strong> le {{ jours_expedition() }} (produits frais : le colis ne passe pas le week-end en entrepôt)</li>
         <li><strong>Livraison {{ livraison.transporteur }} :</strong> {{ livraison.delais.transit_min_jours_ouvres }} à {{ livraison.delais.transit_max_jours_ouvres }} jours ouvrés après l'expédition</li>
     </ul>
-    <p>Ces délais sont indicatifs et calculés en jours ouvrés (hors jours de fermeture de l'atelier) ; une période de livraison estimée est affichée avant la validation de la commande, puis rappelée dans l'e-mail de confirmation.</p>
-    <p>Les frais de livraison sont un <strong>forfait de {{ (livraison.frais_forfait_centimes / 100)|number_format(2, ',', ' ') }} €</strong> par commande, affiché avant la validation. La livraison est <strong>offerte à partir de {{ (livraison.seuil_gratuite_centimes / 100)|number_format(0, ',', ' ') }} € d'achat</strong> (hors frais de livraison). Le retrait à l'atelier est gratuit.</p>    <p>{{ boutique.raison_sociale }} ne pourra être tenu responsable des retards de livraison dus au transporteur ou à des circonstances exceptionnelles.</p>
+    <p>Ces délais sont indicatifs et calculés en jours ouvrés (hors jours de fermeture de l'atelier) ; une période de livraison estimée est affichée avant la validation de la commande, puis rappelée dans l'e-mail de confirmation. {{ boutique.raison_sociale }} ne pourra être tenu responsable des retards dus au transporteur ou à des circonstances exceptionnelles.</p>
+    <p>Les frais de livraison sont un <strong>forfait de {{ (livraison.frais_forfait_centimes / 100)|number_format(2, ',', ' ') }} €</strong> par commande, affiché avant la validation. La livraison est <strong>offerte à partir de {{ (livraison.seuil_gratuite_centimes / 100)|number_format(0, ',', ' ') }} € d'achat</strong> (hors frais de livraison).{% if livraison.modes.retrait %} Le retrait à l'atelier est gratuit.{% endif %}</p>
+    <p>Produits frais : le Client veille à être présent ou à faire réceptionner le colis à la date de livraison ; les cookies se conservent dans les conditions indiquées sur l'emballage.</p>
+    {% else %}
+    <p>Les commandes sont à retirer <strong>sur place</strong> (aucune livraison à domicile n'est proposée) : le lieu et les horaires de retrait sont indiqués avant la validation de la commande. Le retrait est gratuit.</p>
+    {% endif %}
 </div>
 
 <div class="legal-section">
-    <h2 class="legal-section-title">7. Droit de rétractation</h2>
+    <h2 class="legal-section-title">7. Droit de rétractation, produit abîmé ou non conforme</h2>
     <div class="legal-highlight">
         <span class="material-symbols-outlined">info</span>
-        <p>Conformément à l'article L.221-18 du Code de la Consommation, le Client dispose d'un délai de <strong>14 jours calendaires</strong> à compter de la réception de sa commande pour exercer son droit de rétractation, sans avoir à justifier de motifs ni à payer de pénalités.</p>
+        <p>Conformément à l'article L.221-28 du Code de la consommation, <strong>le droit de rétractation ne peut pas être exercé pour les biens susceptibles de se détériorer ou de se périmer rapidement</strong>, ce qui est le cas de nos cookies artisanaux (denrées alimentaires périssables). Le Client ne dispose donc pas du délai de rétractation de 14 jours prévu par l'article L.221-18 pour ces produits, et une commande ne peut pas être retournée ou remboursée au seul motif d'un changement d'avis.</p>
     </div>
-    <p>Toutefois, conformément à l'article L.221-28 du Code de la Consommation, <strong>le droit de rétractation ne peut être exercé pour les denrées alimentaires périssables</strong>. En raison de la nature artisanale et périssable de nos cookies, les commandes ne peuvent pas faire l'objet d'un retour ou d'un remboursement sauf en cas de défaut avéré du produit.</p>
-    <p>En cas de produit défectueux ou non-conforme, merci de nous contacter dans les 48h suivant la réception à <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a> avec photos à l'appui.</p>
+    <p><strong>Produit abîmé, manquant ou non conforme :</strong> les garanties légales restent applicables (conformité, article L.217-3 et suivants du Code de la consommation). Si votre commande arrive abîmée, incomplète ou non conforme à votre commande, contactez-nous <strong>dans les 48 heures suivant la réception</strong> à <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a>, en indiquant votre numéro de commande et en joignant des photographies. Après examen, nous procédons, selon le cas, au remplacement des produits concernés ou à leur remboursement (par le moyen de paiement utilisé, avec émission d'un avoir). Ce délai de signalement a pour but de permettre la constatation du défaut sur des produits frais ; il ne limite pas vos droits légaux.</p>
 </div>
 
 <div class="legal-section">
@@ -76,14 +80,20 @@
     <p>Pour toute question relative à votre commande, notre service client est disponible :</p>
     <ul class="legal-list">
         <li><strong>Email :</strong> <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a></li>
-        <li><strong>Horaires :</strong> du lundi au vendredi, de 9h à 18h</li>
+        {% if boutique.telephone %}<li><strong>Téléphone :</strong> {{ boutique.telephone }}</li>{% endif %}
+        <li><strong>Horaires :</strong> {{ boutique.horaires_service_client }}</li>
     </ul>
 </div>
 
 <div class="legal-section">
-    <h2 class="legal-section-title">9. Litiges</h2>
-    <p>En cas de litige, le Client peut recourir à une médiation conventionnelle ou à tout autre mode alternatif de règlement des différends. Le Client peut également saisir la plateforme de résolution des litiges en ligne mise en place par la Commission européenne à l'adresse : <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr</a></p>
-    <p>Les présentes CGV sont soumises au droit français. En cas de litige persistant, les tribunaux de {{ boutique.adresse_ville }} seront seuls compétents.</p>
+    <h2 class="legal-section-title">9. Médiation et litiges</h2>
+    <p>En cas de litige, le Client consommateur peut d'abord contacter le service client (article 8). À défaut de solution amiable, il peut recourir gratuitement au <strong>médiateur de la consommation</strong> dont relève le Vendeur : <strong>{{ boutique.mediateur }}</strong>. Il peut également saisir la plateforme de résolution des litiges en ligne mise en place par la Commission européenne : <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr</a>.</p>
+    <p>Les présentes CGV sont soumises au droit français. En cas de litige persistant, le Client consommateur peut saisir, à son choix, la juridiction du lieu où il demeurait au moment de la conclusion du contrat ou de la survenance du fait dommageable, ou la juridiction compétente de {{ boutique.adresse_ville }}.</p>
+</div>
+
+<div class="legal-section">
+    <h2 class="legal-section-title">10. Données personnelles</h2>
+    <p>Les données personnelles collectées pour traiter votre commande sont utilisées conformément à notre <a href="{{ path('app_politique_confidentialite') }}">politique de confidentialité</a>.</p>
 </div>
 
 {% endblock %}

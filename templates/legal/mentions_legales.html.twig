@@ -4,7 +4,7 @@
 {% block title %}Mentions Légales — {{ boutique.nom_marque }}{% endblock %}
 
 {% block legal_title %}Mentions Légales{% endblock %}
-{% block legal_date %}1er janvier 2025{% endblock %}
+{% block legal_date %}{{ boutique.date_maj_pages_legales }}{% endblock %}
 
 {% block legal_content %}
 
@@ -20,6 +20,7 @@
         <li><strong>N° de TVA intracommunautaire :</strong> {{ boutique.tva_intracommunautaire }}</li>
         <li><strong>Siège social :</strong> {{ boutique.adresse_rue }}, {{ boutique.adresse_code_postal }} {{ boutique.adresse_ville }}</li>
         <li><strong>Email :</strong> <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a></li>
+        {% if boutique.telephone %}<li><strong>Téléphone :</strong> {{ boutique.telephone }}</li>{% endif %}
         <li><strong>Directeur de la publication :</strong> {{ boutique.directeur_publication }}</li>
     </ul>
 </div>
@@ -28,9 +29,10 @@
     <h2 class="legal-section-title">2. Hébergement</h2>
     <p>Le site est hébergé par :</p>
     <ul class="legal-list">
-        <li><strong>Hébergeur :</strong> OVH SAS</li>
-        <li><strong>Adresse :</strong> 2 rue Kellermann, 59100 Roubaix, France</li>
-        <li><strong>Site :</strong> <a href="https://www.ovh.com" target="_blank" rel="noopener">www.ovh.com</a></li>
+        <li><strong>Hébergeur :</strong> {{ boutique.hebergeur_nom }}</li>
+        <li><strong>Adresse :</strong> {{ boutique.hebergeur_adresse }}</li>
+        <li><strong>Lieu de stockage des données :</strong> {{ boutique.hebergeur_pays_donnees }}</li>
+        {% if boutique.hebergeur_site %}<li><strong>Site :</strong> <a href="{{ boutique.hebergeur_site }}" target="_blank" rel="noopener">{{ boutique.hebergeur_site }}</a></li>{% endif %}
     </ul>
 </div>
 
@@ -52,8 +54,18 @@
 </div>
 
 <div class="legal-section">
-    <h2 class="legal-section-title">6. Droit applicable</h2>
-    <p>Les présentes mentions légales sont soumises au droit français. En cas de litige, les tribunaux français seront seuls compétents.</p>
+    <h2 class="legal-section-title">6. Médiation de la consommation</h2>
+    <p>Conformément aux articles L.611-1 et suivants du Code de la consommation, le client consommateur peut recourir gratuitement au médiateur de la consommation dont relève {{ boutique.raison_sociale }} : <strong>{{ boutique.mediateur }}</strong>. Il peut aussi utiliser la plateforme européenne de règlement en ligne des litiges : <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr</a>. Voir les <a href="{{ path('app_cgv') }}">conditions générales de vente</a>.</p>
+</div>
+
+<div class="legal-section">
+    <h2 class="legal-section-title">7. Données personnelles et cookies</h2>
+    <p>Le traitement de vos données personnelles est décrit dans la <a href="{{ path('app_politique_confidentialite') }}">politique de confidentialité</a> ; les cookies utilisés le sont dans la page <a href="{{ path('app_gestion_cookies') }}">gestion des cookies</a>.</p>
+</div>
+
+<div class="legal-section">
+    <h2 class="legal-section-title">8. Droit applicable</h2>
+    <p>Les présentes mentions légales sont soumises au droit français. En cas de litige, le client consommateur peut saisir, à son choix, la juridiction du lieu où il demeurait au moment de la conclusion du contrat ou de la survenance du fait dommageable.</p>
     <p>Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à l'adresse suivante : <a href="mailto:{{ boutique.email_contact }}">{{ boutique.email_contact }}</a></p>
 </div>
 
