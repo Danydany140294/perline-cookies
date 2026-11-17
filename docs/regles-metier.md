@@ -255,4 +255,4 @@ s'affiche (« Commande prête sous 24 h… »).
 
 ## 17. Intégration continue et analyse statique
 - `.github/workflows/ci.yml` : à chaque push, `composer audit`, `lint:container`, `lint:twig`, migrations + `doctrine:schema:validate` (MySQL de test), tests unitaires PHPUnit et PHPStan (niveau 5, `phpstan.neon`). Les tests de bout en bout (Playwright) restent à lancer en local avant chaque livraison.
-- Lancer PHPStan en local : `php bin/console cache:warmup` puis `vendor/bin/phpstan analyse`.
+- Lancer PHPStan en local : `php bin/console cache:clear` puis `vendor/bin/phpstan analyse`.
