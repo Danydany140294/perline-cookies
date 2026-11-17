@@ -18,7 +18,7 @@
 - [ ] Toutes les décisions « Questions pour Dany » nécessaires à la mise en ligne sont prises (2FA de l'administration, suppression du compte de démonstration, etc.).
 - [ ] La suite de tests complète est verte sur `main` (unitaires + E2E) et la CI GitHub est verte.
 - [ ] Les valeurs réelles des **Paramètres de la boutique** sont prêtes (identité légale, médiateur, hébergeur, retrait, livraison) : voir `docs/INSTALLATION-NOUVEAU-CLIENT.md`.
-- [ ] Le service d'e-mails transactionnel est choisi et configuré (SPF, DKIM, DMARC) : voir `docs/MISE-EN-LIGNE.md`, §10.
+- [ ] Le service d'e-mails transactionnel est choisi et configuré (SPF, DKIM, DMARC) : voir `docs/MISE-EN-LIGNE.md`, §11.
 - [ ] Un créneau est réservé ; les clients sont prévenus si nécessaire.
 - [ ] **Répétition générale** : restaurer la sauvegarde de production sur une machine de test (ou un second dossier Docker), jouer les migrations dessus, vérifier le site. Aucune migration n'est jouée en production sans cette répétition.
 
