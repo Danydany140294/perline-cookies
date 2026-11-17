@@ -46,7 +46,7 @@ class AlertesAdmin
         $this->envoyer(
             sprintf('Stock %s : %s', $stock <= 0 ? 'épuisé' : 'faible', $produit->getName()),
             sprintf(
-                "Le stock de « %s » est passé sous le seuil d'alerte.\n\nStock actuel : %d\nSeuil d'alerte : %d\n\nRéapprovisionner : %s\n",
+                "Le stock de « %s » a atteint son seuil d'alerte.\n\nStock actuel : %d\nSeuil d'alerte : %d\n\nRéapprovisionner : %s\n",
                 $produit->getName(),
                 $stock,
                 $seuil,

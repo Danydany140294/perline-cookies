@@ -11,11 +11,16 @@
     {# ── Alertes ── #}
     {% set faibles = stats.stocks.faibles %}
     {% set ruptures = stats.stocks.ruptures %}
-    <div class="card mb-4 {{ (faibles or ruptures) ? 'border-warning' : 'border-success' }}" id="bloc-alertes">
+    {% set averifier = stats.a_verifier %}
+    <div class="card mb-4 {{ (faibles or ruptures or averifier) ? 'border-warning' : 'border-success' }}" id="bloc-alertes">
         <div class="card-header fw-bold">Alertes</div>
         <div class="card-body">
-            {% if not faibles and not ruptures %}
+            {% if not faibles and not ruptures and not averifier %}
                 <p class="mb-0 text-success">Aucune alerte : tous les stocks sont au-dessus des seuils.</p>
+            {% endif %}
+            {% if averifier %}
+                <p class="mb-1 fw-bold text-danger">Commandes à vérifier (paiement à contrôler)</p>
+                <ul>{% for c in averifier %}<li class="alerte-a-verifier"><a href="{{ path('admin_dashboard_commande_detail', {entityId: c.id}) }}">{{ c.numeroCommande }}</a> : {{ c.dateCommande|date('d/m/Y H:i') }}, {{ c.user ? c.user.nomComplet : '—' }}</li>{% endfor %}</ul>
             {% endif %}
             {% if ruptures %}
                 <p class="mb-1 fw-bold text-danger">Ruptures de stock</p>

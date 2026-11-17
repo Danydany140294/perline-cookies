@@ -35,7 +35,9 @@ class UserCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         return [
-            EmailField::new('email'),
+            EmailField::new('email')
+                ->setFormTypeOption('disabled', true) // lecture seule : l'e-mail est l'identifiant et il est vérifié ; le client le change lui-même (avec vérification)
+                ->setHelp('Lecture seule. Le client modifie son e-mail depuis son compte (avec vérification).'),
             // Rôles : affichage seulement. Seul « gestionnaire » se donne / se retire ici (trace dans le journal).
             ArrayField::new('roles', 'Rôles')->hideOnForm(),
             BooleanField::new('gestionnaire', 'Gestionnaire (commandes, stock, catalogue)')

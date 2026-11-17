@@ -24,12 +24,15 @@ test.describe('administration', () => {
     await page.waitForLoadState('networkidle');
   }
 
-  test('rupture calculée : le produit disparaît à 0 et REVIENT tout seul au réapprovisionnement ; « actif » reste intact', async ({ page }) => {
+  test('rupture calculée : à 0 le produit reste affiché « Indisponible » (achat désactivé) et redevient achetable tout seul au réapprovisionnement ; « actif » reste intact', async ({ page }) => {
     await connecterAdmin(page);
-    expect(await catalogue(page)).toContain(NOM);
+    await page.goto('/produits');
+    await expect(page.locator(`#product-${COOKIE.pistache} button[type="submit"]`)).toHaveCount(1);
 
     executerSql(`UPDATE produit SET stock = 0 WHERE id = ${COOKIE.pistache}`); // plus de stock (par exemple après des ventes)
-    expect(await catalogue(page)).not.toContain(NOM);
+    await page.goto('/produits');
+    await expect(page.locator(`#product-${COOKIE.pistache}`)).toContainText('Indisponible');
+    await expect(page.locator(`#product-${COOKIE.pistache} button[type="submit"]`)).toHaveCount(0);
     expect(valeur(`SELECT is_active FROM produit WHERE id = ${COOKIE.pistache}`)).toBe('1'); // « actif » n'a pas été touché
     expect(valeur(`SELECT disponible FROM produit WHERE id = ${COOKIE.pistache}`)).toBe('1'); // l'ancienne colonne n'est plus écrite
 
@@ -37,7 +40,8 @@ test.describe('administration', () => {
     await page.goto(`/admin/produit/${COOKIE.pistache}/edit`);
     await page.fill('[name="Produit[stock]"]', '12');
     await enregistrer(page);
-    expect(await catalogue(page)).toContain(NOM);
+    await page.goto('/produits');
+    await expect(page.locator(`#product-${COOKIE.pistache} button[type="submit"]`)).toHaveCount(1);
   });
 
   test('désactivation par l\'administrateur : retiré du site, refusé au panier, et un réapprovisionnement ne le réactive jamais', async ({ page, browser }) => {

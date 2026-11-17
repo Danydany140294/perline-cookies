@@ -16,8 +16,8 @@ final class ProduitsController extends AbstractController
         BoxRepository $boxRepository
     ): Response
     {
-        // Récupérer TOUS les cookies disponibles (actifs ET en stock)
-        $produits = $produitRepository->findDisponibles(['name' => 'ASC']);
+        // Tous les cookies ACTIFS : ceux en rupture sont affichés avec le badge « Indisponible » et l'achat désactivé
+        $produits = $produitRepository->findAffichables(['name' => 'ASC']);
 
         // Récupérer la box personnalisable pour la modal
         $boxPersonnalisable = $boxRepository->findOneBy(['type' => 'personnalisable', 'isActive' => true]);

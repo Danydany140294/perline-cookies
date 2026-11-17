@@ -47,11 +47,11 @@ class ProduitCrudController extends AbstractCrudController
             TextareaField::new('description', 'Description')->hideOnIndex(),
             // Prix saisis TTC, en euros (pas en centimes)
             MoneyField::new('prix', 'Prix TTC')->setCurrency('EUR')->setStoredAsCents(false),
-            NumberField::new('tauxTva', 'Taux de TVA (%)')->setNumDecimals(2)->hideOnIndex()
-                ->setHelp('5,5 % par défaut. À faire valider par votre comptable.'),
+            NumberField::new('tauxTva', 'Taux de TVA (%)')->setNumDecimals(2)->hideOnIndex()->setPermission('ROLE_ADMIN') // le gestionnaire ne voit ni ne modifie la TVA
+                ->setHelp('5,5 % par défaut. À faire valider par votre comptable. Réservé à l\'administrateur.'),
             IntegerField::new('stock', 'Stock'),
             IntegerField::new('seuilAlerte', 'Seuil d\'alerte de stock')->hideOnIndex()->setRequired(false)
-                ->setHelp('Facultatif : vide = seuil global (config/boutique.yaml). Un e-mail est envoyé une seule fois quand le stock passe sous ce seuil.'),
+                ->setHelp('Facultatif : vide = seuil global (config/boutique.yaml). Un e-mail est envoyé une seule fois quand le stock devient égal ou inférieur à ce seuil.'),
             ImageField::new('image', 'Image')
                 ->setBasePath('asset/images/produits')
                 ->setUploadDir('public/asset/images/produits')

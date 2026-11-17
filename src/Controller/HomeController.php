@@ -17,7 +17,7 @@ class HomeController extends AbstractController
     ): Response
     {
         // Récupérer les produits disponibles (cookies)
-        $produits = $produitRepository->findDisponibles(['id' => 'ASC'], 6); // 6 produits pour l'accueil
+        $produits = $produitRepository->findAffichables(['id' => 'ASC'], 6); // 6 produits pour l'accueil
 
         // Récupérer les boxes (sauf les personnalisables)
         $boxes = $boxRepository->findBy(

@@ -26,7 +26,12 @@ class JournalActionsAdmin
     public const SUIVI = [
         Produit::class => ['prix' => 'Prix', 'stock' => 'Stock', 'isActive' => 'Actif', 'tauxTva' => 'Taux de TVA'],
         Box::class => ['prix' => 'Prix', 'prix6' => 'Prix 6', 'prix12' => 'Prix 12', 'prix24' => 'Prix 24', 'isActive' => 'Actif', 'tauxTva' => 'Taux de TVA'],
-        User::class => ['roles' => 'Rôles'],
+        User::class => ['roles' => 'Rôles', 'nom' => 'Nom', 'prenom' => 'Prénom', 'telephone' => 'Téléphone', 'email' => 'E-mail'],
+    ];
+
+    /** Données personnelles : le journal ne se purge jamais, on y garde QUE le fait que le champ a été modifié, pas sa valeur (RGPD). */
+    private const SANS_VALEUR = [
+        User::class => ['nom', 'prenom', 'telephone', 'email'],
     ];
 
     public function __construct(private Security $security, private RequestStack $requetes)
@@ -54,6 +59,11 @@ class JournalActionsAdmin
             $avant = $apres = [];
             foreach ($uow->getEntityChangeSet($entite) as $champ => [$ancien, $nouveau]) {
                 if (!isset($suivi[$champ]) || $this->normaliser($ancien) === $this->normaliser($nouveau)) {
+                    continue;
+                }
+                if (in_array($champ, self::SANS_VALEUR[$entite::class] ?? [], true)) {
+                    $avant[$suivi[$champ]] = '(donnée personnelle)';
+                    $apres[$suivi[$champ]] = '(modifiée)';
                     continue;
                 }
                 $avant[$suivi[$champ]] = $this->normaliser($ancien);

@@ -31,8 +31,9 @@ class StatistiquesAdmin
         $debutMois = $maintenant->modify('first day of this month')->setTime(0, 0);
 
         return [
-            'commandes_du_jour' => $this->compter(self::STATUTS_PAYES, $debutJour),
+            'commandes_du_jour' => $this->commandesPayeesDepuis($debutJour),
             'en_attente_paiement' => $this->compter(['en_attente']),
+            'a_verifier' => $this->em->getRepository(Commande::class)->findBy(['statut' => CommandeStatut::A_VERIFIER], ['dateCommande' => 'DESC'], 20),
             'a_preparer' => $this->compter(['payee', 'confirmee']),
             'ca_jour' => $this->chiffreAffaires($debutJour),
             'ca_mois' => $this->chiffreAffaires($debutMois),
@@ -53,6 +54,18 @@ class StatistiquesAdmin
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
+    /** Commandes payées depuis cette date : la date de PAIEMENT est la date d'émission de la facture. */
+    private function commandesPayeesDepuis(\DateTimeImmutable $depuis): int
+    {
+        $statuts = "'" . implode("','", self::STATUTS_PAYES) . "'";
+
+        return (int) $this->em->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM commande WHERE statut IN ($statuts)
+               AND id IN (SELECT commande_id FROM facture WHERE type = 'facture' AND date_emission >= :depuis)",
+            ['depuis' => $depuis->format('Y-m-d H:i:s')]
+        );
+    }
+
     /** @return array{ttc: float, ht: float, commandes: int, sans_ht: int} */
     private function chiffreAffaires(\DateTimeImmutable $depuis): array
     {
@@ -62,7 +75,8 @@ class StatistiquesAdmin
                     COALESCE(SUM(CASE WHEN total_ht IS NOT NULL AND total_ttc > 0 THEN total_ht * (total_ttc - montant_rembourse) / total_ttc ELSE 0 END), 0) AS ht,
                     COUNT(*) AS commandes,
                     COALESCE(SUM(CASE WHEN total_ht IS NULL THEN 1 ELSE 0 END), 0) AS sans_ht
-             FROM commande WHERE statut IN ($statuts) AND date_commande >= :depuis",
+             FROM commande WHERE statut IN ($statuts)
+               AND id IN (SELECT commande_id FROM facture WHERE type = 'facture' AND date_emission >= :depuis)",
             ['depuis' => $depuis->format('Y-m-d H:i:s')]
         );
 
@@ -79,7 +93,7 @@ class StatistiquesAdmin
             $seuil = $produit->getSeuilEffectif($global);
             if ($stock <= 0) {
                 $ruptures[] = $produit;
-            } elseif ($stock < $seuil) {
+            } elseif ($stock <= $seuil) {
                 $faibles[] = ['produit' => $produit, 'seuil' => $seuil];
             }
         }

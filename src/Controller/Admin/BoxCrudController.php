@@ -62,7 +62,7 @@ class BoxCrudController extends AbstractCrudController
                 ->setHelp('Box personnalisable : SEULE source du prix facturé et affiché pour cette taille (obligatoire, supérieur à 0).'),
             MoneyField::new('prix12', 'Prix (12 cookies)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
             MoneyField::new('prix24', 'Prix (24 cookies)')->setCurrency('EUR')->setStoredAsCents(false)->hideOnIndex(),
-            NumberField::new('tauxTva', 'Taux de TVA (%)')->setNumDecimals(2)->hideOnIndex()
+            NumberField::new('tauxTva', 'Taux de TVA (%)')->setNumDecimals(2)->hideOnIndex()->setPermission('ROLE_ADMIN')
                 ->setHelp('5,5 % par défaut. À faire valider par votre comptable.'),
             BooleanField::new('isActive', 'Active'),
             IntegerField::new('stockDisponible', 'Stock (calculé)')->onlyOnIndex(),

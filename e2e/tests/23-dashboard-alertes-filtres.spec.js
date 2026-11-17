@@ -97,13 +97,13 @@ test.describe('administration', () => {
       await page.waitForLoadState('networkidle');
     };
 
-    await stock(COOKIE.pistache, 5); // seuil global 5 : « sous » le seuil = 4 et moins ; 5 ne déclenche rien
+    await stock(COOKIE.pistache, 6); // seuil global 5 : alerte à 5 et moins ; 6 ne déclenche rien
     expect(await alertes('Pistache')).toHaveLength(0);
-    await stock(COOKIE.pistache, 4);
+    await stock(COOKIE.pistache, 5);
     await expect.poll(async () => (await alertes('Pistache')).length).toBe(1);
     const mail = (await alertes('Pistache'))[0];
     expect(mail.To[0].Address).toBe('contact@exemple.invalid'); // email_alertes vide : e-mail de contact
-    expect(mail.Text).toContain('Stock actuel : 4');
+    expect(mail.Text).toContain('Stock actuel : 5');
     expect(mail.Text).toContain("Seuil d'alerte : 5");
 
     await stock(COOKIE.pistache, 3); // déjà sous le seuil : pas de second e-mail

@@ -45,10 +45,11 @@ class AlerteStockListener
             [$ancien, $nouveau] = array_map('intval', $changements['stock']);
             $seuil = $entite->getSeuilEffectif($this->boutique->seuilStockGlobal());
 
-            if ($nouveau >= $seuil && $entite->isAlerteStockEnvoyee()) {
+            // Alerte quand le stock devient ÉGAL OU INFÉRIEUR au seuil ; remise à zéro dès qu'il repasse au-dessus.
+            if ($nouveau > $seuil && $entite->isAlerteStockEnvoyee()) {
                 $entite->setAlerteStockEnvoyee(false);
                 $uow->recomputeSingleEntityChangeSet($meta, $entite);
-            } elseif ($ancien >= $seuil && $nouveau < $seuil && !$entite->isAlerteStockEnvoyee() && $entite->isActive()) {
+            } elseif ($ancien > $seuil && $nouveau <= $seuil && !$entite->isAlerteStockEnvoyee() && $entite->isActive()) {
                 $entite->setAlerteStockEnvoyee(true);
                 $uow->recomputeSingleEntityChangeSet($meta, $entite);
                 $this->aEnvoyer[] = ['produit' => $entite, 'stock' => $nouveau, 'seuil' => $seuil];

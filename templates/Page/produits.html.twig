@@ -109,7 +109,7 @@
                         
                         {# Badges de disponibilité #}
                         {% if produit.isRuptureStock() %}
-                            <span class="nc-badge nc-badge-out">Rupture</span>
+                            <span class="nc-badge nc-badge-out">Indisponible</span>
                         {% elseif produit.isStockFaible() %}
                             <span class="nc-badge nc-badge-limited">Stock limité</span>
                         {% endif %}
