@@ -111,16 +111,6 @@ class DelaisLivraison
         return $this->preparation * 24;
     }
 
-    public function transitMin(): int
-    {
-        return $this->transitMin;
-    }
-
-    public function transitMax(): int
-    {
-        return $this->transitMax;
-    }
-
     public function estOuvre(\DateTimeInterface $jour): bool
     {
         return in_array((int) $jour->format('N'), $this->joursOuvres, true) && !$this->estFerme($jour);

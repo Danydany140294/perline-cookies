@@ -315,7 +315,6 @@ final class PaiementController extends AbstractController
                 ];
             }
 
-
             // ✅ Enregistrer la commande « En attente » (total = articles + livraison, en euros)
             //    pour obtenir son id, transmis à Stripe via client_reference_id.
             if ($commande !== null) {
@@ -447,11 +446,6 @@ final class PaiementController extends AbstractController
     }
 
     #[Route('/paiement/cancel', name: 'app_paiement_cancel')]
-    public function cancel(): Response
-    {
-        $this->addFlash('warning', 'Le paiement a été annulé');
-        return $this->redirectToRoute('app_panier_index');
-    }
 
     // ✅ Sauvegarder l'adresse choisie en session
     #[Route('/paiement/choisir-adresse', name: 'app_paiement_choisir_adresse', methods: ['POST'])]

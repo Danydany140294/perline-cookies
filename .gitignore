@@ -31,3 +31,9 @@
 /e2e/.auth/
 ###< e2e ###
 /e2e/.factures-test/
+
+###> dependances et outils locaux (jamais suivis par Git) ###
+/node_modules/
+/migrations_backup/
+/stripe.exe
+###< dependances et outils locaux ###

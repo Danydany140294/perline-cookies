@@ -12,7 +12,7 @@ coller dans un fichier du dépôt ni dans un message). `STRIPE_WEBHOOK_SECRET` d
 Docker démarré, `symfony serve`, Mailpit (http://127.0.0.1:8025), et dans un terminal :
 
 ```bash
-./stripe.exe listen --api-key sk_test_XXX --forward-to http://127.0.0.1:8000/webhook/stripe --events checkout.session.completed,checkout.session.expired,charge.refunded
+stripe listen --api-key sk_test_XXX --forward-to http://127.0.0.1:8000/webhook/stripe --events checkout.session.completed,checkout.session.expired,charge.refunded
 ```
 
 Pour regarder les commandes après chaque test :
@@ -40,7 +40,7 @@ Sur la page Stripe, cliquer sur « Retour ».
 1. Cliquer sur « Payer » (ne pas payer). Relever `stripe_session_id` de la commande `en_attente` (SQL ci-dessus).
 2. Faire expirer la session :
    ```bash
-   ./stripe.exe checkout sessions expire cs_test_XXX --api-key sk_test_XXX
+   stripe checkout sessions expire cs_test_XXX --api-key sk_test_XXX
    ```
 - `stripe listen` affiche `checkout.session.expired` `[200]`.
 - La commande passe `annulee` (elle n'est **pas** supprimée) ; stock et panier inchangés ; l'admin l'affiche « Annulée ».
@@ -49,7 +49,7 @@ Sur la page Stripe, cliquer sur « Retour ».
 ### S4. Expiration rejouée
 Retrouver l'événement et le rejouer deux fois :
 ```bash
-./stripe.exe events list --type checkout.session.expired --limit 3 --api-key sk_test_XXX
+stripe events list --type checkout.session.expired --limit 3 --api-key sk_test_XXX
 php bin/console app:stripe-rejouer-evenement evt_XXX
 php bin/console app:stripe-rejouer-evenement evt_XXX
 ```
@@ -60,7 +60,7 @@ php bin/console app:stripe-rejouer-evenement evt_XXX
 2. Page d'accueil : message « Votre paiement est en cours de confirmation ». Commande `en_attente`, stock inchangé, panier conservé.
 3. Retrouver l'événement du paiement :
    ```bash
-   ./stripe.exe events list --type checkout.session.completed --limit 3 --api-key sk_test_XXX
+   stripe events list --type checkout.session.completed --limit 3 --api-key sk_test_XXX
    ```
 4. Vérifier sans rien changer, puis rejouer :
    ```bash

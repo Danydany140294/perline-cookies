@@ -91,11 +91,7 @@ class NumeroCommandeGeneratorTest extends TestCase
 
     public function testLaCreationDUneCommandeUtiliseLeGenerateur(): void
     {
-        $service = new CommandeService(
-            $this->createMock(EntityManagerInterface::class),
-            $this->createMock(CommandeRepository::class),
-            $this->generateur()
-        );
+        $service = new CommandeService($this->generateur());
 
         $commande = $service->creerCommande(new User());
 
