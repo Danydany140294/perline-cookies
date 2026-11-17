@@ -72,11 +72,10 @@ jobs:
 
       - name: Tests unitaires et fonctionnels
         run: |
-          php bin/console doctrine:database:create --env=test --if-not-exists
-          php bin/console doctrine:migrations:migrate --env=test --no-interaction
-          php bin/phpunit 2>&1 | tee phpunit.log
-          test "${PIPESTATUS[0]}" -eq 0 || { echo "::error title=PHPUnit::$(grep -A8 -E '^[0-9]+\) ' phpunit.log | head -60 | sed ':a;N;$!ba;s/\n/%0A/g')"; exit 1; }
-
+          etape() { "$@" > etape.log 2>&1 || { echo "::error title=Echec $*::$(tail -n 40 etape.log | sed ':a;N;$!ba;s/\n/%0A/g')"; exit 1; }; }
+          etape php bin/console doctrine:database:create --env=test --if-not-exists
+          etape php bin/console doctrine:migrations:migrate --env=test --no-interaction
+          etape php bin/phpunit
       - name: PHPStan
         run: |
           php bin/console cache:clear
