@@ -16,6 +16,11 @@ class LignePanierCrudController extends AbstractCrudController
     }
 
     /*
+    public function configureCrud(\EasyCorp\Bundle\EasyAdminBundle\Config\Crud $crud): \EasyCorp\Bundle\EasyAdminBundle\Config\Crud
+    {
+        return $crud->setEntityPermission('ROLE_ADMIN'); // paniers des clients : réservés à l'administrateur
+    }
+
     public function configureFields(string $pageName): iterable
     {
         return [

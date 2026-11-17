@@ -4,7 +4,12 @@ namespace App\Controller\Admin;
 
 use App\Entity\Commande;
 use App\Entity\CommandeHistorique;
+use App\Admin\Filter\ClientFilter;
 use App\Service\ChangementStatutCommande;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 use App\Service\EmailExpeditionService;
 use App\Service\ContexteChangementStatut;
 use App\Service\RestitutionStockService;
@@ -38,6 +43,26 @@ class CommandeCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return Commande::class;
+    }
+
+    public function configureCrud(Crud $crud): Crud
+    {
+        return $crud
+            ->setDefaultSort(['dateCommande' => 'DESC', 'id' => 'DESC'])
+            ->setSearchFields(['numeroCommande', 'user.email', 'user.nom', 'user.prenom']);
+    }
+
+    /** Filtres : statut, plage de dates, client (nom ou e-mail), numéro. */
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters
+            ->add(ChoiceFilter::new('statut', 'Statut')->setChoices(array_combine(
+                array_map(static fn (CommandeStatut $s): string => $s->getLibelle(), CommandeStatut::cases()),
+                array_map(static fn (CommandeStatut $s): string => $s->value, CommandeStatut::cases())
+            )))
+            ->add(DateTimeFilter::new('dateCommande', 'Date de commande'))
+            ->add(ClientFilter::new())
+            ->add(TextFilter::new('numeroCommande', 'Numéro de commande'));
     }
 
     public function configureFields(string $pageName): iterable
@@ -140,9 +165,10 @@ class CommandeCrudController extends AbstractCrudController
                 ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
                 ->renderAsHtml(),
 
-            CollectionField::new('lignesCommande', 'Lignes de commande')
-                ->hideOnIndex()
-                ->onlyOnDetail(),
+            TextField::new('lignesTexte', 'Lignes de commande (prix, TVA et composition figés)')
+                ->onlyOnDetail()
+                ->formatValue(static fn ($valeur) => nl2br(htmlspecialchars((string) $valeur)))
+                ->renderAsHtml(),
         ];
     }
 
@@ -158,7 +184,9 @@ class CommandeCrudController extends AbstractCrudController
 
         return $actions
             ->update(Crud::PAGE_INDEX, Action::DELETE, $masquerSiAVerifier)
-            ->update(Crud::PAGE_DETAIL, Action::DELETE, $masquerSiAVerifier);
+            ->update(Crud::PAGE_DETAIL, Action::DELETE, $masquerSiAVerifier)
+            // Suppression : réservée à l'administrateur (le gestionnaire n'a pas ce droit)
+            ->setPermissions([Action::DELETE => 'ROLE_ADMIN', Action::BATCH_DELETE => 'ROLE_ADMIN']);
     }
 
     /**
@@ -259,9 +287,10 @@ class CommandeCrudController extends AbstractCrudController
      */
     public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
-        if ($entityInstance instanceof Commande && $entityInstance->getStatut() === CommandeStatut::A_VERIFIER) {
+        // Une commande ne se supprime JAMAIS (historique comptable, factures conservées 10 ans) : message clair, aucune erreur SQL.
+        if ($entityInstance instanceof Commande) {
             $this->addFlash('danger', sprintf(
-                'La commande %s est payée avec un écart : elle ne peut pas être supprimée.',
+                'La commande %s ne peut pas être supprimée : elle fait partie de l\'historique comptable (les factures sont conservées 10 ans). Pour l\'écarter, passez-la à « Annulée ».',
                 $entityInstance->getNumeroCommande()
             ));
 

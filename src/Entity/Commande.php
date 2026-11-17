@@ -413,6 +413,24 @@ class Commande
     /** @return Collection<int, Facture> */
     public function getFactures(): Collection { return $this->factures; }
 
+    /** Lignes de la commande en texte (articles, quantités, prix et TVA figés, composition des boxes) : pour l'administration. */
+    public function getLignesTexte(): string
+    {
+        $blocs = [];
+        foreach ($this->lignesCommande as $ligne) {
+            $texte = sprintf('%d × %s — %s € TTC', $ligne->getQuantite(), $ligne->getDesignation(), number_format((float) $ligne->getPrixUnitaire(), 2, ',', ' '));
+            if ($ligne->getTauxTva() !== null) {
+                $texte .= sprintf(' (TVA %s %%)', number_format($ligne->getTauxTva(), 2, ',', ' '));
+            }
+            if (($compo = $ligne->getCompositionTexte()) !== '') {
+                $texte .= "\n      " . str_replace("\n", "\n      ", $compo);
+            }
+            $blocs[] = $texte;
+        }
+
+        return implode("\n", $blocs);
+    }
+
     public function getTotalHt(): ?float { return $this->totalHt === null ? null : (float) $this->totalHt; }
 
     public function getTotalTva(): ?float { return $this->totalTva === null ? null : (float) $this->totalTva; }

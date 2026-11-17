@@ -10,11 +10,11 @@ export function reinitialiser() {
   if (process.env.E2E_FACTURES_DIR) rmSync(process.env.E2E_FACTURES_DIR, { recursive: true, force: true });
   executerSql(`
     SET FOREIGN_KEY_CHECKS=0;
-    DELETE FROM facture; DELETE FROM facture_compteur;
+    DELETE FROM facture; DELETE FROM facture_compteur; DELETE FROM journal_admin;
     DELETE FROM composition_box_personnalisable; DELETE FROM ligne_commande; DELETE FROM commande;
     DELETE FROM composition_panier_personnalisable; DELETE FROM ligne_panier; DELETE FROM panier;
     SET FOREIGN_KEY_CHECKS=1;
-    UPDATE produit SET stock = 50, disponible = 1;
+    UPDATE produit SET stock = 50, disponible = 1, is_active = 1, seuil_alerte = NULL, alerte_stock_envoyee = 0;
     UPDATE box SET is_active = 1;
   UPDATE box SET taux_tva = 5.50; UPDATE produit SET taux_tva = 5.50;
     UPDATE box SET prix6 = 12.99, prix12 = 19.99, prix24 = 29.99 WHERE id = ${BOX.personnalisable};

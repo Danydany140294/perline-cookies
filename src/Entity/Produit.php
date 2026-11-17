@@ -33,6 +33,15 @@ class Produit
     #[ORM\Column]
     private ?int $stock = null;
 
+    /** Seuil d'alerte de stock propre à ce cookie (facultatif : sinon le seuil global de config/boutique.yaml). */
+    #[ORM\Column(nullable: true)]
+    #[Assert\PositiveOrZero(message: 'Le seuil d\'alerte doit être positif ou nul.')]
+    private ?int $seuilAlerte = null;
+
+    /** Alerte de stock déjà envoyée pour la baisse en cours (remis à faux quand le stock repasse au-dessus du seuil). */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $alerteStockEnvoyee = false;
+
     #[ORM\Column(length: 255)]
     private ?string $image = null;
 
@@ -142,15 +151,29 @@ class Produit
         return $this;
     }
 
+    /**
+     * Disponible = ACTIF (réglage de l'administrateur) ET en stock (stock > 0). Calculé : on n'écrit plus jamais
+     * « indisponible » quand le stock tombe à 0, donc un réapprovisionnement remet le produit en vente tout seul sans
+     * jamais annuler une désactivation volontaire.
+     */
     public function isDisponible(): bool
     {
-        return $this->disponible;
+        return $this->isActive && (int) $this->stock > 0;
     }
 
+    /** Actif mais stock épuisé (rupture) : calculé, sans rien modifier en base. */
+    public function isEnRupture(): bool
+    {
+        return $this->isActive && (int) $this->stock <= 0;
+    }
+
+    /**
+     * @deprecated Colonne « disponible » conservée en base mais plus utilisée : voir isDisponible() (actif ET stock > 0).
+     */
     public function setDisponible(bool $disponible): static
     {
         $this->disponible = $disponible;
-        $this->dateModification = new \DateTime();
+
         return $this;
     }
 
@@ -346,7 +369,7 @@ class Produit
      */
     public function isAchetable(): bool
     {
-        return $this->isActive && $this->disponible && $this->isEnStock();
+        return $this->isDisponible();
     }
 
     /**
@@ -356,10 +379,6 @@ class Produit
     {
         if (!$this->isActive) {
             return 'Produit indisponible';
-        }
-        
-        if (!$this->disponible) {
-            return 'Temporairement indisponible';
         }
         
         if ($this->isRuptureStock()) {
@@ -378,7 +397,7 @@ class Produit
      */
     public function getBadgeDisponibiliteClass(): string
     {
-        if (!$this->isActive || !$this->disponible) {
+        if (!$this->isActive) {
             return 'badge-danger';
         }
         
@@ -421,11 +440,9 @@ class Produit
 
         $this->stock -= $quantite;
         $this->dateModification = new \DateTime();
-        
-        if ($this->stock === 0) {
-            $this->disponible = false;
-        }
-        
+
+        // Plus jamais de disponible = false à 0 : la rupture est CALCULÉE (voir isDisponible()).
+
         return $this;
     }
 
@@ -437,8 +454,8 @@ class Produit
         $this->stock += $quantite;
         $this->dateModification = new \DateTime();
 
-        // Volontairement SANS toucher à « disponible » : un produit désactivé à la main doit le rester.
-        // (Le retrait de stock, lui, désactive un produit arrivé à 0 : le réactiver est un geste de l'administrateur.)
+        // La disponibilité est calculée (actif ET stock > 0) : un réapprovisionnement remet en vente automatiquement,
+        // et un produit désactivé à la main le reste.
 
         return $this;
     }
@@ -510,6 +527,30 @@ class Produit
     public function setTauxTva(float|string|null $tauxTva): static
     {
         $this->tauxTva = number_format((float) ($tauxTva ?? 5.5), 2, '.', '');
+
+        return $this;
+    }
+
+    public function getSeuilAlerte(): ?int { return $this->seuilAlerte; }
+
+    public function setSeuilAlerte(?int $seuilAlerte): static
+    {
+        $this->seuilAlerte = $seuilAlerte;
+
+        return $this;
+    }
+
+    /** Seuil effectif : celui du produit s'il est renseigné, sinon le seuil global. */
+    public function getSeuilEffectif(int $seuilGlobal): int
+    {
+        return $this->seuilAlerte ?? $seuilGlobal;
+    }
+
+    public function isAlerteStockEnvoyee(): bool { return $this->alerteStockEnvoyee; }
+
+    public function setAlerteStockEnvoyee(bool $envoyee): static
+    {
+        $this->alerteStockEnvoyee = $envoyee;
 
         return $this;
     }

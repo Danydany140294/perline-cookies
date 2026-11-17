@@ -17,20 +17,16 @@ class HomeController extends AbstractController
     ): Response
     {
         // Récupérer les produits disponibles (cookies)
-        $produits = $produitRepository->findBy(
-            ['disponible' => true],
-            ['id' => 'ASC'],
-            6 // Limiter à 6 produits pour l'accueil
-        );
+        $produits = $produitRepository->findAffichables(['id' => 'ASC'], 6); // 6 produits pour l'accueil
 
         // Récupérer les boxes (sauf les personnalisables)
         $boxes = $boxRepository->findBy(
-            ['type' => 'fixe'],
+            ['type' => 'fixe', 'isActive' => true],
             ['id' => 'ASC']
         );
 
         // Récupérer la box personnalisable
-        $boxPersonnalisable = $boxRepository->findOneBy(['type' => 'personnalisable']);
+        $boxPersonnalisable = $boxRepository->findOneBy(['type' => 'personnalisable', 'isActive' => true]);
 
         return $this->render('Page/home.html.twig', [
             'produits' => $produits,

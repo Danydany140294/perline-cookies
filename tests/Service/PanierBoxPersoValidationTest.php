@@ -35,7 +35,7 @@ class PanierBoxPersoValidationTest extends TestCase
         $this->a = $this->cookie(1, 'Cookie A', 20);
         $this->b = $this->cookie(2, 'Cookie B', 20);
         $this->epuise = $this->cookie(3, 'Cookie Epuisé', 2);
-        $this->indisponible = $this->cookie(4, 'Cookie Retiré', 50)->setDisponible(false);
+        $this->indisponible = $this->cookie(4, 'Cookie Retiré', 50)->setIsActive(false);
         $this->box = (new Box())->setType('personnalisable')->setPrix6(12.99)->setPrix12(19.99)->setPrix24(29.99);
         $this->persistes = [];
     }

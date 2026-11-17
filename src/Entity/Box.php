@@ -332,4 +332,17 @@ public function setPrix24(?float $prix24): static { $this->prix24 = $prix24; ret
 
         return $this;
     }
+
+    /** Disponibilité lisible (calculée) : désactivée par l'administrateur, en rupture ou en stock. */
+    public function getStatutDisponibilite(): string
+    {
+        if (!$this->isActive) {
+            return 'Désactivée';
+        }
+        if ($this->getStockDisponible() <= 0) {
+            return 'Rupture';
+        }
+
+        return 'En stock (' . $this->getStockDisponible() . ')';
+    }
 }

@@ -100,7 +100,12 @@
                     <article class="cookie-card">
 
                         {# Badge #}
-                        {% if loop.first %}
+                        {% if produit.stock <= 0 %}
+                            <div class="cookie-card__badge cookie-card__badge--brown badge-indisponible">
+                                Indisponible
+                            </div>
+
+                        {% elseif loop.first %}
                             <div class="cookie-card__badge cookie-card__badge--pink">
                                 Best-seller
                             </div>
@@ -153,6 +158,8 @@
                                     <button
                                         type="button"
                                         class="cookie-card__add cookie-card__add--disabled"
+                                        aria-label="Indisponible"
+                                        title="Indisponible"
                                         disabled
                                     >
                                         ✕

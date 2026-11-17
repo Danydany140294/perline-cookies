@@ -19,7 +19,8 @@ class PromoteAdminCommand extends Command
 {
     public function __construct(
         private UserRepository $userRepository,
-        private EntityManagerInterface $em
+        private EntityManagerInterface $em,
+        private \App\Service\JournalAdminService $journal
     ) {
         parent::__construct();
     }
@@ -41,8 +42,10 @@ class PromoteAdminCommand extends Command
             return Command::FAILURE;
         }
 
+        $avant = $user->getRoles();
         $user->setRoles(['ROLE_ADMIN']);
         $this->em->flush();
+        $this->journal->journaliser('console', \App\Entity\JournalAdmin::ACTION_ROLES, 'User', $user->getId(), 'Utilisateur ' . $user->getEmail() . ' promu administrateur', ['Rôles' => $avant], ['Rôles' => $user->getRoles()]);
 
         $io->success(sprintf('L\'utilisateur %s est maintenant ADMIN !', $email));
 

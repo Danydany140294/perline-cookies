@@ -550,4 +550,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
+
+    public const ROLE_GESTIONNAIRE = 'ROLE_GESTIONNAIRE';
+
+    /** Rôle « gestionnaire » (commandes, stock, catalogue) : seul rôle que l'administration peut donner ou retirer. */
+    public function isGestionnaire(): bool
+    {
+        return in_array(self::ROLE_GESTIONNAIRE, $this->roles, true);
+    }
+
+    public function setGestionnaire(bool $gestionnaire): static
+    {
+        $roles = array_values(array_diff($this->roles, [self::ROLE_GESTIONNAIRE]));
+        if ($gestionnaire) {
+            $roles[] = self::ROLE_GESTIONNAIRE;
+        }
+        $this->roles = $roles;
+
+        return $this;
+    }
 }
