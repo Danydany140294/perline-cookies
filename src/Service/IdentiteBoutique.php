@@ -8,7 +8,7 @@ use Symfony\Component\Mime\Address;
 /** Identité de l'entreprise (config/boutique.yaml) : un seul point d'accès pour le code PHP. */
 class IdentiteBoutique
 {
-    public function __construct(#[Autowire(param: 'boutique')] private array $boutique)
+    public function __construct(#[Autowire(expression: 'service("parametres_boutique").boutique()')] private array $boutique)
     {
     }
 

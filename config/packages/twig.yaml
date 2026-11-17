@@ -3,9 +3,9 @@ twig:
     cache: false
     globals:
         # Réglages de livraison (frais, seuil, transporteur, modes, zone) disponibles dans tous les templates
-        livraison: '%livraison%'
+        livraison: '@app.vue_livraison'
         # Identité de l'entreprise et mode démo (config/boutique.yaml)
-        boutique: '%boutique%'
+        boutique: '@app.vue_boutique'
 
 when@test:
     twig:

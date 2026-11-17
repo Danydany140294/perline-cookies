@@ -17,7 +17,7 @@ class ZoneLivraison
     /** @var list<string> */
     private array $exclus;
 
-    public function __construct(#[Autowire(param: 'livraison')] array $livraison = ['zone' => self::CONFIG_PAR_DEFAUT])
+    public function __construct(#[Autowire(expression: 'service("parametres_boutique").livraison()')] array $livraison = ['zone' => self::CONFIG_PAR_DEFAUT])
     {
         $zone = $livraison['zone'] ?? self::CONFIG_PAR_DEFAUT;
         $this->pays = (string) ($zone['pays'] ?? 'France');

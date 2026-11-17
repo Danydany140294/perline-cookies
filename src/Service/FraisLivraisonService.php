@@ -22,7 +22,7 @@ class FraisLivraisonService
     ];
 
     public function __construct(
-        #[Autowire(param: 'livraison')] private array $livraison = self::CONFIG_PAR_DEFAUT
+        #[Autowire(expression: 'service("parametres_boutique").livraison()')] private array $livraison = self::CONFIG_PAR_DEFAUT
     ) {
     }
 

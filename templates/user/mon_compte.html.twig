@@ -1,7 +1,7 @@
 {# templates/user/mon_compte.html.twig #}
 {% extends 'base.html.twig' %}
 
-{% block title %}Mon Compte - Perline{% endblock %}
+{% block title %}Mon Compte - {{ boutique.nom_marque }}{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
@@ -41,7 +41,7 @@
 
                         <div class="user-info">
                             <h1 class="user-name">{{ app.user.prenom }} {{ app.user.nom }}</h1>
-                            <p class="user-title">Client Perline</p>
+                            <p class="user-title">Client {{ boutique.nom_marque }}</p>
                         </div>
                     </div>
 

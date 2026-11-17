@@ -1,0 +1,27 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+{% form_theme formulaire 'bootstrap_5_layout.html.twig' %}
+
+{% block content_title %}Paramètres de la boutique{% endblock %}
+
+{% block main %}
+<div class="container-fluid" style="max-width: 820px" id="page-parametres">
+    {% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
+    <p class="text-muted">
+        Ces réglages remplacent les valeurs par défaut de <code>config/boutique.yaml</code>. Les secrets (clés Stripe, identifiants d'e-mail, secret du webhook)
+        ne se saisissent <strong>jamais</strong> ici : ils restent dans les variables d'environnement du serveur. Chaque modification est tracée dans le journal des actions.
+    </p>
+    {{ form_start(formulaire, {attr: {novalidate: 'novalidate'}}) }}
+        {{ form_errors(formulaire) }}
+        {% for groupe, champs in groupes %}
+            <div class="card mb-4" id="groupe-{{ loop.index }}">
+                <div class="card-header fw-bold">{{ groupe }}</div>
+                <div class="card-body">
+                    {% for champ in champs %}{{ form_row(formulaire[champ]) }}{% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+        {{ form_rest(formulaire) }}
+        <button type="submit" class="btn btn-primary" id="enregistrer-parametres">Enregistrer les paramètres</button>
+    {{ form_end(formulaire, {render_rest: false}) }}
+</div>
+{% endblock %}

@@ -10,7 +10,7 @@ export function reinitialiser() {
   if (process.env.E2E_FACTURES_DIR) rmSync(process.env.E2E_FACTURES_DIR, { recursive: true, force: true });
   executerSql(`
     SET FOREIGN_KEY_CHECKS=0;
-    DELETE FROM facture; DELETE FROM facture_compteur; DELETE FROM journal_admin;
+    DELETE FROM facture; DELETE FROM facture_compteur; DELETE FROM journal_admin; DELETE FROM parametre_boutique;
     DELETE FROM composition_box_personnalisable; DELETE FROM ligne_commande; DELETE FROM commande;
     DELETE FROM composition_panier_personnalisable; DELETE FROM ligne_panier; DELETE FROM panier;
     SET FOREIGN_KEY_CHECKS=1;

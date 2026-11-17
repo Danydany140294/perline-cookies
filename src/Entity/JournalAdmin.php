@@ -20,6 +20,7 @@ class JournalAdmin
     public const ACTION_ROLES = 'roles';
     public const ACTION_SUPPRESSION = 'suppression';
     public const ACTION_EXPORT = 'export';
+    public const ACTION_PARAMETRES = 'parametres';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
