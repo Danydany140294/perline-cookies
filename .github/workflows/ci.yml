@@ -51,11 +51,11 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - name: Dépendances
-        run: composer install --no-interaction --no-progress --prefer-dist
-
       - name: Fichier .env (modèle sans secret)
         run: cp .env.example .env
+
+      - name: Dépendances
+        run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Avis de sécurité des dépendances
         run: composer audit
