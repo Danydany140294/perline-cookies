@@ -89,9 +89,11 @@ export async function cliquerSurPayer(page, mode = 'retrait', { naviguer = true 
   throw new Error('Ni commande ni message de refus après le clic sur Payer.');
 }
 
-export async function emails() {
+/** E-mails reçus. Par défaut SANS les alertes envoyées à l'administration (« [Alerte] ... ») : elles ne sont pas des e-mails du client. */
+export async function emails({ avecAlertes = false } = {}) {
   const r = await fetch(`${process.env.E2E_MAILPIT_API}/api/v1/messages`);
-  return (await r.json()).messages ?? [];
+  const liste = (await r.json()).messages ?? [];
+  return avecAlertes ? liste : liste.filter((m) => !String(m.Subject).startsWith('[Alerte]'));
 }
 
 export async function viderEmails() {

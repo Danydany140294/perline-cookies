@@ -48,6 +48,7 @@ class BoxCrudController extends AbstractCrudController
                     mimeTypesMessage: 'Format d\'image non autorisé : JPEG, PNG ou WebP uniquement.',
                 ))
                 ->setFormTypeOption('allow_delete', false)
+                ->setRequired($pageName === \EasyCorp\Bundle\EasyAdminBundle\Config\Crud::PAGE_NEW) // à la modification, on peut garder l'image actuelle
                 ->setHelp('JPEG, PNG ou WebP, 2 Mo maximum. Le fichier est renommé automatiquement.')
                 ->hideOnIndex(),
             ChoiceField::new('type', 'Type')->setChoices([

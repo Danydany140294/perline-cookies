@@ -8,7 +8,7 @@ import { paiement, poster, remboursement } from '../lib/stripe.js';
 test.beforeEach(async () => { reinitialiser(); await viderEmails(); });
 
 async function messages() {
-  return Promise.all((await emails()).map(async (m) => await (await fetch(`${process.env.E2E_MAILPIT_API}/api/v1/message/${m.ID}`)).json()));
+  return Promise.all((await emails({ avecAlertes: true })).map(async (m) => await (await fetch(`${process.env.E2E_MAILPIT_API}/api/v1/message/${m.ID}`)).json()));
 }
 const alertes = async (motif) => (await messages()).filter((m) => m.Subject.includes('[Alerte]') && m.Subject.includes(motif));
 
