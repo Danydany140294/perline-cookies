@@ -26,6 +26,7 @@ Principe : **le code ne change pas d'un client à l'autre**. On change uniquemen
    - **livraison** (frais de livraison, seuil de gratuité, jours d'expédition, fermetures) ;
    - **seuil de stock** (alerte à partir de ce stock, seuil global) ;
    - **fonctions optionnelles** : favoris, avis, fidélité, retrait sur place, livraison à domicile (activer seulement ce que le client veut, rien n'est supprimé) ;
+   - **pages légales** : hébergeur réel (raison sociale, adresse, pays où sont stockées les données), médiateur de la consommation (nom, adresse, site : obligatoire pour vendre à des particuliers), service d'envoi d'e-mails (sous-traitant), horaires du service client, traces d'allergènes de l'atelier, date de mise à jour ;
    - **mode démo** : laisser actif jusqu'à la validation finale (voir §5).
    Chaque modification est tracée dans le **journal des actions**. Les clés Stripe et les identifiants d'e-mail **ne se saisissent jamais ici** : ils restent dans les variables d'environnement.
 5. Supprimer ou désactiver les cookies et boxes d'exemple, puis créer ceux du client : prix TTC, **taux de TVA** (réservé à l'administrateur), stock, seuil d'alerte facultatif, image.
@@ -40,7 +41,8 @@ Principe : **le code ne change pas d'un client à l'autre**. On change uniquemen
 ## 4. Validations obligatoires par des professionnels
 
 - [ ] **Comptable** : taux de TVA des produits et des frais de livraison, mentions de facture, régime de TVA du client.
-- [ ] **Avocat** : CGV, mentions légales, politique de confidentialité, gestion des cookies (les textes fournis sont des modèles alimentés par les paramètres, pas des conseils juridiques).
+- [ ] **Avocat, OBLIGATOIRE avant une vraie ouverture** : relecture des 4 pages légales (CGV, mentions légales, politique de confidentialité, gestion des cookies). Les textes fournis sont des **modèles** alimentés par les paramètres de la boutique et vérifiés contre ce que fait le site, mais ils ne constituent **pas un conseil juridique** : exclusion du droit de rétractation pour les denrées périssables, produit abîmé ou non conforme, durées de conservation, sous-traitants, médiateur de la consommation. Mettre à jour le paramètre « Date de dernière mise à jour des pages légales » après chaque relecture.
+- [ ] **Allergènes** : renseigner, pour **chaque cookie**, les 14 allergènes réglementaires (administration, fiche du cookie). Obligatoire pour la vente de denrées alimentaires à distance ; tant qu'ils ne le sont pas, le site invite le client à contacter la boutique.
 - [ ] Le client confirme qu'il conserve ses **factures 10 ans** (base + dossier des PDF sauvegardés).
 
 ## 5. Passage en production
