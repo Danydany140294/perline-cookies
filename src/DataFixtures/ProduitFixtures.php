@@ -68,6 +68,17 @@ class ProduitFixtures extends Fixture
         $manager->persist($cookie5);
         $this->addReference('produit_4', $cookie5);
 
+        // Cookie 6 : Oreo
+        $cookie6 = new Produit();
+        $cookie6->setName('Cookie Oreo');
+        $cookie6->setDescription('Un cookie généreux qui marie la douceur du chocolat blanc aux brisures croquantes du cacao');
+        $cookie6->setPrix(4.5);
+        $cookie6->setStock($faker->numberBetween(20, 80));
+        $cookie6->setImage('cookie-oreo.png');
+        $cookie6->setAllergenes(['gluten', 'soja']);
+        $manager->persist($cookie6);
+        $this->addReference('produit_5', $cookie6);
+
         $manager->flush();
     }
 }
