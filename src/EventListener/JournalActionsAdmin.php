@@ -24,7 +24,7 @@ class JournalActionsAdmin
 {
     /** @var array<class-string, array<string, string>> champ => libellé */
     public const SUIVI = [
-        Produit::class => ['prix' => 'Prix', 'stock' => 'Stock', 'isActive' => 'Actif', 'tauxTva' => 'Taux de TVA'],
+        Produit::class => ['prix' => 'Prix', 'stock' => 'Stock', 'isActive' => 'Actif', 'tauxTva' => 'Taux de TVA', 'allergenes' => 'Allergènes'],
         Box::class => ['prix' => 'Prix', 'prix6' => 'Prix 6', 'prix12' => 'Prix 12', 'prix24' => 'Prix 24', 'isActive' => 'Actif', 'tauxTva' => 'Taux de TVA'],
         User::class => ['roles' => 'Rôles', 'nom' => 'Nom', 'prenom' => 'Prénom', 'telephone' => 'Téléphone', 'email' => 'E-mail'],
     ];

@@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ImageField;
 use Symfony\Component\Validator\Constraints\Image;
@@ -52,6 +53,9 @@ class ProduitCrudController extends AbstractCrudController
             IntegerField::new('stock', 'Stock'),
             IntegerField::new('seuilAlerte', 'Seuil d\'alerte de stock')->hideOnIndex()->setRequired(false)
                 ->setHelp('Facultatif : vide = seuil global (Paramètres de la boutique). Un e-mail est envoyé une seule fois quand le stock devient égal ou inférieur à ce seuil.'),
+            ChoiceField::new('allergenes', 'Allergènes')
+                ->setChoices(\App\Enum\Allergene::choix())->allowMultipleChoices()->renderExpanded()->hideOnIndex()->setRequired(false)
+                ->setHelp('Obligatoire pour la vente de denrées alimentaires : cochez TOUS les allergènes présents (y compris traces volontaires). Rien de coché = « aucun des 14 allergènes ». Les boxes les reprennent automatiquement.'),
             ImageField::new('image', 'Image')
                 ->setBasePath('asset/images/produits')
                 ->setUploadDir('public/asset/images/produits')

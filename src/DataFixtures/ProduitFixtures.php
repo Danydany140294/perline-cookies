@@ -20,6 +20,7 @@ class ProduitFixtures extends Fixture
         $cookie1->setPrix($faker->randomFloat(2, 3.5, 4.5));
         $cookie1->setStock($faker->numberBetween(20, 80));
         $cookie1->setImage('cookie-pistache-cannelle.png'); // ✅ .png au lieu de .jpg
+        $cookie1->setAllergenes(['gluten', 'oeufs', 'lait', 'fruits_a_coque']); // démonstration : à vérifier par le client
         $manager->persist($cookie1);
         $this->addReference('produit_0', $cookie1);
 
@@ -30,6 +31,7 @@ class ProduitFixtures extends Fixture
         $cookie2->setPrix($faker->randomFloat(2, 3.5, 4.5));
         $cookie2->setStock($faker->numberBetween(20, 80));
         $cookie2->setImage('cookie-peche-caramel.png'); // ✅ .png au lieu de .jpg
+        $cookie2->setAllergenes(['gluten', 'oeufs', 'lait']); // démonstration : à vérifier par le client
         $manager->persist($cookie2);
         $this->addReference('produit_1', $cookie2);
 
@@ -40,6 +42,7 @@ class ProduitFixtures extends Fixture
         $cookie3->setPrix($faker->randomFloat(2, 3.5, 4.5));
         $cookie3->setStock($faker->numberBetween(20, 80));
         $cookie3->setImage('cookie-noisette-vanille.png'); // ✅ .png au lieu de .jpg
+        $cookie3->setAllergenes(['gluten', 'oeufs', 'lait', 'fruits_a_coque']); // démonstration : à vérifier par le client
         $manager->persist($cookie3);
         $this->addReference('produit_2', $cookie3);
 
@@ -50,6 +53,7 @@ class ProduitFixtures extends Fixture
         $cookie4->setPrix($faker->randomFloat(2, 4.0, 5.0));
         $cookie4->setStock($faker->numberBetween(20, 80));
         $cookie4->setImage('cookie-macadamia-framboise.png'); // ✅ .png au lieu de .jpg
+        $cookie4->setAllergenes(['gluten', 'oeufs', 'lait', 'fruits_a_coque']); // démonstration : à vérifier par le client
         $manager->persist($cookie4);
         $this->addReference('produit_3', $cookie4);
 
@@ -60,6 +64,7 @@ class ProduitFixtures extends Fixture
         $cookie5->setPrix($faker->randomFloat(2, 3.5, 4.5));
         $cookie5->setStock($faker->numberBetween(20, 80));
         $cookie5->setImage('cookie-fruits-rouges.png'); // ✅ .png au lieu de .jpg
+        $cookie5->setAllergenes(['gluten', 'oeufs', 'lait']); // démonstration : à vérifier par le client
         $manager->persist($cookie5);
         $this->addReference('produit_4', $cookie5);
 

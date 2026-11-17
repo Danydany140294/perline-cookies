@@ -716,3 +716,9 @@
     .modal-actions { flex-direction: column; }
     .nc-btn { min-width: 100%; }
 }
+
+/* Allergènes de la commande */
+.recap-allergenes { margin: 0.75rem 0; font-size: 0.85rem; }
+.recap-allergenes h6 { margin: 0 0 0.35rem; font-size: 0.9rem; }
+.recap-allergenes-ligne { margin-bottom: 0.4rem; }
+.recap-allergenes .allergenes { margin: 0; }

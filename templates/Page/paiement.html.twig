@@ -186,6 +186,12 @@
                         <span id="recap-frais-label">Livraison ({{ transporteur }})</span>
                         <span id="recap-frais">{{ frais_livraison == 0 ? 'Offerts 🎉' : frais_livraison|number_format(2, ',', ' ') ~ ' €' }}</span>
                     </div>
+                    <div class="recap-allergenes" id="recap-allergenes">
+                        <h6>Allergènes de votre commande</h6>
+                        {% for ligne in panier.lignes %}
+                            <div class="recap-allergenes-ligne"><em>{{ ligne.nomArticle }}</em>{% include 'component/_allergenes.html.twig' with {info: allergenes_ligne(ligne)} only %}</div>
+                        {% endfor %}
+                    </div>
                     <p class="recap-estimation" id="recap-estimation">🚚 {{ livraison_estimee }}</p>
                     {% if reste_gratuite > 0 and 'livraison' in modes_disponibles %}
                         <p class="recap-astuce" id="recap-astuce">Plus que {{ reste_gratuite|number_format(2, ',', ' ') }} € pour la livraison offerte.</p>

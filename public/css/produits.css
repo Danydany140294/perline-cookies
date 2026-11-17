@@ -879,3 +879,6 @@ body {
         padding: 4px 8px !important;
     }
 }
+/* Allergènes (affichage simple ; le soin visuel viendra au chapitre front) */
+.allergenes { font-size: 0.85rem; margin: 0.5rem 0; line-height: 1.35; }
+.allergenes--inconnus { color: #8a4b00; }
