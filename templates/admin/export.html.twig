@@ -1,0 +1,29 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Exports CSV{% endblock %}
+
+{% block main %}
+<div class="container-fluid" style="max-width: 640px">
+    {% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
+    <p class="text-muted">Fichier pour Excel (séparateur « ; », UTF-8). Par défaut, seules les commandes <strong>payées</strong> sont exportées.</p>
+    <form method="post" action="{{ path('admin_export_telecharger') }}" id="formulaire-export">
+        <input type="hidden" name="_token" value="{{ csrf_token('export_csv') }}">
+        <div class="mb-3">
+            <label class="form-label">Contenu</label>
+            <select name="type" class="form-select">
+                <option value="commandes">Commandes (une ligne par commande)</option>
+                <option value="ventes">Ventes (une ligne par article vendu)</option>
+            </select>
+        </div>
+        <div class="row mb-3">
+            <div class="col"><label class="form-label">Du</label><input type="date" name="debut" class="form-control"></div>
+            <div class="col"><label class="form-label">Au (inclus)</label><input type="date" name="fin" class="form-control"></div>
+        </div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="toutes" value="1" id="toutes">
+            <label class="form-check-label" for="toutes">Inclure aussi les commandes non payées (en attente, annulées, remboursées, à vérifier)</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Télécharger le CSV</button>
+    </form>
+</div>
+{% endblock %}

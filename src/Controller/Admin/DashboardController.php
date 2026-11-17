@@ -50,6 +50,14 @@ class DashboardController extends AbstractDashboardController
         return $this->render('admin/dashboard.html.twig', $contexte);
     }
 
+    /** Page des exports CSV (dans le contrôleur du tableau de bord : le gabarit EasyAdmin a besoin de son contexte). Administrateur seulement. */
+    #[Route('/admin/export', name: 'admin_export', methods: ['GET'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function export(): Response
+    {
+        return $this->render('admin/export.html.twig');
+    }
+
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()->setTitle('Dashboard Admin - ' . $this->boutique->get('nom_marque'));
@@ -75,6 +83,8 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linkToCrud('Commandes', 'fa fa-shopping-cart', Commande::class)
             ->setController(CommandeCrudController::class);
         yield MenuItem::linkToCrud('Lignes de Commande', 'fa fa-list', LigneCommande::class);
+
+        yield MenuItem::linkToRoute('Exports CSV', 'fa fa-file-csv', 'admin_export')->setPermission('ROLE_ADMIN');
 
         yield MenuItem::section('Paniers')->setPermission('ROLE_ADMIN');
         yield MenuItem::linkToCrud('Paniers Actifs', 'fa fa-shopping-basket', Panier::class)->setPermission('ROLE_ADMIN');

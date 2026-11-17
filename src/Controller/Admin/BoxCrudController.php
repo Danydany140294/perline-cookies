@@ -9,6 +9,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ImageField;
+use Symfony\Component\Validator\Constraints\Image;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\MoneyField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
@@ -35,7 +37,19 @@ class BoxCrudController extends AbstractCrudController
             IdField::new('id')->hideOnForm(),
             TextField::new('nom', 'Nom'),
             TextField::new('description', 'Description'),
-            TextField::new('image', 'Image (nom du fichier)'),
+            ImageField::new('image', 'Image')
+                ->setBasePath('asset/images/boxs')
+                ->setUploadDir('public/asset/images/boxs')
+                ->setUploadedFileNamePattern('[randomhash].[extension]') // nom ALÉATOIRE : jamais le nom du fichier envoyé
+                ->setFileConstraints(new Image(
+                    maxSize: '2M',
+                    mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+                    maxSizeMessage: 'L\'image est trop lourde ({{ size }} {{ suffix }}) : maximum {{ limit }} {{ suffix }}.',
+                    mimeTypesMessage: 'Format d\'image non autorisé : JPEG, PNG ou WebP uniquement.',
+                ))
+                ->setFormTypeOption('allow_delete', false)
+                ->setHelp('JPEG, PNG ou WebP, 2 Mo maximum. Le fichier est renommé automatiquement.')
+                ->hideOnIndex(),
             ChoiceField::new('type', 'Type')->setChoices([
                 'Fixe (recette ci-dessous)' => 'fixe',
                 'Personnalisable' => 'personnalisable',
