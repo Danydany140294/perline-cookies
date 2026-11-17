@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Perline Cookies{% endblock %}
+{% block title %}{{ boutique.nom_marque }}{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
@@ -210,7 +210,7 @@
             </h2>
 
             <p class="story__text">
-                Chez Perline, chaque cookie est imaginé et fabriqué à la main
+                Chez {{ boutique.nom_marque }}, chaque cookie est imaginé et fabriqué à la main
                 avec des ingrédients sélectionnés avec soin.
             </p>
 

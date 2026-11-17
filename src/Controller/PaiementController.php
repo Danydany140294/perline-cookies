@@ -38,7 +38,7 @@ final class PaiementController extends AbstractController
         private ZoneLivraison $zoneLivraison,
         private DelaisLivraison $delaisLivraison,
         private CalculTva $calculTva,
-        #[Autowire(param: 'retrait')] private array $retrait
+        #[Autowire(expression: 'service("parametres_boutique").retrait()')] private array $retrait
     )
     {
         $this->stripeSecretKey = $_ENV['STRIPE_SECRET_KEY'] ?? '';

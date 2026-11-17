@@ -40,7 +40,7 @@ security:
 
     access_control:
     # Rubriques réservées à l'administrateur (refus 403 par la sécurité Symfony : la page d'erreur d'EasyAdmin plante sur un refus de permission d'entité)
-    - { path: '^/admin/(user|journal-admin|panier|ligne-panier|export)(/|$)', roles: ROLE_ADMIN }
+    - { path: '^/admin/(user|journal-admin|panier|ligne-panier|export|parametres)(/|$)', roles: ROLE_ADMIN }
     - { path: ^/admin, roles: ROLE_GESTIONNAIRE }
     - { path: ^/user/mon-compte, roles: ROLE_USER }
     - { path: ^/user, roles: ROLE_ADMIN }

@@ -51,7 +51,7 @@ class ProduitCrudController extends AbstractCrudController
                 ->setHelp('5,5 % par défaut. À faire valider par votre comptable. Réservé à l\'administrateur.'),
             IntegerField::new('stock', 'Stock'),
             IntegerField::new('seuilAlerte', 'Seuil d\'alerte de stock')->hideOnIndex()->setRequired(false)
-                ->setHelp('Facultatif : vide = seuil global (config/boutique.yaml). Un e-mail est envoyé une seule fois quand le stock devient égal ou inférieur à ce seuil.'),
+                ->setHelp('Facultatif : vide = seuil global (Paramètres de la boutique). Un e-mail est envoyé une seule fois quand le stock devient égal ou inférieur à ce seuil.'),
             ImageField::new('image', 'Image')
                 ->setBasePath('asset/images/produits')
                 ->setUploadDir('public/asset/images/produits')

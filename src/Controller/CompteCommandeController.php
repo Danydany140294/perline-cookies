@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class CompteCommandeController extends AbstractController
 {
     #[Route('/compte/commandes/{id}', name: 'app_compte_commande', requirements: ['id' => '\d+'], methods: ['GET'])]
-    public function detail(int $id, CommandeRepository $commandes, #[Autowire(param: 'retrait')] array $retrait): Response
+    public function detail(int $id, CommandeRepository $commandes, #[Autowire(expression: 'service("parametres_boutique").retrait()')] array $retrait): Response
     {
         $utilisateur = $this->getUser();
         $commande = $utilisateur !== null ? $commandes->find($id) : null;

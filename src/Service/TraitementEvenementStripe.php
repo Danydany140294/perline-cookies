@@ -28,7 +28,7 @@ class TraitementEvenementStripe
         private MailerInterface $mailer,
         private Environment $twig,
         private LoggerInterface $logger,
-        #[Autowire(param: 'retrait')] private array $retrait,
+        #[Autowire(expression: 'service("parametres_boutique").retrait()')] private array $retrait,
         private IdentiteBoutique $boutique,
         private Facturation $facturation,
         private AlertesAdmin $alertes

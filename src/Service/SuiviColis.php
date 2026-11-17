@@ -8,7 +8,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 /** Lien de suivi du colis (adresse configurable : `livraison.suivi_url`, {numero} est remplacé par le numéro de suivi). */
 class SuiviColis
 {
-    public function __construct(#[Autowire(param: 'livraison')] private array $livraison = [])
+    public function __construct(#[Autowire(expression: 'service("parametres_boutique").livraison()')] private array $livraison = [])
     {
     }
 

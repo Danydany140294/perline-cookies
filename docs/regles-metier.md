@@ -237,3 +237,13 @@ s'affiche (« Commande prête sous 24 h… »).
 - **Exports CSV** (commandes, ventes par article) : réservés à l'**administrateur** (`/admin/export`), jeton CSRF, **commandes payées par défaut** (option pour inclure les autres), filtre de dates (fin incluse). Format Excel français : séparateur `;`, UTF-8 avec BOM, CRLF, décimales à la virgule, dates jj/mm/aaaa ; **injection de formules neutralisée** (cellule texte commençant par `=`, `+`, `-`, `@`, tabulation ou retour chariot : apostrophe ajoutée). Chaque export est inscrit dans le journal des actions.
 
 - **Utilisateurs (admin)** : l'e-mail est en lecture seule ; toute modification d'un client (nom, prénom, téléphone, rôles) est tracée dans le journal, sans la valeur des données personnelles. **Gestionnaire** : peut modifier les prix (tracé), pas le taux de TVA (réservé à `ROLE_ADMIN`). Une rubrique interdite répond par une page 403 propre (`error403.html.twig`).
+
+## 15. Paramètres de la boutique (marque blanche)
+
+- Écran **« Paramètres de la boutique »** (`/admin/parametres`, `ROLE_ADMIN` uniquement) : identité légale, contact, e-mail d'alertes, retrait, livraison (forfait, seuil de gratuité, jours d'expédition, fermetures), seuil de stock global, fonctions optionnelles (favoris, avis, fidélité, livraison à domicile, retrait), mode démo.
+- **Stockage** : table `parametre_boutique` (une ligne par valeur qui diffère du défaut). `config/boutique.yaml` et `config/services.yaml` fournissent les valeurs par défaut ; une valeur identique au défaut supprime sa ligne. Service `App\Service\ParametresBoutique` (liste blanche `CHAMPS` : aucun autre réglage, aucun secret, ne peut être enregistré).
+- **Secrets** (clés Stripe, `MAILER_DSN`, `STRIPE_WEBHOOK_SECRET`, `APP_SECRET`) : variables d'environnement uniquement, jamais en base.
+- Chaque modification est tracée dans le **journal des actions** (action « parametres », valeurs avant / après).
+- Au moins un mode de réception (livraison ou retrait) doit rester actif. Un seul nom de marque (`nom_marque`) alimente le site, les titres, les e-mails, les PDF et l'administration ; aucune mention « CreaSelf » n'est visible.
+- Les services lisent les paramètres à la création (une fois par requête). Un worker Messenger ou un processus long doit être redémarré après un changement de paramètres (`php bin/console messenger:stop-workers`).
+- Non renommés (invisibles pour le client) : nom de la base de données, espace de noms PHP `App\`, noms des conteneurs de développement.

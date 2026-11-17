@@ -34,7 +34,7 @@ class DelaisLivraison
     /** @var list<array{0: string, 1: string}> plages [début, fin] au format Y-m-d */
     private array $fermetures = [];
 
-    public function __construct(#[Autowire(param: 'livraison')] array $livraison = ['delais' => self::CONFIG_PAR_DEFAUT])
+    public function __construct(#[Autowire(expression: 'service("parametres_boutique").livraison()')] array $livraison = ['delais' => self::CONFIG_PAR_DEFAUT])
     {
         $d = ($livraison['delais'] ?? []) + self::CONFIG_PAR_DEFAUT;
 

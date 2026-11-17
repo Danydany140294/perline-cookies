@@ -54,6 +54,17 @@ parameters:
         message: 'Commande prête sous 24 h. Présentez votre numéro de commande.'
 
 services:
+    # Paramètres de la boutique : valeurs par défaut des fichiers de configuration + surcharges de l'administration (table parametre_boutique)
+    parametres_boutique:
+        alias: App\Service\ParametresBoutique
+        public: true
+    app.vue_boutique:
+        class: App\Service\VueParametres
+        arguments: ['@App\Service\ParametresBoutique', 'boutique']
+    app.vue_livraison:
+        class: App\Service\VueParametres
+        arguments: ['@App\Service\ParametresBoutique', 'livraison']
+
     # default configuration for services in *this* file
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
