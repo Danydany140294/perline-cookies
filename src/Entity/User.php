@@ -94,6 +94,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\JoinTable(name: 'user_favoris')]
     private Collection $favoris;
 
+    /** Adresse e-mail confirmée (les comptes existants avant le chapitre 1.5 sont considérés comme confirmés ; un nouveau compte doit la confirmer par e-mail). */
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    private bool $emailVerifie = true;
+
+    /** Nouvelle adresse demandée, pas encore confirmée par le lien envoyé à cette adresse. */
+    #[ORM\Column(length: 180, nullable: true)]
+    private ?string $emailEnAttente = null;
+
     public function __construct()
     {
         $this->commandes = new ArrayCollection();
@@ -508,5 +516,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __toString(): string
     {
         return $this->getNomComplet() . ' (' . $this->email . ')';
+    }
+
+    public function isEmailVerifie(): bool { return $this->emailVerifie; }
+
+    public function setEmailVerifie(bool $emailVerifie): static
+    {
+        $this->emailVerifie = $emailVerifie;
+
+        return $this;
+    }
+
+    public function getEmailEnAttente(): ?string { return $this->emailEnAttente; }
+
+    public function setEmailEnAttente(?string $emailEnAttente): static
+    {
+        $this->emailEnAttente = $emailEnAttente;
+
+        return $this;
     }
 }

@@ -394,13 +394,13 @@
                                 Sécurité
                             </h4>
                             <div class="info-security-actions">
-                                <a href="#" class="btn btn-outline">
+                                <a href="{{ path('app_compte_mot_de_passe') }}" class="btn btn-outline" id="lien-mot-de-passe">
                                     <span class="material-symbols-outlined">lock</span>
                                     Modifier mon mot de passe
                                 </a>
-                                <a href="#" class="btn btn-outline">
-                                    <span class="material-symbols-outlined">shield</span>
-                                    Activer l'authentification à deux facteurs
+                                <a href="{{ path('app_compte_email') }}" class="btn btn-outline" id="lien-email">
+                                    <span class="material-symbols-outlined">mail</span>
+                                    Modifier mon adresse e-mail
                                 </a>
                             </div>
                         </div>
@@ -485,12 +485,13 @@ function initInlineEditProfil() {
 
         fetch('{{ path('app_user_update_profil') }}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token('profil') }}' },
             body: JSON.stringify(payload)
         })
-        .then(res => {
-            if (!res.ok) throw new Error('Statut HTTP : ' + res.status);
-            return res.json();
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok && !data.error) throw new Error('Erreur serveur');
+            return data;
         })
         .then(data => {
             if (data.success) {
@@ -531,6 +532,7 @@ function initAvatarUpload() {
 
             fetch('{{ path('app_user_update_avatar') }}', {
                 method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token('profil') }}' },
                 body: formData
             })
             .then(res => {

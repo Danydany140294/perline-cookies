@@ -16,6 +16,7 @@ use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\AdresseService;
+use App\Service\ValidationProfil;
 
 #[Route('/user')]
 final class UserController extends AbstractController
@@ -89,19 +90,30 @@ final class UserController extends AbstractController
      */
     #[Route('/mon-compte/update-profil', name: 'app_user_update_profil', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
-    public function updateProfil(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function updateProfil(Request $request, EntityManagerInterface $entityManager, ValidationProfil $validation): JsonResponse
     {
         $user = $this->getUser();
 
-        $data = json_decode($request->getContent(), true);
-
-        if (isset($data['nom']))       $user->setNom($data['nom']);
-        if (isset($data['prenom']))    $user->setPrenom($data['prenom']);
-        if (isset($data['telephone'])) $user->setTelephone($data['telephone']);
-        if (isset($data['dateNaissance']) && $data['dateNaissance']) {
-            $user->setDateNaissance(new \DateTime($data['dateNaissance']));
+        if (!$this->isCsrfTokenValid('profil', (string) $request->headers->get('X-CSRF-TOKEN'))) {
+            return new JsonResponse(['success' => false, 'error' => 'Action refusée (jeton de sécurité invalide). Rechargez la page.'], 403);
         }
 
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return new JsonResponse(['success' => false, 'error' => 'Requête invalide.'], 400);
+        }
+
+        // Validation côté serveur : rien n'est enregistré si un champ est invalide
+        $resultat = $validation->valider($data);
+        if ($resultat['erreurs'] !== []) {
+            return new JsonResponse(['success' => false, 'errors' => $resultat['erreurs'], 'error' => reset($resultat['erreurs'])], 422);
+        }
+
+        $v = $resultat['valeurs'];
+        $user->setNom($v['nom']);
+        $user->setPrenom($v['prenom']);
+        $user->setTelephone($v['telephone']);
+        $user->setDateNaissance($v['dateNaissance'] !== null ? \DateTime::createFromImmutable($v['dateNaissance']) : null);
         $entityManager->flush();
 
         return new JsonResponse(['success' => true]);
@@ -112,6 +124,10 @@ final class UserController extends AbstractController
     public function updateAvatar(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         $user = $this->getUser();
+
+        if (!$this->isCsrfTokenValid('profil', (string) $request->headers->get('X-CSRF-TOKEN'))) {
+            return new JsonResponse(['success' => false, 'error' => 'Action refusée (jeton de sécurité invalide). Rechargez la page.'], 403);
+        }
 
         $file = $request->files->get('avatar');
 
