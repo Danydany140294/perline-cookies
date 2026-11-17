@@ -23,8 +23,9 @@ class BoxCrudController extends AbstractCrudController
 
     public function configureActions(\EasyCorp\Bundle\EasyAdminBundle\Config\Actions $actions): \EasyCorp\Bundle\EasyAdminBundle\Config\Actions
     {
-        // Suppression : réservée à l'administrateur (le gestionnaire gère commandes, stock et catalogue, sans suppressions)
-        return $actions->setPermissions([\EasyCorp\Bundle\EasyAdminBundle\Config\Action::DELETE => 'ROLE_ADMIN', \EasyCorp\Bundle\EasyAdminBundle\Config\Action::BATCH_DELETE => 'ROLE_ADMIN']);
+        // Pas de suppression : une box vendue figure dans l'historique des commandes. On la DÉSACTIVE (interrupteur « Active » de la liste
+        // ou du formulaire) ; le journal garde la trace.
+        return $actions->disable(\EasyCorp\Bundle\EasyAdminBundle\Config\Action::DELETE, \EasyCorp\Bundle\EasyAdminBundle\Config\Action::BATCH_DELETE);
     }
 
     public function configureFields(string $pageName): iterable
@@ -50,6 +51,7 @@ class BoxCrudController extends AbstractCrudController
                 ->setHelp('5,5 % par défaut. À faire valider par votre comptable.'),
             BooleanField::new('isActive', 'Active'),
             IntegerField::new('stockDisponible', 'Stock (calculé)')->onlyOnIndex(),
+            TextField::new('statutDisponibilite', 'Disponibilité')->onlyOnIndex(),
             CollectionField::new('compositions', 'Recette : cookies et quantités')
                 ->setEntryType(BoxProduitType::class)
                 ->setFormTypeOption('by_reference', false)

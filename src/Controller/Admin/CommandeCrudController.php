@@ -262,9 +262,10 @@ class CommandeCrudController extends AbstractCrudController
      */
     public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
-        if ($entityInstance instanceof Commande && $entityInstance->getStatut() === CommandeStatut::A_VERIFIER) {
+        // Une commande ne se supprime JAMAIS (historique comptable, factures conservées 10 ans) : message clair, aucune erreur SQL.
+        if ($entityInstance instanceof Commande) {
             $this->addFlash('danger', sprintf(
-                'La commande %s est payée avec un écart : elle ne peut pas être supprimée.',
+                'La commande %s ne peut pas être supprimée : elle fait partie de l\'historique comptable (les factures sont conservées 10 ans). Pour l\'écarter, passez-la à « Annulée ».',
                 $entityInstance->getNumeroCommande()
             ));
 

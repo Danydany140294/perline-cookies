@@ -16,14 +16,11 @@ final class ProduitsController extends AbstractController
         BoxRepository $boxRepository
     ): Response
     {
-        // Récupérer TOUS les cookies disponibles
-        $produits = $produitRepository->findBy(
-            ['disponible' => true],
-            ['name' => 'ASC']
-        );
+        // Récupérer TOUS les cookies disponibles (actifs ET en stock)
+        $produits = $produitRepository->findDisponibles(['name' => 'ASC']);
 
         // Récupérer la box personnalisable pour la modal
-        $boxPersonnalisable = $boxRepository->findOneBy(['type' => 'personnalisable']);
+        $boxPersonnalisable = $boxRepository->findOneBy(['type' => 'personnalisable', 'isActive' => true]);
 
         return $this->render('Page/produits.html.twig', [
             'produits' => $produits,

@@ -32,8 +32,9 @@ class ProduitCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        // Suppression : réservée à l'administrateur (le gestionnaire gère commandes, stock et catalogue, sans suppressions)
-        return $actions->setPermissions([Action::DELETE => 'ROLE_ADMIN', Action::BATCH_DELETE => 'ROLE_ADMIN']);
+        // Pas de suppression : un cookie vendu figure dans l'historique des commandes. On le DÉSACTIVE (interrupteur « Actif » de la liste
+        // ou du formulaire) ; le journal garde la trace.
+        return $actions->disable(Action::DELETE, Action::BATCH_DELETE);
     }
 
     public function configureFields(string $pageName): iterable
@@ -48,6 +49,7 @@ class ProduitCrudController extends AbstractCrudController
                 ->setHelp('5,5 % par défaut. À faire valider par votre comptable.'),
             IntegerField::new('stock', 'Stock'),
             TextField::new('image', 'Image (nom du fichier)')->hideOnIndex(),
+            TextField::new('messageDisponibilite', 'Disponibilité')->onlyOnIndex(),
             BooleanField::new('isActive', 'Actif')
                 ->setHelp('Décoché : le cookie n\'apparaît plus sur le site et ne peut plus être commandé. Un cookie en rupture (stock à 0) est signalé automatiquement, sans toucher à ce réglage.'),
         ];

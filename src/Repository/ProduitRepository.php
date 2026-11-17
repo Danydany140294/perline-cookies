@@ -19,7 +19,24 @@ class ProduitRepository extends ServiceEntityRepository
     //    /**
     //     * @return Produit[] Returns an array of Produit objects
     //     */
-    //    public function findByExampleField($value): array
+        /**
+     * Cookies vendables : actifs (réglage de l'administrateur) ET en stock. Même règle que Produit::isDisponible().
+     *
+     * @return list<Produit>
+     */
+    public function findDisponibles(array $ordre = ['name' => 'ASC'], ?int $limite = null): array
+    {
+        $qb = $this->createQueryBuilder('p')->where('p.isActive = true')->andWhere('p.stock > 0');
+        foreach ($ordre as $champ => $sens) {
+            $qb->addOrderBy('p.' . $champ, $sens);
+        }
+        if ($limite !== null) {
+            $qb->setMaxResults($limite);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+//    public function findByExampleField($value): array
     //    {
     //        return $this->createQueryBuilder('p')
     //            ->andWhere('p.exampleField = :val')

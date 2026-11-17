@@ -152,7 +152,7 @@ test.describe('administration', () => {
     await poster(pageClient.request, remboursement(c, Math.round(c.total * 100)));
     await contexteClient.close();
     expect(stock(COOKIE.pistache)).toBe(48);
-    executerSql(`UPDATE produit SET disponible = 0 WHERE id = ${COOKIE.pistache}`); // désactivé à la main par l'admin
+    executerSql(`UPDATE produit SET is_active = 0 WHERE id = ${COOKIE.pistache}`); // désactivé à la main par l'admin
 
     await connecterAdmin(page);
     await ouvrirEdition(page, c.id);
@@ -160,7 +160,7 @@ test.describe('administration', () => {
     await enregistrer(page);
 
     expect(stock(COOKIE.pistache)).toBe(50);
-    expect(valeur(`SELECT disponible FROM produit WHERE id = ${COOKIE.pistache}`)).toBe('0'); // la remise en stock ne réactive jamais un produit
+    expect(valeur(`SELECT is_active FROM produit WHERE id = ${COOKIE.pistache}`)).toBe('0'); // la remise en stock ne réactive jamais un produit
     expect(valeur(`SELECT stock_restitue FROM commande WHERE id = ${c.id}`)).toBe('1');
     expect(historique(c.id).at(-1).note).toContain('Stock remis en vente : 2 × Cookie Pistache Cannelle');
 

@@ -27,9 +27,9 @@ class UserCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        // Les comptes se créent par l'inscription ; l'administrateur (ROLE_ADMIN) ne s'attribue que par `app:promote-admin` ;
-        // un client se supprime lui-même par anonymisation (RGPD) : pas de suppression depuis l'administration.
-        return $actions->disable(Action::NEW, Action::DELETE, Action::BATCH_DELETE);
+        // Les comptes se créent par l'inscription ; l'administrateur (ROLE_ADMIN) ne s'attribue que par `app:promote-admin`.
+        // La suppression est bloquée avec un message (voir deleteEntity) : un client se supprime lui-même par anonymisation (RGPD).
+        return $actions->disable(Action::NEW)->setPermissions([Action::DELETE => 'ROLE_ADMIN', Action::BATCH_DELETE => 'ROLE_ADMIN']);
     }
 
     public function configureFields(string $pageName): iterable
@@ -44,5 +44,14 @@ class UserCrudController extends AbstractCrudController
             TextField::new('prenom'),
             TextField::new('telephone'),
         ];
+    }
+
+    public function deleteEntity(\Doctrine\ORM\EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        // Jamais de suppression ni d'erreur SQL brute : le compte porte des commandes et des factures conservées 10 ans.
+        $this->addFlash('danger', sprintf(
+            'Le compte %s ne peut pas être supprimé depuis l\'administration : ses commandes et factures sont conservées 10 ans. Le client peut supprimer lui-même son compte (anonymisation) depuis « Mon compte ».',
+            $entityInstance instanceof User ? $entityInstance->getEmail() : ''
+        ));
     }
 }

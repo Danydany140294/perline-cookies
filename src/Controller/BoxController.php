@@ -37,6 +37,7 @@ final class BoxController extends AbstractController
             ->addSelect('p')
             ->where('b.type = :type')
             ->andWhere('b.createur IS NULL')
+            ->andWhere('b.isActive = true')
             ->setParameter('type', 'fixe')
             ->orderBy('b.nom', 'ASC')
             ->getQuery()
@@ -48,6 +49,7 @@ final class BoxController extends AbstractController
         $boxPersonnalisable = $boxRepository->createQueryBuilder('b')
             ->where('b.type = :type')
             ->andWhere('b.createur IS NULL')
+            ->andWhere('b.isActive = true')
             ->setParameter('type', 'personnalisable')
             ->setMaxResults(1)
             ->getQuery()
@@ -56,12 +58,7 @@ final class BoxController extends AbstractController
         // ========== PRODUITS DISPONIBLES ==========
         // Récupère tous les produits disponibles pour composer la box
         // Retourne des objets Produit (pas d'array) pour Twig
-        $produits = $produitRepository->createQueryBuilder('p')
-            ->where('p.disponible = :disponible')
-            ->setParameter('disponible', true)
-            ->orderBy('p.name', 'ASC')
-            ->getQuery()
-            ->getResult();
+        $produits = $produitRepository->findDisponibles(['name' => 'ASC']);
 
         return $this->render('Page/box.html.twig', [
             'boxes_fixes' => $boxesFixes,

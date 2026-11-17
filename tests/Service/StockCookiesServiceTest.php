@@ -17,7 +17,7 @@ class StockCookiesServiceTest extends TestCase
 {
     private function cookie(string $nom, int $stock, bool $disponible = true): Produit
     {
-        return (new Produit())->setName($nom)->setPrix(3.0)->setStock($stock)->setDisponible($disponible);
+        return (new Produit())->setName($nom)->setPrix(3.0)->setStock($stock)->setIsActive($disponible);
     }
 
     private function boxClassique(array $recette): Box
