@@ -34,7 +34,6 @@ test.describe('administration', () => {
     await expect(page.locator(`#product-${COOKIE.pistache}`)).toContainText('Indisponible');
     await expect(page.locator(`#product-${COOKIE.pistache} button[type="submit"]`)).toHaveCount(0);
     expect(valeur(`SELECT is_active FROM produit WHERE id = ${COOKIE.pistache}`)).toBe('1'); // « actif » n'a pas été touché
-    expect(valeur(`SELECT disponible FROM produit WHERE id = ${COOKIE.pistache}`)).toBe('1'); // l'ancienne colonne n'est plus écrite
 
     // Réapprovisionnement depuis l'administration : remis en vente sans aucun autre geste
     await page.goto(`/admin/produit/${COOKIE.pistache}/edit`);

@@ -33,7 +33,7 @@ class TraitementEvenementStripeTest extends KernelTestCase
 
     protected function setUp(): void
     {
-        $this->produit = (new Produit())->setName('Cookie A')->setPrix(3.0)->setStock(10)->setDisponible(true);
+        $this->produit = (new Produit())->setName('Cookie A')->setPrix(3.0)->setStock(10);
         $this->commande = (new Commande())->setNumeroCommande('CMD-T')->setTotalTTC(10.5)->setStripeSessionId(self::SESSION)->setUser((new User())->setEmail('client@example.com'));
         $this->commande->addLigneCommande((new LigneCommande())->setProduit($this->produit)->setQuantite(2)->setPrixUnitaire(3.0));
         $this->emailsEnvoyes = 0;

@@ -46,9 +46,6 @@ class Produit
     private ?string $image = null;
 
     #[ORM\Column(options: ['default' => true])]
-    private bool $disponible = true;
-
-    #[ORM\Column(options: ['default' => true])]
     private bool $isActive = true;
 
     #[ORM\Column(type: 'datetime')]
@@ -167,15 +164,6 @@ class Produit
         return $this->isActive && (int) $this->stock <= 0;
     }
 
-    /**
-     * @deprecated Colonne « disponible » conservée en base mais plus utilisée : voir isDisponible() (actif ET stock > 0).
-     */
-    public function setDisponible(bool $disponible): static
-    {
-        $this->disponible = $disponible;
-
-        return $this;
-    }
 
     public function isActive(): bool
     {

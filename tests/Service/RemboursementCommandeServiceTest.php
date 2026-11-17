@@ -32,7 +32,7 @@ class RemboursementCommandeServiceTest extends KernelTestCase
 
     protected function setUp(): void
     {
-        $this->produit = (new Produit())->setName('Cookie A')->setPrix(3.0)->setStock(40)->setDisponible(true);
+        $this->produit = (new Produit())->setName('Cookie A')->setPrix(3.0)->setStock(40);
         $this->commande = (new Commande())->setNumeroCommande('PER-T')->setTotalTTC(12.38)->setStripeSessionId('cs_1')
             ->setStripePaymentIntentId(self::PI)->setStatut(CommandeStatut::PAYEE);
         $this->persistes = [];

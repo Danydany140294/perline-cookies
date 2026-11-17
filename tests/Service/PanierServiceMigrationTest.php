@@ -37,8 +37,8 @@ class PanierServiceMigrationTest extends TestCase
     protected function setUp(): void
     {
         $this->user = new User();
-        $this->a = (new Produit())->setName('A')->setPrix(3.0)->setStock(5)->setDisponible(true);
-        $this->b = (new Produit())->setName('B')->setPrix(4.0)->setStock(10)->setDisponible(true);
+        $this->a = (new Produit())->setName('A')->setPrix(3.0)->setStock(5);
+        $this->b = (new Produit())->setName('B')->setPrix(4.0)->setStock(10);
         $this->box = (new Box())->setPrix6(12.99)->setPrix12(19.99)->setPrix24(29.99);
         (new \ReflectionProperty(Box::class, 'id'))->setValue($this->box, 7); // la migration relit la box par son id
         $this->persistes = [];
