@@ -1,0 +1,23 @@
+includes:
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - src
+    excludePaths:
+        - src/Kernel.php
+        - src/DataFixtures # données de démonstration (Faker, propriétés dynamiques)
+    symfony:
+        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+    doctrine:
+        objectManagerLoader: tests/object-manager.php
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        # Les objets Stripe exposent leurs champs en propriétés dynamiques (StripeObject)
+        - message: '#Access to an undefined property Stripe\\StripeObject::\$\w+\.?#'
+          identifier: property.notFound
+        # Clé composite (type, année) : lignes créées par SQL verrouillé dans Facturation, jamais instanciées en PHP
+        - message: '#Property App\\Entity\\FactureCompteur::\$(type|annee) is never written, only read#'
+          identifier: property.onlyRead

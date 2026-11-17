@@ -69,7 +69,7 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         $session = $request->getSession();
         $panierSession = $session->get('panier', null);
 
-        if ($panierSession) {
+        if ($panierSession && $user instanceof \App\Entity\User) {
             $this->panierService->migrerSessionVersBDD($user);
         }
          

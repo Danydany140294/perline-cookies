@@ -57,7 +57,9 @@ class JournalActionsAdmin
                 continue;
             }
             $avant = $apres = [];
-            foreach ($uow->getEntityChangeSet($entite) as $champ => [$ancien, $nouveau]) {
+            foreach ($uow->getEntityChangeSet($entite) as $champ => $changement) {
+                $ancien = $changement[0];
+                $nouveau = $changement[1];
                 if (!isset($suivi[$champ]) || $this->normaliser($ancien) === $this->normaliser($nouveau)) {
                     continue;
                 }

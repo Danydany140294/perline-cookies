@@ -48,7 +48,7 @@ class CompteDonneesController extends AbstractController
             // Déconnexion immédiate
             $jetons->setToken(null);
             $request->getSession()->invalidate();
-            $request->getSession()->getFlashBag()->add('success', 'Votre compte a été supprimé et vos données personnelles anonymisées. À bientôt peut-être !');
+            $this->addFlash('success', 'Votre compte a été supprimé et vos données personnelles anonymisées. À bientôt peut-être !');
 
             return $this->redirectToRoute('app_home');
         }

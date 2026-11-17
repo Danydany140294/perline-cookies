@@ -252,3 +252,7 @@ s'affiche (« Commande prête sous 24 h… »).
 - `stripe.exe`, `node_modules/` et `migrations_backup/` ne sont plus suivis par Git (`.gitignore`) ; ils restent sur le poste. Le CLI Stripe s'installe à part (https://docs.stripe.com/stripe-cli) ; `scripts/stripe-listen.ps1` le trouve dans le PATH ou, à défaut, dans `stripe.exe` à la racine. L'historique Git garde l'ancien `stripe.exe` (la purge de l'historique est une décision à part).
 - Code mort retiré (chapitre 7.2) : `modal_panier_v2.js`, `paiement.js`, `_modal_box_perso.html.twig`, bloc `checkout-button` de `panier.js` (et le script Stripe de la page panier), méthodes inutilisées de `CommandeService`, de `CommandeRepository`, de `AdresseRepository` et de `DelaisLivraison`, route `/paiement/cancel`, règles CSS `.payment-*` / `.btn-payment`.
 - Colonnes inutilisées `box.stock` et `produit.disponible` : migration PRÉPARÉE, non exécutée (voir `docs/colonnes-inutilisees.md`).
+
+## 17. Intégration continue et analyse statique
+- `.github/workflows/ci.yml` : à chaque push, `composer audit`, `lint:container`, `lint:twig`, migrations + `doctrine:schema:validate` (MySQL de test), tests unitaires PHPUnit et PHPStan (niveau 5, `phpstan.neon`). Les tests de bout en bout (Playwright) restent à lancer en local avant chaque livraison.
+- Lancer PHPStan en local : `php bin/console cache:warmup` puis `vendor/bin/phpstan analyse`.

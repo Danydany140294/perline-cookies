@@ -118,7 +118,7 @@ class RemboursementCommandeService
     /** Ajoute une note à l'historique (sans changement de statut). */
     private function noter(Commande $commande, string $source, string $note): void
     {
-        $statut = $commande->getStatut()?->value ?? '';
+        $statut = $commande->getStatut()->value;
         $this->em->persist(new CommandeHistorique($commande, $statut, $statut, $source, null, $note));
     }
 }
