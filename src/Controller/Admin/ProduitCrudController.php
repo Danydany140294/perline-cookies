@@ -48,7 +48,9 @@ class ProduitCrudController extends AbstractCrudController
             NumberField::new('tauxTva', 'Taux de TVA (%)')->setNumDecimals(2)->hideOnIndex()
                 ->setHelp('5,5 % par défaut. À faire valider par votre comptable.'),
             IntegerField::new('stock', 'Stock'),
-            TextField::new('image', 'Image (nom du fichier)')->hideOnIndex(),
+            IntegerField::new('seuilAlerte', 'Seuil d\'alerte de stock')->hideOnIndex()->setRequired(false)
+                ->setHelp('Facultatif : vide = seuil global (config/boutique.yaml). Un e-mail est envoyé une seule fois quand le stock passe sous ce seuil.'),
+        TextField::new('image', 'Image (nom du fichier)')->hideOnIndex(),
             TextField::new('messageDisponibilite', 'Disponibilité')->onlyOnIndex(),
             BooleanField::new('isActive', 'Actif')
                 ->setHelp('Décoché : le cookie n\'apparaît plus sur le site et ne peut plus être commandé. Un cookie en rupture (stock à 0) est signalé automatiquement, sans toucher à ce réglage.'),

@@ -33,6 +33,15 @@ class Produit
     #[ORM\Column]
     private ?int $stock = null;
 
+    /** Seuil d'alerte de stock propre à ce cookie (facultatif : sinon le seuil global de config/boutique.yaml). */
+    #[ORM\Column(nullable: true)]
+    #[Assert\PositiveOrZero(message: 'Le seuil d\'alerte doit être positif ou nul.')]
+    private ?int $seuilAlerte = null;
+
+    /** Alerte de stock déjà envoyée pour la baisse en cours (remis à faux quand le stock repasse au-dessus du seuil). */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $alerteStockEnvoyee = false;
+
     #[ORM\Column(length: 255)]
     private ?string $image = null;
 
@@ -518,6 +527,30 @@ class Produit
     public function setTauxTva(float|string|null $tauxTva): static
     {
         $this->tauxTva = number_format((float) ($tauxTva ?? 5.5), 2, '.', '');
+
+        return $this;
+    }
+
+    public function getSeuilAlerte(): ?int { return $this->seuilAlerte; }
+
+    public function setSeuilAlerte(?int $seuilAlerte): static
+    {
+        $this->seuilAlerte = $seuilAlerte;
+
+        return $this;
+    }
+
+    /** Seuil effectif : celui du produit s'il est renseigné, sinon le seuil global. */
+    public function getSeuilEffectif(int $seuilGlobal): int
+    {
+        return $this->seuilAlerte ?? $seuilGlobal;
+    }
+
+    public function isAlerteStockEnvoyee(): bool { return $this->alerteStockEnvoyee; }
+
+    public function setAlerteStockEnvoyee(bool $envoyee): static
+    {
+        $this->alerteStockEnvoyee = $envoyee;
 
         return $this;
     }

@@ -34,4 +34,19 @@ class IdentiteBoutiqueTest extends TestCase
         }
         $this->assertStringContainsString('.invalid', $config['email_contact'], 'Valeurs fictives tant que la boutique n\'est pas configurée');
     }
+
+    public function testAlertesParDefautVersLEmailDeContactEtSeuilGlobal(): void
+    {
+        $this->assertSame('contact@x.test', (new IdentiteBoutique(['email_contact' => 'contact@x.test', 'email_alertes' => '']))->emailAlertes());
+        $this->assertSame('alertes@x.test', (new IdentiteBoutique(['email_contact' => 'contact@x.test', 'email_alertes' => 'alertes@x.test']))->emailAlertes());
+        $this->assertSame(5, (new IdentiteBoutique([]))->seuilStockGlobal(), 'Seuil global de 5 par défaut');
+        $this->assertSame(8, (new IdentiteBoutique(['stock_seuil_global' => 8]))->seuilStockGlobal());
+    }
+
+    public function testSeuilEffectifDUnProduit(): void
+    {
+        $produit = new \App\Entity\Produit();
+        $this->assertSame(5, $produit->getSeuilEffectif(5));
+        $this->assertSame(2, $produit->setSeuilAlerte(2)->getSeuilEffectif(5));
+    }
 }

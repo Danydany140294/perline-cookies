@@ -62,7 +62,8 @@ class TraitementEvenementStripeTest extends KernelTestCase
             $logger,
             [],
             new \App\Service\IdentiteBoutique(['email_expediteur' => 'noreply@test.invalid', 'nom_expediteur' => 'Test']),
-            $this->createMock(\App\Service\Facturation::class)
+            $this->createMock(\App\Service\Facturation::class),
+            $this->createMock(\App\Service\AlertesAdmin::class)
         );
     }
 
@@ -152,7 +153,8 @@ class TraitementEvenementStripeTest extends KernelTestCase
             $this->createMock(LoggerInterface::class),
             [],
             new \App\Service\IdentiteBoutique(['email_expediteur' => 'noreply@test.invalid', 'nom_expediteur' => 'Test']),
-            $this->createMock(\App\Service\Facturation::class)
+            $this->createMock(\App\Service\Facturation::class),
+            $this->createMock(\App\Service\AlertesAdmin::class)
         );
         $charge = static fn (array $o) => \Stripe\Event::constructFrom(['id' => 'evt_r', 'type' => 'charge.refunded', 'data' => ['object' => $o + ['id' => 'ch_1', 'payment_intent' => 'pi_9', 'amount' => 1238]]]);
 

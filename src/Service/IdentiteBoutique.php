@@ -27,6 +27,18 @@ class IdentiteBoutique
         return new Address($this->get('email_expediteur'), $this->get('nom_expediteur'));
     }
 
+    /** Adresse des alertes d'administration : mail_alertes, ou l'e-mail de contact par défaut. */
+    public function emailAlertes(): string
+    {
+        return $this->get('email_alertes') !== '' ? $this->get('email_alertes') : $this->emailContact();
+    }
+
+    /** Seuil global d'alerte de stock (cookies). */
+    public function seuilStockGlobal(): int
+    {
+        return max(0, (int) ($this->boutique['stock_seuil_global'] ?? 5));
+    }
+
     public function emailContact(): string
     {
         return $this->get('email_contact');

@@ -4,7 +4,12 @@ namespace App\Controller\Admin;
 
 use App\Entity\Commande;
 use App\Entity\CommandeHistorique;
+use App\Admin\Filter\ClientFilter;
 use App\Service\ChangementStatutCommande;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 use App\Service\EmailExpeditionService;
 use App\Service\ContexteChangementStatut;
 use App\Service\RestitutionStockService;
@@ -38,6 +43,26 @@ class CommandeCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return Commande::class;
+    }
+
+    public function configureCrud(Crud $crud): Crud
+    {
+        return $crud
+            ->setDefaultSort(['dateCommande' => 'DESC', 'id' => 'DESC'])
+            ->setSearchFields(['numeroCommande', 'user.email', 'user.nom', 'user.prenom']);
+    }
+
+    /** Filtres : statut, plage de dates, client (nom ou e-mail), numéro. */
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters
+            ->add(ChoiceFilter::new('statut', 'Statut')->setChoices(array_combine(
+                array_map(static fn (CommandeStatut $s): string => $s->getLibelle(), CommandeStatut::cases()),
+                array_map(static fn (CommandeStatut $s): string => $s->value, CommandeStatut::cases())
+            )))
+            ->add(DateTimeFilter::new('dateCommande', 'Date de commande'))
+            ->add(ClientFilter::new())
+            ->add(TextFilter::new('numeroCommande', 'Numéro de commande'));
     }
 
     public function configureFields(string $pageName): iterable

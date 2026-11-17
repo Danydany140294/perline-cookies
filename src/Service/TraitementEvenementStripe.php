@@ -30,7 +30,8 @@ class TraitementEvenementStripe
         private LoggerInterface $logger,
         #[Autowire(param: 'retrait')] private array $retrait,
         private IdentiteBoutique $boutique,
-        private Facturation $facturation
+        private Facturation $facturation,
+        private AlertesAdmin $alertes
     ) {
     }
 
@@ -108,6 +109,7 @@ class TraitementEvenementStripe
                 if ($commande->getUser()) {
                     $this->envoyerConfirmation($commande, $facture);
                 }
+                $this->alertes->commandePayee($commande); // e-mail à l'administration (jamais bloquant)
             }
 
             return $resultat;
