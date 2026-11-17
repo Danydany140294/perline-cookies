@@ -123,7 +123,7 @@ class BoxPersoPrixTest extends TestCase
     private function service(Box $boxEnBase, Session $session): PanierService
     {
         $repo = $this->createMock(EntityRepository::class);
-        $repo->method('find')->willReturnCallback(fn ($id) => $id === 4 ? $boxEnBase : (new Produit())->setName('C')->setPrix(3.0)->setStock(50)->setDisponible(true));
+        $repo->method('find')->willReturnCallback(fn ($id) => $id === 4 ? $boxEnBase : (new Produit())->setName('C')->setPrix(3.0)->setStock(50));
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repo);
 

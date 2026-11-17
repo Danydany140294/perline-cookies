@@ -32,10 +32,6 @@ class Box
     #[ORM\Column(length: 255)]
     private ?string $image = null;
 
-    /** Plus utilisé : le stock d'une box se déduit des stocks de ses cookies (colonne conservée, à supprimer au nettoyage). */
-    #[ORM\Column]
-    private ?int $stock = 0;
-
     #[ORM\Column(length: 50)]
     private ?string $type = null;
 
@@ -124,17 +120,6 @@ private ?float $prix24 = null;
     public function setImage(string $image): static
     {
         $this->image = $image;
-        return $this;
-    }
-
-    public function getStock(): ?int
-    {
-        return $this->stock;
-    }
-
-    public function setStock(int $stock): static
-    {
-        $this->stock = $stock;
         return $this;
     }
 

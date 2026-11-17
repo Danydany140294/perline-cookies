@@ -42,7 +42,7 @@ class PanierBoxPersoValidationTest extends TestCase
 
     private function cookie(int $id, string $nom, int $stock): Produit
     {
-        $p = (new Produit())->setName($nom)->setPrix(3.0)->setStock($stock)->setDisponible(true);
+        $p = (new Produit())->setName($nom)->setPrix(3.0)->setStock($stock);
         (new \ReflectionProperty(Produit::class, 'id'))->setValue($p, $id);
 
         return $p;

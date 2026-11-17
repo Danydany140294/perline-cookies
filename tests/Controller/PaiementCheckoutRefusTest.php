@@ -143,7 +143,7 @@ class PaiementCheckoutRefusTest extends TestCase
 
     private function cookie(string $nom, int $stock): Produit
     {
-        return (new Produit())->setName($nom)->setPrix(3.0)->setStock($stock)->setDisponible(true);
+        return (new Produit())->setName($nom)->setPrix(3.0)->setStock($stock);
     }
 
     public function testStockInsuffisantEstBloqueAvecLeNomDuCookieSansCreerDeCommande(): void
@@ -207,7 +207,7 @@ class PaiementCheckoutRefusTest extends TestCase
 
     public function testUneErreurTechniqueNeFuiteJamaisVersLeNavigateur(): void
     {
-        $cookie = (new Produit())->setName('Cookie A')->setPrix(3.0)->setStock(10)->setDisponible(true);
+        $cookie = (new Produit())->setName('Cookie A')->setPrix(3.0)->setStock(10);
         $ligne = (new LignePanier())->setProduit($cookie)->setQuantite(1);
 
         [$statut, $json] = $this->appeler('{"mode":"retrait"}', null, null, [$ligne], new \RuntimeException('SQLSTATE[23000]: Duplicate entry secret-interne'));

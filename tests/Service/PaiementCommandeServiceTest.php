@@ -209,7 +209,7 @@ class PaiementCommandeServiceTest extends KernelTestCase
 
     private function autre(): Produit
     {
-        return (new Produit())->setName('B')->setPrix(2.0)->setStock(10)->setDisponible(true);
+        return (new Produit())->setName('B')->setPrix(2.0)->setStock(10);
     }
 
     // ───────────── Scénarios de paiement : session expirée, paiement tardif ─────────────

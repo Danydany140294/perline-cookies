@@ -59,7 +59,7 @@ class PanierQuantitesTest extends TestCase
 
     private function cookie(int $id, string $nom, int $stock): Produit
     {
-        $p = (new Produit())->setName($nom)->setPrix(3.0)->setStock($stock)->setDisponible(true);
+        $p = (new Produit())->setName($nom)->setPrix(3.0)->setStock($stock);
         $this->idDe($p, $id);
 
         return $p;
