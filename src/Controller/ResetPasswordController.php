@@ -17,6 +17,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use App\Service\IdentiteBoutique;
 use SymfonyCasts\Bundle\ResetPassword\Controller\ResetPasswordControllerTrait;
 use SymfonyCasts\Bundle\ResetPassword\Exception\ResetPasswordExceptionInterface;
 use SymfonyCasts\Bundle\ResetPassword\ResetPasswordHelperInterface;
@@ -28,7 +29,8 @@ class ResetPasswordController extends AbstractController
 
     public function __construct(
         private ResetPasswordHelperInterface $resetPasswordHelper,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private IdentiteBoutique $boutique
     ) {
     }
 
@@ -160,7 +162,7 @@ class ResetPasswordController extends AbstractController
         }
 
         $email = (new TemplatedEmail())
-            ->from(new Address('admin@creaself.com', 'Creabot'))
+            ->from($this->boutique->expediteur())
             ->to((string) $user->getEmail())
             ->subject('Réinitialisation de votre mot de passe')
             ->htmlTemplate('reset_password/email.html.twig')
@@ -171,8 +173,10 @@ class ResetPasswordController extends AbstractController
 
         $mailer->send($email);
 
-        // 🎭 MODE DÉMO : Message visible pour le portfolio
-        $this->addFlash('demo', '🎭 MODE DÉMO : En production, un email serait envoyé à ' . $user->getEmail());
+        // Mode démonstration (config/boutique.yaml) : message d'information visible, l'e-mail est bien envoyé
+        if ($this->boutique->modeDemo()) {
+            $this->addFlash('demo', '🎭 Version de démonstration : un e-mail de réinitialisation vient d\'être envoyé à ' . $user->getEmail());
+        }
         
         // 🔗 Lien direct pour faciliter les tests en développement
         if ($this->getParameter('kernel.environment') === 'dev') {

@@ -94,6 +94,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\JoinTable(name: 'user_favoris')]
     private Collection $favoris;
 
+    /** Adresse e-mail confirmée (les comptes existants avant le chapitre 1.5 sont considérés comme confirmés ; un nouveau compte doit la confirmer par e-mail). */
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    private bool $emailVerifie = true;
+
+    /** Date de suppression du compte par anonymisation (les commandes et factures sont conservées 10 ans, sans lien avec une personne identifiable). */
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $anonymiseLe = null;
+
+    /** Nouvelle adresse demandée, pas encore confirmée par le lien envoyé à cette adresse. */
+    #[ORM\Column(length: 180, nullable: true)]
+    private ?string $emailEnAttente = null;
+
     public function __construct()
     {
         $this->commandes = new ArrayCollection();
@@ -508,5 +520,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __toString(): string
     {
         return $this->getNomComplet() . ' (' . $this->email . ')';
+    }
+
+    public function getAnonymiseLe(): ?\DateTimeImmutable { return $this->anonymiseLe; }
+
+    public function setAnonymiseLe(?\DateTimeImmutable $anonymiseLe): static
+    {
+        $this->anonymiseLe = $anonymiseLe;
+
+        return $this;
+    }
+
+    public function isAnonymise(): bool { return $this->anonymiseLe !== null; }
+
+    public function isEmailVerifie(): bool { return $this->emailVerifie; }
+
+    public function setEmailVerifie(bool $emailVerifie): static
+    {
+        $this->emailVerifie = $emailVerifie;
+
+        return $this;
+    }
+
+    public function getEmailEnAttente(): ?string { return $this->emailEnAttente; }
+
+    public function setEmailEnAttente(?string $emailEnAttente): static
+    {
+        $this->emailEnAttente = $emailEnAttente;
+
+        return $this;
     }
 }

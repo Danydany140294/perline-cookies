@@ -119,14 +119,15 @@
                                 {% endif %}
                             </div>
                             {% if derniereCommande %}
-                                <button class="btn btn-primary btn-full">
+                                <a href="{{ path('app_compte_commande', {id: derniereCommande.id}) }}" class="btn btn-primary btn-full">
                                     <span class="material-symbols-outlined">local_shipping</span>
                                     Suivre ma livraison
-                                </button>
+                                </a>
                             {% endif %}
                             <span class="card-icon-bg material-symbols-outlined">package</span>
                         </div>
 
+{% if boutique.fonctions.points_fidelite %}
                         {# Carte Points de fidélité #}
                         <div class="card card-loyalty">
                             <div class="card-body">
@@ -159,9 +160,11 @@
                                 </div>
                             </div>
                         </div>
+{% endif %}
 
                     </div>
 
+{% if boutique.fonctions.favoris %}
                     {# Section Favoris #}
                     <section class="favorites-section">
                         <div class="section-header">
@@ -197,6 +200,7 @@
                             {% endif %}
                         </div>
                     </section>
+{% endif %}
                 </div>
 
                 {# ==================== ONGLET 2 : Mes Commandes ==================== #}
@@ -215,6 +219,7 @@
                                             </span>
                                         </div>
                                         <p>Date : {{ commande.dateCommande|date('d/m/Y') }}</p>
+                                        <p><a href="{{ path('app_compte_commande', {id: commande.id}) }}" class="btn btn-sm btn-outline">Voir le détail</a></p>
                                         <p>{{ commande.nombreLignes }} article(s) - {{ commande.nombreTotalArticles }} unité(s)</p>
                                         <p><strong>Total : {{ commande.totalTTC|number_format(2, ',', ' ') }}€</strong></p>
                                         {% if commande.enCours %}
@@ -363,6 +368,7 @@
                             </div>
                         </div>
 
+{% if boutique.fonctions.points_fidelite %}
                         {# Carte de fidélité #}
                         <div class="info-loyalty-card">
                             <div class="info-loyalty-content">
@@ -379,6 +385,7 @@
                                 <span class="points-label">points</span>
                             </div>
                         </div>
+{% endif %}
 
                         {# Section sécurité #}
                         <div class="info-security-section">
@@ -387,13 +394,17 @@
                                 Sécurité
                             </h4>
                             <div class="info-security-actions">
-                                <a href="#" class="btn btn-outline">
+                                <a href="{{ path('app_compte_mot_de_passe') }}" class="btn btn-outline" id="lien-mot-de-passe">
                                     <span class="material-symbols-outlined">lock</span>
                                     Modifier mon mot de passe
                                 </a>
-                                <a href="#" class="btn btn-outline">
-                                    <span class="material-symbols-outlined">shield</span>
-                                    Activer l'authentification à deux facteurs
+                                <a href="{{ path('app_compte_donnees') }}" class="btn btn-outline" id="lien-donnees">
+                                    <span class="material-symbols-outlined">database</span>
+                                    Mes données et suppression du compte
+                                </a>
+                                <a href="{{ path('app_compte_email') }}" class="btn btn-outline" id="lien-email">
+                                    <span class="material-symbols-outlined">mail</span>
+                                    Modifier mon adresse e-mail
                                 </a>
                             </div>
                         </div>
@@ -478,12 +489,13 @@ function initInlineEditProfil() {
 
         fetch('{{ path('app_user_update_profil') }}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token('profil') }}' },
             body: JSON.stringify(payload)
         })
-        .then(res => {
-            if (!res.ok) throw new Error('Statut HTTP : ' + res.status);
-            return res.json();
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok && !data.error) throw new Error('Erreur serveur');
+            return data;
         })
         .then(data => {
             if (data.success) {
@@ -524,6 +536,7 @@ function initAvatarUpload() {
 
             fetch('{{ path('app_user_update_avatar') }}', {
                 method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token('profil') }}' },
                 body: formData
             })
             .then(res => {

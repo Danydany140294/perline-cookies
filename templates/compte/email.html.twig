@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Modifier mon adresse e-mail — {{ boutique.nom_marque }}{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-creme py-12 px-4">
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-8">
+        <a href="{{ path('app_user_dashboard') }}#informations" class="text-sm text-gray-400 hover:text-chocolat">← Mon compte</a>
+        <h1 class="text-2xl font-bold text-chocolat mt-3 mb-6">Modifier mon adresse e-mail</h1>
+
+        {% for type, messages in app.flashes %}{% for message in messages %}
+            <div class="mb-4 px-4 py-3 rounded-lg text-sm font-medium {{ type == 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">{{ message }}</div>
+        {% endfor %}{% endfor %}
+        <p class="text-sm text-gray-500 mb-4">Adresse actuelle : <strong>{{ app.user.email }}</strong>{% if app.user.emailEnAttente %}<br>En attente de confirmation : <strong>{{ app.user.emailEnAttente }}</strong>{% endif %}</p>
+        {{ form_start(form) }}
+            {% for champ in form %}
+                <div class="mb-4">
+                    {{ form_label(champ, null, {label_attr: {class: 'block text-sm font-medium text-gray-600 mb-1'}}) }}
+                    {{ form_widget(champ, {attr: {class: 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm'}}) }}
+                    {{ form_errors(champ) }}
+                </div>
+            {% endfor %}
+            <button type="submit" class="w-full bg-chocolat text-white rounded-xl py-2.5 font-medium">Envoyer le lien de confirmation</button>
+        {{ form_end(form) }}
+    </div>
+</div>
+{% endblock %}

@@ -11,11 +11,23 @@ parameters:
     # BOUTIQUE_MODE_DEMO=0 (variable d'environnement) pour passer en mode réel ; 1 par défaut (sécurité).
     env(BOUTIQUE_MODE_DEMO): '1'
 
+    # Fonctions optionnelles : désactivées par défaut (rien n'est supprimé : tables et données sont conservées).
+    # Elles seront reconstruites avec un vrai circuit (avis vérifiés, fidélité réelle...) ; chaque client pourra les activer.
+    env(BOUTIQUE_FONCTION_FAVORIS): '0'
+    env(BOUTIQUE_FONCTION_AVIS): '0'
+    env(BOUTIQUE_FONCTION_POINTS_FIDELITE): '0'
+
     boutique:
         # Quand mode_demo est actif : bandeau « Version de démonstration » sur le site et filigrane
         # « Document de démonstration, sans valeur fiscale » sur les factures et les avoirs.
         # Quand il est inactif, tout est réel.
         mode_demo: '%env(bool:BOUTIQUE_MODE_DEMO)%'
+
+        # Fonctions optionnelles (1 = visible, 0 = masquée)
+        fonctions:
+            favoris: '%env(bool:BOUTIQUE_FONCTION_FAVORIS)%'
+            avis: '%env(bool:BOUTIQUE_FONCTION_AVIS)%'
+            points_fidelite: '%env(bool:BOUTIQUE_FONCTION_POINTS_FIDELITE)%'
 
         nom_marque: 'Perline Cookies'
         raison_sociale: 'Perline Cookies SAS (exemple)'

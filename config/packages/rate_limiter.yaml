@@ -8,3 +8,7 @@ framework:
             policy: sliding_window
             limit: 3
             interval: '15 minutes'
+        verification_email:
+            policy: sliding_window
+            limit: 3
+            interval: '15 minutes'

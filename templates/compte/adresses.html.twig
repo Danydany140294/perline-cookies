@@ -68,6 +68,7 @@
 
                                     {% if not adresse.parDefaut %}
                                         <form action="{{ path('app_adresses_set_default', {id: adresse.id}) }}" method="POST" class="inline">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('adresse_defaut_' ~ adresse.id) }}">
                                             <button type="submit"
                                                     class="text-xs px-3 py-1.5 rounded-full border border-or text-or hover:bg-or hover:text-white transition">
                                                 ⭐ Définir par défaut
@@ -76,6 +77,7 @@
 
                                         <form action="{{ path('app_adresses_delete', {id: adresse.id}) }}" method="POST" class="inline"
                                               onsubmit="return confirm('Supprimer cette adresse ?')">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('adresse_supprimer_' ~ adresse.id) }}">
                                             <button type="submit"
                                                     class="text-xs px-3 py-1.5 rounded-full border border-red-300 text-red-400 hover:bg-red-400 hover:text-white transition">
                                                 🗑️ Supprimer

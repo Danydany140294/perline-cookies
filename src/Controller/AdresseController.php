@@ -54,11 +54,11 @@ class AdresseController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/modifier', name: 'app_adresses_edit', methods: ['GET', 'POST'])]
+    #[Route('/{id}/modifier', name: 'app_adresses_edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function edit(Adresse $adresse, Request $request, EntityManagerInterface $em): Response
     {
         if ($adresse->getUser() !== $this->getUser()) {
-            throw $this->createAccessDeniedException('Vous ne pouvez pas modifier cette adresse.');
+            throw $this->createNotFoundException();
         }
 
         $form = $this->createForm(AdresseType::class, $adresse);
@@ -83,14 +83,16 @@ class AdresseController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/supprimer', name: 'app_adresses_delete', methods: ['DELETE', 'POST', 'GET'])]
+    #[Route('/{id}/supprimer', name: 'app_adresses_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function delete(Adresse $adresse, Request $request, EntityManagerInterface $em): Response
     {
         if ($adresse->getUser() !== $this->getUser()) {
-            if ($request->isXmlHttpRequest()) {
-                return $this->json(['success' => false, 'message' => 'Accès refusé'], 403);
-            }
-            throw $this->createAccessDeniedException('Vous ne pouvez pas supprimer cette adresse.');
+            throw $this->createNotFoundException();
+        }
+        if (!$this->isCsrfTokenValid('adresse_supprimer_' . $adresse->getId(), $request->request->getString('_token'))) {
+            $this->addFlash('error', 'Action refusée (jeton de sécurité invalide). Merci de réessayer.');
+
+            return $this->redirectToRoute('app_adresses_index');
         }
 
         $userAddresses = $this->getUser()->getAdresses();
@@ -126,14 +128,16 @@ class AdresseController extends AbstractController
         return $this->redirectToRoute('app_adresses_index');
     }
 
-    #[Route('/{id}/definir-par-defaut', name: 'app_adresses_set_default', methods: ['POST', 'GET'])]
+    #[Route('/{id}/definir-par-defaut', name: 'app_adresses_set_default', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function setDefault(Adresse $adresse, Request $request, EntityManagerInterface $em): Response
     {
         if ($adresse->getUser() !== $this->getUser()) {
-            if ($request->isXmlHttpRequest()) {
-                return $this->json(['success' => false, 'message' => 'Accès refusé'], 403);
-            }
-            throw $this->createAccessDeniedException('Vous ne pouvez pas modifier cette adresse.');
+            throw $this->createNotFoundException();
+        }
+        if (!$this->isCsrfTokenValid('adresse_defaut_' . $adresse->getId(), $request->request->getString('_token'))) {
+            $this->addFlash('error', 'Action refusée (jeton de sécurité invalide). Merci de réessayer.');
+
+            return $this->redirectToRoute('app_adresses_index');
         }
 
         $this->adresseService->removeDefaultFromOtherAddresses($this->getUser());

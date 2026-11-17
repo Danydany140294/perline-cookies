@@ -1,0 +1,113 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Commande {{ commande.numeroCommande }} — {{ boutique.nom_marque }}{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-creme py-12 px-4">
+    <div class="max-w-3xl mx-auto">
+
+        <a href="{{ path('app_user_dashboard') }}#commandes" class="text-sm text-gray-400 hover:text-chocolat transition">← Mes commandes</a>
+
+        <div class="mt-4 mb-8 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h1 class="text-2xl font-bold text-chocolat">Commande {{ commande.numeroCommande }}</h1>
+                <p class="text-gray-500 mt-1">Passée le {{ commande.dateCommande|date('d/m/Y à H:i') }}</p>
+            </div>
+            <span class="badge {{ commande.statutBadgeClass }}" id="commande-statut">{{ commande.statutLabel }}</span>
+        </div>
+
+        {% if commande.statut.value == 'retournee' %}
+            <div class="mb-6 px-4 py-3 rounded-lg text-sm bg-yellow-100 text-yellow-800">Votre colis nous a été retourné. Nous vous contactons pour convenir d'un remboursement ou d'une réexpédition.</div>
+        {% endif %}
+
+        {# Articles #}
+        <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">Articles</h2>
+            <table class="w-full text-sm" id="commande-articles">
+                <thead>
+                    <tr class="text-left text-gray-500 border-b">
+                        <th class="py-2">Article</th><th class="py-2 text-right">Qté</th><th class="py-2 text-right">Prix unitaire TTC</th><th class="py-2 text-right">Total TTC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for ligne in commande.lignesCommande %}
+                    <tr class="border-b border-gray-100 align-top">
+                        <td class="py-2">
+                            {{ ligne.produit ? ligne.produit.name : (ligne.box ? ligne.box.nom : 'Article') }}
+                            {% if ligne.compositionsBox|length > 0 %}
+                                <div class="text-xs text-gray-400">{% for compo in ligne.compositionsBox %}{{ compo.quantite }} × {{ compo.produit.name }}{{ not loop.last ? ', ' : '' }}{% endfor %}</div>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 text-right">{{ ligne.quantite }}</td>
+                        <td class="py-2 text-right whitespace-nowrap">{{ ligne.prixUnitaire|number_format(2, ',', ' ') }} €</td>
+                        <td class="py-2 text-right whitespace-nowrap">{{ ligne.sousTotal|number_format(2, ',', ' ') }} €</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+
+            <dl class="mt-4 text-sm space-y-1" id="commande-totaux">
+                <div class="flex justify-between"><dt>Articles</dt><dd>{{ commande.sousTotalArticles|number_format(2, ',', ' ') }} €</dd></div>
+                <div class="flex justify-between"><dt>{{ commande.retrait ? 'Retrait sur place' : 'Livraison' }}</dt><dd>{{ commande.fraisLivraison > 0 ? commande.fraisLivraison|number_format(2, ',', ' ') ~ ' €' : 'Offerte' }}</dd></div>
+                {% if commande.tvaDetail|length > 0 %}
+                    <div class="flex justify-between text-gray-500"><dt>Total HT</dt><dd>{{ commande.totalHt|number_format(2, ',', ' ') }} €</dd></div>
+                    {% for ligne in commande.tvaDetail %}
+                        <div class="flex justify-between text-gray-500"><dt>TVA {{ ligne.taux|number_format(2, ',', ' ') }} %</dt><dd>{{ ligne.tva|number_format(2, ',', ' ') }} €</dd></div>
+                    {% endfor %}
+                {% endif %}
+                <div class="flex justify-between font-bold text-base border-t pt-2"><dt>Total TTC</dt><dd>{{ commande.totalTTC|number_format(2, ',', ' ') }} €</dd></div>
+                {% if commande.montantRembourse > 0 %}
+                    <div class="flex justify-between text-gray-500"><dt>Déjà remboursé</dt><dd>{{ commande.montantRembourse|number_format(2, ',', ' ') }} €</dd></div>
+                {% endif %}
+            </dl>
+        </div>
+
+        {# Livraison ou retrait #}
+        <div class="bg-white rounded-2xl shadow-sm p-6 mb-6" id="commande-livraison">
+            {% if commande.retrait %}
+                <h2 class="text-lg font-semibold text-gray-700 mb-2">Retrait sur place</h2>
+                <p class="text-sm">{{ retrait.lieu }}<br>{{ retrait.adresse }}<br>{{ retrait.horaires }}</p>
+            {% else %}
+                <h2 class="text-lg font-semibold text-gray-700 mb-2">Livraison</h2>
+                {% set adresse = commande.adresseLivraisonFigee %}
+                {% if adresse %}
+                    <p class="text-sm">
+                        {% if adresse.destinataire %}{{ adresse.destinataire }}<br>{% endif %}
+                        {{ adresse.rue }}<br>
+                        {% if adresse.complement %}{{ adresse.complement }}<br>{% endif %}
+                        {{ adresse.codePostal }} {{ adresse.ville }}<br>{{ adresse.pays }}
+                        {% if adresse.telephone %}<br>Tél. {{ adresse.telephone }}{% endif %}
+                    </p>
+                {% endif %}
+                {% if commande.livraisonEstimeeTexte and commande.statut.value in ['payee', 'confirmee', 'en_preparation'] %}
+                    <p class="text-sm font-medium mt-3">{{ commande.livraisonEstimeeTexte }}</p>
+                {% endif %}
+                {% if commande.dateExpedition or commande.numeroSuivi %}
+                    <div class="mt-3 text-sm" id="commande-suivi">
+                        {% if commande.dateExpedition %}<p>Expédiée le {{ commande.dateExpedition|date('d/m/Y') }}{% if commande.transporteur %} avec {{ commande.transporteur }}{% endif %}</p>{% endif %}
+                        {% if commande.numeroSuivi %}
+                            <p>Numéro de suivi : <strong>{{ commande.numeroSuivi }}</strong>
+                            {% set lien = lien_suivi(commande) %}{% if lien %} — <a href="{{ lien }}" target="_blank" rel="noopener noreferrer" class="underline text-chocolat">Suivre mon colis</a>{% endif %}</p>
+                        {% endif %}
+                        {% if commande.dateLivraison %}<p>Livrée le {{ commande.dateLivraison|date('d/m/Y') }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        {# Factures et avoirs #}
+        {% if commande.factures|length > 0 %}
+            <div class="bg-white rounded-2xl shadow-sm p-6 mb-6" id="commande-documents">
+                <h2 class="text-lg font-semibold text-gray-700 mb-3">Documents</h2>
+                <div class="flex flex-wrap gap-2">
+                    {% for document in commande.factures %}
+                        <a href="{{ path('app_facture_telecharger', {id: document.id}) }}" class="btn btn-sm {{ document.avoir ? 'btn-outline' : 'btn-primary' }}">
+                            {{ document.avoir ? 'Télécharger l\'avoir' : 'Télécharger la facture' }} {{ document.numero }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
