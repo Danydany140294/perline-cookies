@@ -74,7 +74,8 @@ jobs:
         run: |
           php bin/console doctrine:database:create --env=test --if-not-exists
           php bin/console doctrine:migrations:migrate --env=test --no-interaction
-          php bin/phpunit
+          php bin/phpunit 2>&1 | tee phpunit.log
+          test "${PIPESTATUS[0]}" -eq 0 || { echo "::error title=PHPUnit::$(grep -A8 -E '^[0-9]+\) ' phpunit.log | head -60 | sed ':a;N;$!ba;s/\n/%0A/g')"; exit 1; }
 
       - name: PHPStan
         run: |
