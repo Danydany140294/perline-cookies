@@ -12,6 +12,9 @@ class VerifieEmailChecker implements UserCheckerInterface
 {
     public function checkPreAuth(UserInterface $user): void
     {
+        if ($user instanceof User && $user->isAnonymise()) {
+            throw new CustomUserMessageAccountStatusException('Ce compte a été supprimé.');
+        }
         if ($user instanceof User && !$user->isEmailVerifie()) {
             throw new CustomUserMessageAccountStatusException('Votre adresse e-mail n\'est pas encore confirmée : cliquez sur le lien reçu par e-mail (pensez à vérifier vos courriers indésirables).');
         }

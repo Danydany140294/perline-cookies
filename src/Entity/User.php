@@ -98,6 +98,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $emailVerifie = true;
 
+    /** Date de suppression du compte par anonymisation (les commandes et factures sont conservées 10 ans, sans lien avec une personne identifiable). */
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $anonymiseLe = null;
+
     /** Nouvelle adresse demandée, pas encore confirmée par le lien envoyé à cette adresse. */
     #[ORM\Column(length: 180, nullable: true)]
     private ?string $emailEnAttente = null;
@@ -517,6 +521,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         return $this->getNomComplet() . ' (' . $this->email . ')';
     }
+
+    public function getAnonymiseLe(): ?\DateTimeImmutable { return $this->anonymiseLe; }
+
+    public function setAnonymiseLe(?\DateTimeImmutable $anonymiseLe): static
+    {
+        $this->anonymiseLe = $anonymiseLe;
+
+        return $this;
+    }
+
+    public function isAnonymise(): bool { return $this->anonymiseLe !== null; }
 
     public function isEmailVerifie(): bool { return $this->emailVerifie; }
 

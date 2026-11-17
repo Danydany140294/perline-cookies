@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mes données — {{ boutique.nom_marque }}{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-creme py-12 px-4">
+    <div class="max-w-2xl mx-auto">
+        <a href="{{ path('app_user_dashboard') }}#informations" class="text-sm text-gray-400 hover:text-chocolat">← Mon compte</a>
+        <h1 class="text-2xl font-bold text-chocolat mt-3 mb-6">Mes données personnelles</h1>
+
+        {% for type, messages in app.flashes %}{% for message in messages %}
+            <div class="mb-4 px-4 py-3 rounded-lg text-sm font-medium {{ type == 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">{{ message }}</div>
+        {% endfor %}{% endfor %}
+
+        <div class="bg-white rounded-2xl shadow-sm p-6 mb-6" id="bloc-export">
+            <h2 class="text-lg font-semibold text-gray-700 mb-2">Télécharger mes données</h2>
+            <p class="text-sm text-gray-500 mb-4">Un fichier unique (JSON) contenant vos informations, vos adresses et vos commandes.</p>
+            <a href="{{ path('app_compte_donnees_export') }}" class="btn btn-primary" id="lien-export">Télécharger mes données</a>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm p-6" id="bloc-suppression">
+            <h2 class="text-lg font-semibold text-red-600 mb-2">Supprimer mon compte</h2>
+            <p class="text-sm text-gray-600 mb-2">La suppression est <strong>définitive</strong>. Vos données personnelles (nom, e-mail, téléphone, date de naissance, adresses, avatar) sont <strong>anonymisées</strong> et votre accès est fermé.</p>
+            <p class="text-sm text-gray-600 mb-4">Vos commandes et vos factures sont conservées <strong>10 ans</strong> (obligation comptable), sans lien avec une personne identifiable.</p>
+            {% if refus %}
+                <div class="px-4 py-3 rounded-lg text-sm bg-yellow-100 text-yellow-800" id="suppression-refusee">{{ refus }}</div>
+            {% else %}
+                {{ form_start(form) }}
+                    <div class="mb-4">
+                        {{ form_label(form.motDePasse, null, {label_attr: {class: 'block text-sm font-medium text-gray-600 mb-1'}}) }}
+                        {{ form_widget(form.motDePasse, {attr: {class: 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm'}}) }}
+                        {{ form_errors(form.motDePasse) }}
+                    </div>
+                    <button type="submit" class="w-full bg-red-600 text-white rounded-xl py-2.5 font-medium" onclick="return confirm('Supprimer définitivement mon compte ?')">Supprimer définitivement mon compte</button>
+                {{ form_end(form) }}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
