@@ -11,6 +11,8 @@
 {% endblock %}
 
 {% block body %}
+{# Après une erreur de validation ou en modification, l'URL est celle de /compte/adresses : on la ramène sur le tableau de bord et on ouvre l'onglet #}
+{% if onglet_force is defined and onglet_force %}<script>history.replaceState(null, '', '{{ path('app_user_dashboard') }}#{{ onglet_force }}');</script>{% endif %}
 <div class="dashboard-wrapper">
     <div class="dashboard-container">
         <main class="dashboard-main">
@@ -413,32 +415,13 @@
                 </div>
 
                 {# ==================== ONGLET 4 : Mes Adresses ==================== #}
-                {# Une seule gestion des adresses : la page /compte/adresses (aucun formulaire dupliqué ici) #}
+                {# Même vue que /compte/adresses : compte/_adresses_vue.html.twig (une seule source ; les actions passent par AdresseController) #}
                 <div id="tab-adresses" class="tab-content">
                     <div class="tab-inner">
                         <h3 class="tab-title">Mes Adresses</h3>
                         <p class="tab-description">Gérez vos adresses de livraison</p>
 
-                        {% if app.user.adresses|length > 0 %}
-                            <ul class="adresses-resume">
-                                {% for adresse in app.user.adresses %}
-                                    <li>
-                                        <strong>{{ adresse.nom }}</strong>{% if adresse.parDefaut %} <span class="badge badge-success">Par défaut</span>{% endif %}<br>
-                                        {{ adresse.rue }}{% if adresse.complement %}, {{ adresse.complement }}{% endif %}, {{ adresse.codePostal }} {{ adresse.ville }}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="addresses-empty-state">
-                                <span class="material-symbols-outlined address-empty-icon">location_off</span>
-                                <p>Vous n'avez pas encore enregistré d'adresse.</p>
-                            </div>
-                        {% endif %}
-
-                        <a href="{{ path('app_adresses_index') }}" class="btn btn-primary" id="lien-gerer-adresses">
-                            <span class="material-symbols-outlined">edit_location</span>
-                            Gérer mes adresses
-                        </a>
+                        {% include 'compte/_adresses_vue.html.twig' with {adresses: app.user.adresses, depuis: true} %}
                     </div>
                 </div>
 

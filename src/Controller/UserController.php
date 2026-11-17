@@ -66,7 +66,7 @@ final class UserController extends AbstractController
      */
     #[Route('/mon-compte', name: 'app_user_dashboard', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
-    public function dashboard(): Response
+    public function dashboard(Request $request, ?\Symfony\Component\Form\FormView $adresse_form = null, bool $adresse_edition = false, ?\App\Entity\Adresse $adresse_a_modifier = null): Response
     {
         $user = $this->getUser();
 
@@ -74,8 +74,18 @@ final class UserController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
+        // Onglet « Mes Adresses » : la MÊME vue que /compte/adresses (compte/_adresses_vue.html.twig) ; le formulaire est traité par AdresseController
+        $formulaireVide = $adresse_form === null;
+        $adresse_form ??= $this->createForm(\App\Form\AdresseType::class, (new \App\Entity\Adresse())->setUser($user), [
+            'action' => $this->generateUrl('app_adresses_index', ['depuis' => 'compte']),
+        ])->createView();
+
         return $this->render('user/mon_compte.html.twig', [
             'user' => $user,
+            'addressForm' => $adresse_form,
+            'editMode' => $adresse_edition,
+            'adresseToEdit' => $adresse_a_modifier,
+            'onglet_force' => $formulaireVide ? null : 'adresses',
         ]);
     }
 
