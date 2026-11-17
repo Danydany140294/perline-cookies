@@ -100,7 +100,7 @@ test.describe('administration', () => {
 
     // Commandes : le jeton de suppression est dans la page de liste
     await page.goto('/admin/commande');
-    const jeton = await page.locator('form#delete-form input[name="token"]').first().inputValue();
+    const jeton = await page.locator('form#action-confirmation-form input[name="token"], form#delete-form input[name="token"]').first().inputValue();
     const rep = await page.request.post(`/admin/commande/${c.id}/delete`, { form: { token: jeton }, maxRedirects: 0 });
     expect([200, 302, 303]).toContain(rep.status());
     expect(valeur(`SELECT COUNT(*) FROM commande WHERE id = ${c.id}`)).toBe('1');
@@ -109,7 +109,7 @@ test.describe('administration', () => {
 
     // Utilisateurs
     await page.goto('/admin/user');
-    const jetonUser = await page.locator('form#delete-form input[name="token"]').first().inputValue();
+    const jetonUser = await page.locator('form#action-confirmation-form input[name="token"], form#delete-form input[name="token"]').first().inputValue();
     await page.request.post(`/admin/user/${idUser}/delete`, { form: { token: jetonUser }, maxRedirects: 0 });
     expect(valeur(`SELECT COUNT(*) FROM user WHERE id = ${idUser}`)).toBe('1');
     await page.goto('/admin/user');

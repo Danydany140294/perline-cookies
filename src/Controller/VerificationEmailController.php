@@ -6,6 +6,7 @@ use App\Entity\User;
 use App\Service\VerificationEmail;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
@@ -15,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class VerificationEmailController extends AbstractController
 {
     #[Route('/verification-email', name: 'app_verifier_email', methods: ['GET'])]
-    public function verifier(Request $request, VerificationEmail $verification, EntityManagerInterface $em): Response
+    public function verifier(Request $request, VerificationEmail $verification, EntityManagerInterface $em, Security $security): Response
     {
         $expires = $request->query->get('expires');
         if (!$verification->verifier($request->getUri(), ctype_digit((string) $expires) ? (int) $expires : null)) {
@@ -52,9 +53,11 @@ class VerificationEmailController extends AbstractController
             $user->setEmailEnAttente(null);
             $em->flush();
             $verification->notifier($ancienne, 'Votre adresse e-mail a été modifiée', 'Adresse e-mail modifiée', sprintf('L\'adresse e-mail de votre compte est désormais %s. Vous devez utiliser cette nouvelle adresse pour vous connecter.', $email));
+            // Déconnexion explicite (la route /logout exige maintenant un jeton CSRF) ; le message est ajouté APRÈS : la session est neuve.
+            $security->logout(false);
             $this->addFlash('success', 'Votre nouvelle adresse e-mail est confirmée. Reconnectez-vous avec cette adresse.');
 
-            return $this->redirectToRoute('app_logout');
+            return $this->redirectToRoute('app_login');
         }
 
         // Lien déjà utilisé ou devenu sans objet

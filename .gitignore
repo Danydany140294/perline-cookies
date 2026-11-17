@@ -2,6 +2,7 @@
 ###> symfony/framework-bundle ###
 .env
 .env.*
+!/.env.example
 
 /.env.local
 /.env.local.php
@@ -25,6 +26,7 @@
 ###> e2e (tests de bout en bout) ###
 /e2e/node_modules/
 /e2e/test-results/
+/e2e/serveur-*.log
 /e2e/playwright-report/
 /e2e/.auth/
 ###< e2e ###

@@ -8,7 +8,7 @@
 //  4. démarre l'application sur http://127.0.0.1:8001 (environnement « e2e », cache séparé) ;
 //  5. lance Playwright, puis arrête tout (sauf avec --keep).
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
-import { readFileSync, rmSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, rmSync, mkdirSync, existsSync, openSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -79,6 +79,13 @@ function plageDeFermeture() {
   return `${fmt(debut)}/${fmt(fin)}`;
 }
 
+// E2E_DEBUG=1 : la sortie des serveurs PHP (erreurs, exceptions) est écrite dans e2e/serveur-1.log et e2e/serveur-2.log
+function sortieServeur(n) {
+  if (!process.env.E2E_DEBUG) return 'ignore';
+  const f = openSync(path.join(RACINE, 'e2e', `serveur-${n}.log`), 'w');
+  return ['ignore', f, f];
+}
+
 let serveur = null;
 let serveur2 = null;
 async function arreter() {
@@ -133,10 +140,10 @@ try {
   if (r.code !== 0) throw new Error('Préchauffage du cache e2e en échec :\n' + r.sortie);
   // variables_order=EGPCS : le serveur intégré de PHP n'expose pas l'environnement dans $_ENV par défaut, et Dotenv
   // laisserait alors le fichier .env (base de DÉVELOPPEMENT) écraser DATABASE_URL.
-  serveur = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort}`, '-t', 'public'], { cwd: RACINE, env: envApp, stdio: 'ignore' });
+  serveur = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort}`, '-t', 'public'], { cwd: RACINE, env: envApp, stdio: sortieServeur(1) });
   // Le second serveur propose AUSSI de tester le réglage « retrait désactivé » (LIVRAISON_RETRAIT_ACTIF=0) : mêmes fichiers,
   // même base, même session (cookies partagés sur 127.0.0.1), seule la configuration diffère.
-  serveur2 = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort2}`, '-t', 'public'], { cwd: RACINE, env: { ...envApp, BOUTIQUE_MODE_DEMO: '0', BOUTIQUE_FONCTION_FAVORIS: '1', BOUTIQUE_FONCTION_POINTS_FIDELITE: '1', BOUTIQUE_FONCTION_AVIS: '1', LIVRAISON_RETRAIT_ACTIF: '0', LIVRAISON_JOURS_EXPEDITION: '1,2,3,4,5', LIVRAISON_FERMETURES: plageDeFermeture() }, stdio: 'ignore' });
+  serveur2 = spawn('php', ['-d', 'variables_order=EGPCS', '-S', `127.0.0.1:${CONF.appPort2}`, '-t', 'public'], { cwd: RACINE, env: { ...envApp, BOUTIQUE_MODE_DEMO: '0', BOUTIQUE_FONCTION_FAVORIS: '1', BOUTIQUE_FONCTION_POINTS_FIDELITE: '1', BOUTIQUE_FONCTION_AVIS: '1', LIVRAISON_RETRAIT_ACTIF: '0', LIVRAISON_JOURS_EXPEDITION: '1,2,3,4,5', LIVRAISON_FERMETURES: plageDeFermeture() }, stdio: sortieServeur(2) });
   for (const port of [CONF.appPort, CONF.appPort2]) {
     let pret = false;
     for (let i = 0; i < 40 && !pret; i++) {

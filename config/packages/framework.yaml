@@ -9,6 +9,7 @@ framework:
     session:
         handler_id: null
         cookie_secure: auto
+        cookie_httponly: true
         cookie_samesite: lax
         storage_factory_id: session.storage.factory.native
 
@@ -22,3 +23,9 @@ when@test:
         test: true
         session:
             storage_factory_id: session.storage.factory.mock_file
+
+when@prod:
+    framework:
+        session:
+            # En production, le site n'est servi qu'en HTTPS : le cookie de session n'est JAMAIS envoyé en clair.
+            cookie_secure: true

@@ -25,15 +25,19 @@ security:
             logout:
                 path: app_logout
                 target: app_home
+                enable_csrf: true # le lien de déconnexion porte un jeton (logout_path() dans les gabarits)
 
             remember_me:
                 secret: '%kernel.secret%'
                 lifetime: 604800
                 path: /
+                secure: auto
+                httponly: true
+                samesite: lax
 
     session_fixation_strategy: migrate
 
-    # Un administrateur a aussi les droits du gestionnaire. ROLE_ADMIN ne s'attribue que par pp:promote-admin ;
+    # Un administrateur a aussi les droits du gestionnaire. ROLE_ADMIN ne s'attribue que par app:promote-admin ;
     # l'administration ne peut donner ou retirer que ROLE_GESTIONNAIRE (commandes, stock, catalogue).
     role_hierarchy:
         ROLE_ADMIN: [ROLE_GESTIONNAIRE]
