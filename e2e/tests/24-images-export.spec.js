@@ -1,6 +1,6 @@
 // Chapitre 1.6, bloc 4 : envoi d'images depuis l'administration (types, taille, nom aléatoire) et exports CSV.
 import { test, request } from '@playwright/test';
-import { readdirSync, existsSync, rmSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { reinitialiser, creerAutreClient, COOKIE } from '../lib/etat.js';
 import { executerSql, lignes, valeur } from '../lib/db.js';
@@ -32,8 +32,10 @@ async function envoyer(page, id, fichier) {
 
 test('image : JPEG/PNG/WebP acceptés avec un nom aléatoire ; GIF, faux PNG et fichier trop lourd refusés', async ({ page }) => {
   await connecter(page);
-  const avant = fichiers();
   const original = valeur(`SELECT image FROM produit WHERE id = ${COOKIE.noisette}`);
+  // L'administration SUPPRIME l'ancien fichier quand on remplace l'image : on le sauvegarde pour le remettre en place après le test
+  const fichierOriginal = path.join(DOSSIER, original);
+  const sauvegarde = readFileSync(fichierOriginal);  const avant = fichiers();
   const nouveaux = () => [...fichiers()].filter((f) => !avant.has(f));
 
   try {
@@ -58,6 +60,7 @@ test('image : JPEG/PNG/WebP acceptés avec un nom aléatoire ; GIF, faux PNG et 
     expect((await page.request.get(`/asset/images/produits/${image}`)).status()).toBe(200);
   } finally {
     for (const f of nouveaux()) rmSync(path.join(DOSSIER, f), { force: true }); // nettoyage : on ne laisse rien dans le dépôt
+    writeFileSync(fichierOriginal, sauvegarde); // l'image d'origine (suivie par git) est remise en place
     executerSql(`UPDATE produit SET image = '${original}' WHERE id = ${COOKIE.noisette}`);
   }
 });
